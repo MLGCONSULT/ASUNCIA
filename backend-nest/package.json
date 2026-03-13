@@ -9,6 +9,7 @@
     "start:dev": "ts-node-dev --respawn --transpile-only src/main.ts"
   },
   "dependencies": {
+    "openai": "^4.53.0",
     "@modelcontextprotocol/sdk": "^1.26.0",
     "@nestjs/common": "^11.0.0",
     "@nestjs/core": "^11.0.0",
