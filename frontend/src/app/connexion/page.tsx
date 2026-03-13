@@ -107,30 +107,38 @@ function ConnexionForm() {
   }
 
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center p-6 relative overflow-hidden">
-      <div className="absolute inset-0 bg-void" />
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-30%,rgba(0,255,245,0.06),transparent_50%)]" />
+    <main className="min-h-screen flex items-center justify-center bg-void px-4 py-8">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_10%_0%,rgba(34,211,238,0.12),transparent_45%),radial-gradient(circle_at_90%_100%,rgba(167,139,250,0.12),transparent_45%)]" />
 
       <motion.div
-        className="relative z-10 card-auth"
-        initial={{ opacity: 0, y: 20 }}
+        className="relative z-10 w-full max-w-md rounded-3xl border border-white/5 bg-black/70 p-8 shadow-[0_18px_45px_rgba(0,0,0,0.75)] backdrop-blur-xl"
+        initial={{ opacity: 0, y: 24 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+        transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
       >
-        <div className="flex justify-center mb-8">
-          <Image
-            src="/logo.png"
-            alt="AsuncIA"
-            width={180}
-            height={108}
-            className="object-contain"
-          />
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-3">
+            <Image
+              src="/logo.png"
+              alt="AsuncIA"
+              width={120}
+              height={72}
+              className="object-contain"
+            />
+            <div className="hidden sm:block">
+              <p className="text-xs uppercase tracking-[0.22em] text-text-dim">Connexion</p>
+              <p className="mt-1 text-sm text-text-muted">Accède à ton espace pilotage.</p>
+            </div>
+          </div>
+          <span className="inline-flex items-center rounded-full border border-white/8 bg-white/5 px-3 py-1 text-[11px] font-medium text-text-muted">
+            <span className="mr-2 h-1.5 w-1.5 rounded-full bg-accent-cyan" />
+            Espace sécurisé
+          </span>
         </div>
-        <p className="label-auth text-center mb-8">Connexion</p>
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          <div>
-            <label htmlFor="email" className="label-auth">
+          <div className="space-y-1.5">
+            <label htmlFor="email" className="text-xs font-medium uppercase tracking-[0.16em] text-text-dim">
               Email
             </label>
             <input
@@ -140,12 +148,12 @@ function ConnexionForm() {
               onChange={(e) => setEmail(e.target.value)}
               required
               autoComplete="email"
-              className="input-auth"
+              className="input-auth h-11"
               placeholder="vous@exemple.com"
             />
           </div>
-          <div>
-            <label htmlFor="password" className="label-auth">
+          <div className="space-y-1.5">
+            <label htmlFor="password" className="text-xs font-medium uppercase tracking-[0.16em] text-text-dim">
               Mot de passe
             </label>
             <PasswordInput
@@ -157,58 +165,65 @@ function ConnexionForm() {
               placeholder="••••••••"
             />
           </div>
-          {emailNotConfirmed && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="rounded-lg border border-accent-cyan/30 bg-accent-cyan/5 p-4 space-y-3"
-            >
-              <p className="text-sm text-text-muted">
-                Ton compte n’est pas encore confirmé. Regarde ta boîte mail ou demande un nouvel email ci-dessous.
-              </p>
-              <button
-                type="button"
-                onClick={handleResendConfirmation}
-                disabled={resendStatus === "loading" || resendCooldown > 0}
-                className="text-sm text-accent-cyan hover:text-[#06b6d4] transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {resendCooldown > 0
-                  ? `Renvoyer l’email (${resendCooldown} s)`
-                  : resendStatus === "loading"
-                    ? "Envoi…"
-                    : "Renvoyer l’email de confirmation"}
-              </button>
-              {resendStatus === "success" && (
-                <p className="text-sm text-green-400">Email renvoyé. Consultez votre boîte de réception (et les spams).</p>
-              )}
-              {resendStatus === "error" && resendError && (
-                <p className="text-sm text-red-400">{resendError}</p>
-              )}
-            </motion.div>
-          )}
+
           {error && (
             <motion.p
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="text-sm text-red-400"
+              className="text-xs text-red-400"
             >
               {error}
             </motion.p>
           )}
+
+          {emailNotConfirmed && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="rounded-2xl border border-accent-cyan/30 bg-accent-cyan/5 px-3.5 py-3 text-xs text-text-muted"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <p className="pr-2">
+                  Ton compte n’est pas encore confirmé. Regarde ta boîte mail ou renvoie un email de confirmation.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleResendConfirmation}
+                  disabled={resendStatus === "loading" || resendCooldown > 0}
+                  className="shrink-0 text-[11px] font-semibold text-accent-cyan hover:text-[#06b6d4] disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {resendCooldown > 0
+                    ? `${resendCooldown}s`
+                    : resendStatus === "loading"
+                      ? "Envoi…"
+                      : "Renvoyer"}
+                </button>
+              </div>
+              {resendStatus === "success" && (
+                <p className="mt-1 text-[11px] text-green-400">
+                  Email renvoyé. Vérifie ta boîte de réception et tes spams.
+                </p>
+              )}
+              {resendStatus === "error" && resendError && (
+                <p className="mt-1 text-[11px] text-red-400">{resendError}</p>
+              )}
+            </motion.div>
+          )}
+
           <button
             type="submit"
             disabled={loading}
-            className="btn-auth-primary disabled:opacity-50 disabled:cursor-not-allowed"
+            className="btn-auth-primary mt-2 h-11 w-full disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? "Connexion…" : "Se connecter"}
           </button>
         </form>
 
-        <p className="mt-8 pt-6 border-t border-white/[0.06] text-center text-sm text-text-muted">
+        <p className="mt-6 text-center text-xs text-text-muted">
           Pas de compte ?{" "}
           <Link
             href="/inscription"
-            className="text-accent-cyan hover:text-[#06b6d4] transition-colors font-medium"
+            className="font-medium text-accent-cyan hover:text-[#06b6d4] transition-colors"
           >
             S&apos;inscrire
           </Link>
