@@ -1,6 +1,6 @@
 // @ts-nocheck
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { bootstrapVercel } from "../dist/vercel-handler";
+import { bootstrapVercel } from "../dist/src/vercel-handler";
 
 // Handler Vercel: délègue au bootstrap Nest.
 export default async function handler(req: VercelRequest, res: VercelResponse) {
