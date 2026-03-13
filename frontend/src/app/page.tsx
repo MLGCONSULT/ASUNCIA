@@ -20,21 +20,22 @@ export default function HomePage() {
       </div>
 
       <motion.div
-        className="relative z-10 mx-auto flex w-full max-w-5xl flex-col items-center gap-8"
+        className="relative z-10 mx-auto flex w-full max-w-5xl flex-col items-center gap-10"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
       >
         {/* Carte centrale */}
-        <div className="w-full max-w-xl rounded-3xl border border-white/7 bg-black/75 px-6 py-7 shadow-[0_20px_55px_rgba(0,0,0,0.85)] backdrop-blur-2xl sm:px-8 sm:py-8">
-          <div className="mb-6 flex items-center justify-center">
-            <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-2">
+        <div className="w-full max-w-2xl rounded-[32px] border border-white/8 bg-black/80 px-8 py-9 shadow-[0_30px_80px_rgba(0,0,0,0.9)] backdrop-blur-3xl sm:px-10 sm:py-10">
+          <div className="mb-7 flex items-center justify-center">
+            <div className="relative flex items-center gap-4 rounded-[28px] border border-white/15 bg-gradient-to-br from-white/10 via-white/5 to-white/0 px-6 py-3 shadow-[0_0_40px_rgba(96,165,250,0.35)]">
+              <div className="pointer-events-none absolute -inset-1 rounded-[30px] bg-[conic-gradient(from_220deg_at_50%_50%,rgba(56,189,248,0.4),rgba(147,51,234,0.4),transparent_60%)] opacity-40 blur-xl" />
               <Image
                 src="/logo.png"
                 alt="AsuncIA"
-                width={110}
-                height={66}
-                className="h-10 w-auto object-contain"
+                width={220}
+                height={120}
+                className="relative h-16 w-auto object-contain sm:h-20"
                 priority
               />
             </div>
@@ -62,7 +63,7 @@ export default function HomePage() {
         </div>
 
         {/* Bulles d’accès rapide */}
-        <div className="relative flex w-full max-w-4xl flex-wrap items-center justify-center gap-6">
+        <div className="relative flex w-full max-w-4xl flex-wrap items-center justify-center gap-7">
           <BubbleLink label="Gmail" subtitle="Mails" href="/connexion?redirect=/app/mails" tone="cyan" delay={0} />
           <BubbleLink label="Airtable" subtitle="Bases" href="/connexion?redirect=/app/airtable" tone="fuchsia" delay={0.12} />
           <BubbleLink label="Notion" subtitle="Notes" href="/connexion?redirect=/app/notion" tone="violet" delay={0.24} />
@@ -105,11 +106,11 @@ function BubbleLink({
 }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 12, scale: 0.9 }}
-      animate={{ opacity: 1, y: [12, 4, 12], scale: 1 }}
+      initial={{ opacity: 0, y: 16, scale: 0.9 }}
+      animate={{ opacity: 1, y: [16, 2, 16], scale: 1 }}
       transition={{
         delay,
-        duration: 6,
+        duration: 7.5,
         repeat: Infinity,
         repeatType: "mirror",
         ease: [0.36, 0.66, 0.04, 1],
@@ -117,10 +118,12 @@ function BubbleLink({
     >
       <Link
         href={href}
-        className={`relative flex h-24 w-24 flex-col items-center justify-center rounded-full border text-[11px] text-text-primary shadow-[0_18px_40px_rgba(0,0,0,0.7)] backdrop-blur-2xl transition-transform duration-300 hover:scale-105 ${toneClasses[tone]}`}
+        className={`relative flex h-28 w-28 flex-col items-center justify-center rounded-full border text-[11px] text-text-primary shadow-[0_24px_55px_rgba(0,0,0,0.85)] backdrop-blur-2xl transition-transform duration-300 hover:scale-110 ${toneClasses[tone]}`}
       >
+        {/* Halo externe */}
+        <span className="pointer-events-none absolute -inset-2 rounded-full bg-[conic-gradient(from_200deg_at_50%_50%,rgba(56,189,248,0.18),rgba(147,51,234,0.18),transparent_65%)] opacity-80 blur-xl" />
         {/* Reflet interne */}
-        <span className="pointer-events-none absolute inset-0 rounded-full bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.35),transparent_55%)] opacity-70" />
+        <span className="pointer-events-none absolute inset-0 rounded-full bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.4),transparent_60%)] opacity-80" />
         {/* Contenu */}
         <span className="relative font-semibold">{label}</span>
         <span className="relative mt-0.5 text-[10px] text-text-muted">{subtitle}</span>
