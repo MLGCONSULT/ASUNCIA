@@ -37,7 +37,7 @@ export default function ChatAssistant({
   const processedPromptRef = useRef<string | null>(null);
 
   const fetchConversations = useCallback(async () => {
-    const res = await fetchBackend("/api/chat/conversations");
+    const res = await fetchBackend("/api/conversations");
     if (!res.ok) return;
     const data = (await res.json()) as { conversations?: ConversationItem[] };
     if (Array.isArray(data.conversations)) setConversations(data.conversations);
@@ -50,7 +50,9 @@ export default function ChatAssistant({
         setMessages([]);
         return;
       }
-      const res = await fetchBackend(`/api/chat/conversation?conversationId=${encodeURIComponent(id)}`);
+      const res = await fetchBackend(
+        `/api/conversation?conversationId=${encodeURIComponent(id)}`,
+      );
       if (!res.ok) return;
       const data = (await res.json()) as {
         conversationId?: string;
@@ -75,7 +77,7 @@ export default function ChatAssistant({
     (async () => {
       try {
         await fetchConversations();
-        const res = await fetchBackend("/api/chat/conversation");
+        const res = await fetchBackend("/api/conversation");
         if (!res.ok) return;
         const data = (await res.json()) as {
           conversationId?: string;
