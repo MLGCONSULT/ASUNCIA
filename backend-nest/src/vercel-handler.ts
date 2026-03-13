@@ -5,6 +5,7 @@ import { NestFactory } from "@nestjs/core";
 import { ExpressAdapter } from "@nestjs/platform-express";
 import { ValidationPipe } from "@nestjs/common";
 import { AppModule } from "./app.module";
+import { attachUserFromAuthHeader } from "./middleware/auth-user";
 
 let server: Express | null = null;
 
@@ -14,6 +15,9 @@ export async function bootstrapVercel(): Promise<Express> {
   const expressApp = express();
   const adapter = new ExpressAdapter(expressApp);
   const nestApp = await NestFactory.create(AppModule, adapter);
+
+  // Attacher l'utilisateur depuis Authorization: Bearer ... si présent
+  expressApp.use(attachUserFromAuthHeader as any);
 
   // Mapping /api/... → /... pour rester compatible avec le front
   expressApp.use((req: any, _res: any, next: () => void) => {

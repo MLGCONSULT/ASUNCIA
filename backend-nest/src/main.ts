@@ -2,9 +2,13 @@ import "reflect-metadata";
 import { NestFactory } from "@nestjs/core";
 import { ValidationPipe } from "@nestjs/common";
 import { AppModule } from "./app.module";
+import { attachUserFromAuthHeader } from "./middleware/auth-user";
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  // Attacher l'utilisateur depuis Authorization: Bearer ... si présent
+  app.use(attachUserFromAuthHeader as any);
 
   // Compatibilité API: autoriser les chemins /api/... en les mappant sur /
   app.use((req: any, _res: any, next: () => void) => {
