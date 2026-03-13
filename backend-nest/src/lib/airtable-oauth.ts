@@ -32,6 +32,64 @@ export function generateState(): string {
   return randomBytes(32).toString("hex");
 }
 
+export function buildAirtableAuthorizationUrl(
+  clientId: string,
+  redirectUri: string,
+  codeChallenge: string,
+  state: string,
+): string {
+  const params = new URLSearchParams({
+    response_type: "code",
+    client_id: clientId,
+    redirect_uri: redirectUri,
+    state,
+    code_challenge: codeChallenge,
+    code_challenge_method: "S256",
+    scope: "data.records:read data.records:write schema.bases:read schema.bases:write",
+  });
+  return `${AIRTABLE_OAUTH_BASE}${AUTHORIZATION_ENDPOINT}?${params.toString()}`;
+}
+
+export async function exchangeAirtableCodeForTokens(
+  code: string,
+  codeVerifier: string,
+  clientId: string,
+  clientSecret: string | undefined,
+  redirectUri: string,
+): Promise<TokenResponse> {
+  const body = new URLSearchParams({
+    grant_type: "authorization_code",
+    code,
+    client_id: clientId,
+    redirect_uri: redirectUri,
+    code_verifier: codeVerifier,
+  });
+
+  const headers: Record<string, string> = {
+    "Content-Type": "application/x-www-form-urlencoded",
+    Accept: "application/json",
+  };
+
+  if (clientSecret) {
+    body.append("client_secret", clientSecret);
+  }
+
+  const res = await fetch(`${AIRTABLE_OAUTH_BASE}${TOKEN_ENDPOINT}`, {
+    method: "POST",
+    headers,
+    body: body.toString(),
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Airtable token exchange failed: ${res.status} ${text}`);
+  }
+
+  const data = (await res.json()) as TokenResponse;
+  if (!data.access_token) throw new Error("Missing access_token in Airtable response");
+  return data;
+}
+
 export async function refreshAirtableAccessToken(
   refreshToken: string,
   clientId: string,

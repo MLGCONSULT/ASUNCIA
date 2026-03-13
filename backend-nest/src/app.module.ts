@@ -9,6 +9,7 @@ import { N8nModule } from "./n8n/n8n.module";
 import { ChatModule } from "./chat/chat.module";
 import { ConversationModule } from "./conversation/conversation.module";
 import { ConversationsModule } from "./conversations/conversations.module";
+import { AuthModule } from "./auth/auth.module";
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { ConversationsModule } from "./conversations/conversations.module";
     ChatModule,
     ConversationModule,
     ConversationsModule,
+    AuthModule,
   ],
   controllers: [AppController],
 })
