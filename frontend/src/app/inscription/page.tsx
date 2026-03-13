@@ -40,31 +40,34 @@ export default function InscriptionPage() {
   }
 
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center p-6 relative overflow-hidden">
-      <div className="absolute inset-0 bg-void" />
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-30%,rgba(139,92,246,0.06),transparent_50%)]" />
+    <main className="min-h-screen flex items-center justify-center bg-void px-4 py-8 relative overflow-hidden">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_0%,rgba(139,92,246,0.16),transparent_55%),radial-gradient(circle_at_80%_100%,rgba(34,211,238,0.14),transparent_55%)]" />
 
       <motion.div
-        className="relative z-10 card-auth"
-        initial={{ opacity: 0, y: 20 }}
+        className="relative z-10 w-full max-w-md rounded-3xl border border-white/5 bg-black/70 p-8 shadow-[0_18px_45px_rgba(0,0,0,0.75)] backdrop-blur-xl"
+        initial={{ opacity: 0, y: 24 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
       >
-        <div className="flex justify-center mb-8">
-          <Image
-            src="/logo.png"
-            alt="AsuncIA"
-            width={180}
-            height={108}
-            className="object-contain"
-          />
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-3">
+            <Image
+              src="/logo.png"
+              alt="AsuncIA"
+              width={120}
+              height={72}
+              className="object-contain"
+            />
+            <div className="hidden sm:block">
+              <p className="text-xs uppercase tracking-[0.22em] text-text-dim">Inscription</p>
+            </div>
+          </div>
         </div>
-        <p className="label-auth text-center mb-8">Inscription</p>
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          <div>
-            <label htmlFor="nom_affichage" className="label-auth">
-              Nom d&apos;affichage (optionnel)
+          <div className="space-y-1.5">
+            <label htmlFor="nom_affichage" className="text-xs font-medium uppercase tracking-[0.16em] text-text-dim">
+              Nom (optionnel)
             </label>
             <input
               id="nom_affichage"
@@ -72,12 +75,12 @@ export default function InscriptionPage() {
               value={nomAffichage}
               onChange={(e) => setNomAffichage(e.target.value)}
               autoComplete="name"
-              className="input-auth"
+              className="input-auth h-11"
               placeholder="Votre nom"
             />
           </div>
-          <div>
-            <label htmlFor="email" className="label-auth">
+          <div className="space-y-1.5">
+            <label htmlFor="email" className="text-xs font-medium uppercase tracking-[0.16em] text-text-dim">
               Email
             </label>
             <input
@@ -87,12 +90,12 @@ export default function InscriptionPage() {
               onChange={(e) => setEmail(e.target.value)}
               required
               autoComplete="email"
-              className="input-auth"
+              className="input-auth h-11"
               placeholder="vous@exemple.com"
             />
           </div>
-          <div>
-            <label htmlFor="password" className="label-auth">
+          <div className="space-y-1.5">
+            <label htmlFor="password" className="text-xs font-medium uppercase tracking-[0.16em] text-text-dim">
               Mot de passe
             </label>
             <PasswordInput
@@ -109,7 +112,7 @@ export default function InscriptionPage() {
             <motion.p
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="text-sm text-red-400"
+              className="text-xs text-red-400"
             >
               {error}
             </motion.p>
@@ -118,7 +121,7 @@ export default function InscriptionPage() {
             <motion.p
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="text-sm text-neon-cyan"
+              className="text-xs text-neon-cyan"
             >
               {message}
             </motion.p>
@@ -126,17 +129,17 @@ export default function InscriptionPage() {
           <button
             type="submit"
             disabled={loading}
-            className="btn-auth-primary disabled:opacity-50 disabled:cursor-not-allowed"
+            className="btn-auth-primary mt-2 h-11 w-full disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? "Création…" : "Créer mon compte"}
+            {loading ? "Création…" : "Créer un compte"}
           </button>
         </form>
 
-        <p className="mt-8 pt-6 border-t border-white/[0.06] text-center text-sm text-text-muted">
+        <p className="mt-6 text-center text-xs text-text-muted">
           Déjà un compte ?{" "}
           <Link
             href="/connexion"
-            className="text-accent-cyan hover:text-[#06b6d4] transition-colors font-medium"
+            className="font-medium text-accent-cyan hover:text-[#06b6d4] transition-colors"
           >
             Se connecter
           </Link>
