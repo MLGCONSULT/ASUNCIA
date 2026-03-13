@@ -62,16 +62,17 @@ export default function HomePage() {
         </div>
 
         {/* Bulles d’accès rapide */}
-        <div className="relative flex w-full max-w-4xl flex-wrap items-center justify-center gap-4">
-          <BubbleLink label="Gmail" subtitle="Mails" href="/connexion?redirect=/app/mails" tone="cyan" />
-          <BubbleLink label="Airtable" subtitle="Bases" href="/connexion?redirect=/app/airtable" tone="fuchsia" />
-          <BubbleLink label="Notion" subtitle="Notes" href="/connexion?redirect=/app/notion" tone="violet" />
-          <BubbleLink label="n8n" subtitle="Flows" href="/connexion?redirect=/app/n8n" tone="amber" />
+        <div className="relative flex w-full max-w-4xl flex-wrap items-center justify-center gap-6">
+          <BubbleLink label="Gmail" subtitle="Mails" href="/connexion?redirect=/app/mails" tone="cyan" delay={0} />
+          <BubbleLink label="Airtable" subtitle="Bases" href="/connexion?redirect=/app/airtable" tone="fuchsia" delay={0.12} />
+          <BubbleLink label="Notion" subtitle="Notes" href="/connexion?redirect=/app/notion" tone="violet" delay={0.24} />
+          <BubbleLink label="n8n" subtitle="Flows" href="/connexion?redirect=/app/n8n" tone="amber" delay={0.36} />
           <BubbleLink
             label="Supabase"
             subtitle="SQL IA"
             href={`/connexion?redirect=${encodeURIComponent(supabaseChatUrl)}`}
             tone="emerald"
+            delay={0.48}
           />
         </div>
       </motion.div>
@@ -94,24 +95,35 @@ function BubbleLink({
   subtitle,
   href,
   tone,
+  delay = 0,
 }: {
   label: string;
   subtitle: string;
   href: string;
   tone: BubbleTone;
+  delay?: number;
 }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 8, scale: 0.95 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ duration: 0.35 }}
+      initial={{ opacity: 0, y: 12, scale: 0.9 }}
+      animate={{ opacity: 1, y: [12, 4, 12], scale: 1 }}
+      transition={{
+        delay,
+        duration: 6,
+        repeat: Infinity,
+        repeatType: "mirror",
+        ease: [0.36, 0.66, 0.04, 1],
+      }}
     >
       <Link
         href={href}
-        className={`flex min-w-[150px] flex-col items-start justify-center rounded-full border px-4 py-2.5 text-xs text-text-primary shadow-[0_12px_30px_rgba(0,0,0,0.6)] backdrop-blur-xl transition-transform duration-300 hover:-translate-y-1 hover:scale-105 ${toneClasses[tone]}`}
+        className={`relative flex h-24 w-24 flex-col items-center justify-center rounded-full border text-[11px] text-text-primary shadow-[0_18px_40px_rgba(0,0,0,0.7)] backdrop-blur-2xl transition-transform duration-300 hover:scale-105 ${toneClasses[tone]}`}
       >
-        <span className="font-medium">{label}</span>
-        <span className="mt-0.5 text-[11px] text-text-muted">{subtitle}</span>
+        {/* Reflet interne */}
+        <span className="pointer-events-none absolute inset-0 rounded-full bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.35),transparent_55%)] opacity-70" />
+        {/* Contenu */}
+        <span className="relative font-semibold">{label}</span>
+        <span className="relative mt-0.5 text-[10px] text-text-muted">{subtitle}</span>
       </Link>
     </motion.div>
   );
