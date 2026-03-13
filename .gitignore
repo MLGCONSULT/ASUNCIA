@@ -1,0 +1,23 @@
+# Dependencies
+node_modules
+
+# Build outputs
+.next
+dist
+out
+
+# Env (ne pas committer les secrets)
+.env
+.env.local
+.env.*.local
+
+# Vercel
+.vercel
+
+# Local Netlify folder (legacy)
+.netlify
+
+# IDE / OS
+.idea
+.DS_Store
+*.log

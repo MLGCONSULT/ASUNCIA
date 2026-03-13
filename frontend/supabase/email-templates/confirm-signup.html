@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Confirmer votre inscription – AsuncIA</title>
+</head>
+<body style="margin:0;padding:0;background-color:#1a1a26;font-family:sans-serif;font-size:15px;line-height:1.5;color:#f0f0f5;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#0a0a0f;min-height:100vh;">
+    <tr>
+      <td align="center" style="padding:32px 16px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background-color:#12121a;border:1px solid rgba(0, 255, 245, 0.3);border-radius:12px;overflow:hidden;">
+          <tr>
+            <td style="padding:24px 24px 16px 24px;border-bottom:1px solid rgba(0, 255, 245, 0.3);">
+              <p style="margin:0;font-size:22px;font-weight:700;color:#00fff5;letter-spacing:-0.02em;">AsuncIA</p>
+              <p style="margin:4px 0 0 0;font-size:12px;color:#8888a0;">CRM intelligent piloté par IA</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:24px;">
+              <h1 style="margin:0 0 16px 0;font-size:20px;font-weight:700;color:#f0f0f5;font-family:sans-serif;">Confirmer votre inscription</h1>
+              <p style="margin:0 0 16px 0;color:#f0f0f5;">Bonjour,</p>
+              <p style="margin:0 0 20px 0;color:#f0f0f5;">Vous avez créé un compte sur AsuncIA avec l’adresse <strong>{{ .Email }}</strong>. Cliquez sur le bouton ci-dessous pour confirmer votre adresse email et activer votre compte.</p>
+              <p style="margin:0 0 24px 0;">
+                <a href="{{ .ConfirmationURL }}" style="display:inline-block;padding:14px 28px;background-color:#00fff5;color:#0a0a0f;text-decoration:none;font-weight:600;border-radius:8px;">Confirmer mon email</a>
+              </p>
+              <p style="margin:0;font-size:13px;color:#8888a0;">Si le bouton ne fonctionne pas, copiez ce lien dans votre navigateur :</p>
+              <p style="margin:8px 0 0 0;word-break:break-all;font-size:12px;color:#00fff5;">{{ .ConfirmationURL }}</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:16px 24px;border-top:1px solid rgba(0, 255, 245, 0.3);">
+              <p style="margin:0;font-size:11px;color:#8888a0;">Cet email a été envoyé par AsuncIA.</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
