@@ -17,9 +17,9 @@ function getSupabaseMcpConfig(): { url: string; token: string } | null {
       }
     })();
   if (!projectRef) return null;
-  // Accès MCP Supabase en lecture/écriture pour l'éditeur SQL.
-  // Le contrôle des droits repose sur le PAT fourni et sur la politique de sécurité côté projet Supabase.
-  return { url: `https://mcp.supabase.com/mcp?project_ref=${projectRef}`, token };
+  // Accès MCP Supabase strictement en lecture (read_only=true) pour l'éditeur SQL.
+  // Aucune requête d'écriture ne sera acceptée côté serveur MCP.
+  return { url: `https://mcp.supabase.com/mcp?project_ref=${projectRef}&read_only=true`, token };
 }
 
 export function isSupabaseMcpConfigured(): boolean {

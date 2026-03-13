@@ -10,11 +10,27 @@ export default function SupabasePage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  function isReadOnlySql(query: string): boolean {
+    const trimmed = query.trim().replace(/;+$/g, "");
+    if (!trimmed) return false;
+    // Interdit les mots-clés d'écriture/danger.
+    const forbidden = /\b(insert|update|delete|alter|drop|truncate|create|grant|revoke|comment|merge)\b/i;
+    if (forbidden.test(trimmed)) return false;
+    // Autorise uniquement les requêtes qui commencent par des commandes de lecture.
+    const startsReadOnly = /^(select|with|show|explain|describe)\b/i.test(trimmed);
+    return startsReadOnly;
+  }
+
   async function handleRun(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setResult(null);
     setLoading(true);
+    if (!isReadOnlySql(sql)) {
+      setLoading(false);
+      setError("Seules les requêtes SQL de lecture (SELECT/WITH/SHOW/EXPLAIN/DESCRIBE) sont autorisées.");
+      return;
+    }
     try {
       const response = await fetchBackend("/api/mcp/call", {
         method: "POST",
