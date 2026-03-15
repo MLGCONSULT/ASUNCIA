@@ -82,6 +82,13 @@ export async function exchangeAirtableCodeForTokens(
 
   if (!res.ok) {
     const text = await res.text();
+    // Log sans secret pour debug Postman / 401 invalid_client
+    console.error("[Airtable OAuth] token exchange failed", {
+      status: res.status,
+      body: text,
+      redirect_uri: redirectUri,
+      client_id: clientId,
+    });
     throw new Error(`Airtable token exchange failed: ${res.status} ${text}`);
   }
 

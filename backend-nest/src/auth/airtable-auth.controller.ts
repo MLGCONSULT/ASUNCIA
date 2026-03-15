@@ -160,6 +160,25 @@ export class AirtableAuthController {
     }
   }
 
+  /** Debug: affiche exactement ce que le backend utilise pour OAuth (sans exposer le secret). À supprimer en prod si besoin. */
+  @Get("debug-config")
+  async debugConfig(@Req() req: AuthRequest) {
+    if (!req.user) {
+      throw new HttpException({ error: "Non authentifié" }, HttpStatus.UNAUTHORIZED);
+    }
+    const redirectUri = getRedirectUri(req);
+    const clientId = getClientId();
+    const hasClientSecret = !!getClientSecret();
+    return {
+      redirectUri,
+      redirectUriLength: redirectUri.length,
+      clientId,
+      clientIdLength: clientId.length,
+      hasClientSecret,
+      expectedRedirectUri: "https://asuncia-backend.vercel.app/api/auth/airtable/callback",
+    };
+  }
+
   @Get("status")
   async status(@Req() req: AuthRequest) {
     if (!req.user) {
