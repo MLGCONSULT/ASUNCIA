@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import PageMotion from "@/components/PageMotion";
-import { buildAssistantPromptUrl } from "@/lib/assistant-intents";
 import ToolCards from "@/components/ToolCards";
 import DashboardToday from "@/components/DashboardToday";
 
@@ -14,7 +13,6 @@ type Bubble = {
 };
 
 const integrationBubbles: Bubble[] = [
-  { id: "gmail", label: "Gmail", subtitle: "Mails", href: "/app/mails", tone: "cyan" },
   { id: "airtable", label: "Airtable", subtitle: "Bases", href: "/app/airtable", tone: "fuchsia" },
   { id: "notion", label: "Notion", subtitle: "Notes", href: "/app/notion", tone: "violet" },
   { id: "n8n", label: "n8n", subtitle: "Flows", href: "/app/n8n", tone: "amber" },
@@ -40,10 +38,6 @@ export default async function DashboardPage() {
     supabase.from("ai_conversations").select("id", { count: "exact", head: true }),
   ]);
 
-  const talkUrl = buildAssistantPromptUrl(
-    "Ouvre une nouvelle session avec l'assistant et propose-moi les actions importantes du moment pour mon CRM (leads, mails, bases, automatisations).",
-  );
-
   return (
     <PageMotion className="dashboard-scene relative isolate flex h-full min-h-0 flex-col gap-4 overflow-visible">
       <section className="relative flex min-h-[360px] items-center justify-center px-4 py-4">
@@ -65,15 +59,15 @@ export default async function DashboardPage() {
                 {profile?.nom_affichage ?? "Assistant"}
               </p>
               <Link
-                href={talkUrl}
+                href="/app/dashboard?assistant=open"
                 className="mt-4 rounded-full bg-accent-cyan/80 px-5 py-2 text-xs font-medium text-black shadow-[0_12px_30px_rgba(34,211,238,0.6)] transition-transform hover:-translate-y-0.5 hover:bg-accent-cyan"
               >
-                Parler à l’agent
+                Ouvrir l’agent
               </Link>
             </div>
 
             {/* Anneau de bulles outils */}
-            <div className="grid w-full max-w-xl grid-cols-3 gap-4 md:grid-cols-5">
+            <div className="grid w-full max-w-xl grid-cols-2 gap-4 md:grid-cols-4">
               {integrationBubbles.map((bubble) => (
                 <Link
                   key={bubble.id}
@@ -102,7 +96,7 @@ export default async function DashboardPage() {
           <p className="text-xs uppercase tracking-[0.18em] text-text-dim">Conversations IA</p>
           <p className="mt-2 text-2xl font-semibold text-text-primary">{convCount ?? 0}</p>
           <p className="text-xs text-text-muted mt-1">historique de guidage</p>
-          <Link href={talkUrl} className="inline-block mt-3 text-xs text-accent-cyan hover:underline">
+          <Link href="/app/dashboard?assistant=open" className="inline-block mt-3 text-xs text-accent-cyan hover:underline">
             Ouvrir l'assistant
           </Link>
         </div>
@@ -111,9 +105,6 @@ export default async function DashboardPage() {
           <div className="mt-3 flex flex-wrap gap-2">
             <Link href="/app/airtable" className="px-2.5 py-1 rounded-full bg-white/10 text-xs text-text-primary hover:bg-white/15">
               Airtable
-            </Link>
-            <Link href="/app/mails" className="px-2.5 py-1 rounded-full bg-white/10 text-xs text-text-primary hover:bg-white/15">
-              Mails
             </Link>
             <Link href="/app/n8n" className="px-2.5 py-1 rounded-full bg-white/10 text-xs text-text-primary hover:bg-white/15">
               n8n
@@ -129,12 +120,7 @@ export default async function DashboardPage() {
       </section>
 
       <section className="space-y-2">
-        <div className="flex items-center justify-between">
-          <p className="text-sm font-semibold text-text-primary">Outils et statut</p>
-          <Link href={talkUrl} className="text-xs text-text-muted hover:text-text-primary">
-            Besoin d'aide ? Demander à l'IA
-          </Link>
-        </div>
+        <p className="text-sm font-semibold text-text-primary">Outils et statut</p>
         <ToolCards />
       </section>
 

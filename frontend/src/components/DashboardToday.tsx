@@ -1,9 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { fetchBackend } from "@/lib/api";
-import { buildAssistantPromptUrl } from "@/lib/assistant-intents";
 
 type TodayState = {
   n8nActive: number | null;
@@ -66,14 +65,6 @@ export default function DashboardToday() {
     };
   }, []);
 
-  const quickPrompt = useMemo(
-    () =>
-      buildAssistantPromptUrl(
-        "Fais-moi un plan d'action du jour en 5 points a partir de mes workflows et bases connectees.",
-      ),
-    [],
-  );
-
   return (
     <section className="grid grid-cols-1 lg:grid-cols-2 gap-3">
 
@@ -90,12 +81,6 @@ export default function DashboardToday() {
             <div className="mt-3 flex gap-2">
               <Link href="/app/n8n" className="text-xs text-accent-cyan hover:underline">
                 Ouvrir n8n
-              </Link>
-              <Link
-                href={buildAssistantPromptUrl("Quels workflows n8n dois-je verifier en priorite aujourd'hui ?")}
-                className="text-xs text-text-muted hover:text-text-primary"
-              >
-                Prioriser avec IA
               </Link>
             </div>
           </>
@@ -116,12 +101,6 @@ export default function DashboardToday() {
               <Link href="/app/airtable" className="text-xs text-accent-cyan hover:underline">
                 Ouvrir Airtable
               </Link>
-              <Link
-                href={buildAssistantPromptUrl("Guide-moi pour verifier ma base Airtable la plus importante aujourd'hui.")}
-                className="text-xs text-text-muted hover:text-text-primary"
-              >
-                Guider avec IA
-              </Link>
             </div>
           </>
         )}
@@ -130,10 +109,10 @@ export default function DashboardToday() {
       <div className="lg:col-span-2 rounded-xl border border-accent-violet/25 bg-accent-violet/10 p-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-sm text-text-primary">
-            Besoin d'un plan global ? L'assistant peut te proposer un plan d'action du jour base sur tes outils.
+            Besoin d'un plan global ? Ouvre directement l'assistant depuis le bouton flottant en bas a droite.
           </p>
-          <Link href={quickPrompt} className="px-3 py-1.5 rounded-lg bg-white/10 text-xs text-text-primary hover:bg-white/15">
-            Generer mon plan du jour
+          <Link href="/app/dashboard?assistant=open" className="px-3 py-1.5 rounded-lg bg-white/10 text-xs text-text-primary hover:bg-white/15">
+            Ouvrir l'assistant
           </Link>
         </div>
       </div>

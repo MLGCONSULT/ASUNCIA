@@ -1,12 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import { AnimatePresence, motion } from "framer-motion";
+import { useSearchParams } from "next/navigation";
 import ChatAssistant from "@/components/ChatAssistant";
 
 export default function FloatingAssistant() {
   const [open, setOpen] = useState(false);
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    if (searchParams.get("assistant") === "open") {
+      setOpen(true);
+    }
+  }, [searchParams]);
 
   return (
     <div className="pointer-events-none fixed bottom-24 right-3 z-50 sm:bottom-28 sm:right-5">

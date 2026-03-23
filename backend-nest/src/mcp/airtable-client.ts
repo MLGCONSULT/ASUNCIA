@@ -53,6 +53,21 @@ export function hasAirtableServerToken(): boolean {
   return getAirtableRuntimeMode() !== "oauth" && !!getRawAirtableServerToken();
 }
 
+export function getAirtableConfigDiagnostics() {
+  const mode = getAirtableRuntimeMode();
+  const hasMcpUrl = !!process.env.AIRTABLE_MCP_URL?.trim();
+  const hasServerToken = !!getRawAirtableServerToken();
+  const hasOauthClientId = !!process.env.AIRTABLE_OAUTH_CLIENT_ID?.trim();
+
+  return {
+    mode,
+    hasMcpUrl,
+    hasServerToken,
+    hasOauthClientId,
+    acceptedServerTokenEnvVars: ["AIRTABLE_MCP_TOKEN", "AIRTABLE_TOKEN"],
+  } as const;
+}
+
 export async function withAirtableMcpClient<T>(
   fn: (client: Client) => Promise<T>,
   accessToken?: string,

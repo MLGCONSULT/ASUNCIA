@@ -5,7 +5,6 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import NavIcon, { type IconName } from "@/components/NavIcon";
 import { fetchBackend } from "@/lib/api";
-import { buildAssistantPromptUrl } from "@/lib/assistant-intents";
 
 type ToolCard = {
   id: string;
@@ -13,7 +12,6 @@ type ToolCard = {
   label: string;
   description: string;
   icon: IconName;
-  assistantPrompt: string;
   accent?: "cyan" | "violet" | "rose" | "fuchsia" | "amber";
 };
 
@@ -23,7 +21,6 @@ const TOOLS: ToolCard[] = [
     href: "/app/airtable",
     label: "Airtable",
     description: "Explorer et agir.",
-    assistantPrompt: "Analyse mes bases Airtable et aide-moi à identifier les actions importantes.",
     icon: "grid",
     accent: "fuchsia",
   },
@@ -32,7 +29,6 @@ const TOOLS: ToolCard[] = [
     href: "/app/notion",
     label: "Notion",
     description: "Retrouver le contexte.",
-    assistantPrompt: "Cherche dans Notion les pages et bases qui peuvent m'aider aujourd'hui.",
     icon: "document",
     accent: "violet",
   },
@@ -41,7 +37,6 @@ const TOOLS: ToolCard[] = [
     href: "/app/n8n",
     label: "Automatisations",
     description: "Lancer et contrôler.",
-    assistantPrompt: "Explique-moi l'état de mes workflows n8n et ce que je devrais vérifier.",
     icon: "workflow",
     accent: "amber",
   },
@@ -122,9 +117,6 @@ export default function ToolCards() {
             <div className="mt-3 flex items-center gap-2 border-t border-white/10 pt-2">
               <Link href={tool.href} className="dashboard-inline-link lava-text-safe text-xs text-text-primary transition-colors hover:text-accent-cyan">
                 Ouvrir
-              </Link>
-              <Link href={buildAssistantPromptUrl(tool.assistantPrompt)} className="dashboard-inline-link lava-text-safe text-xs text-text-muted transition-colors hover:text-text-primary">
-                IA
               </Link>
             </div>
           </div>

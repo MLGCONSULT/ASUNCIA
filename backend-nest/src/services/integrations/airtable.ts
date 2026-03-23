@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
+  getAirtableConfigDiagnostics,
   getAirtableRuntimeMode,
   hasAirtableServerToken,
   isAirtableMcpConfigured,
@@ -84,6 +85,7 @@ export async function getAirtableRuntimeAccess(ctx: UserIntegrationContext): Pro
 
 export async function getAirtableConnectionStatus(ctx: UserIntegrationContext) {
   const runtime = await getAirtableRuntimeAccess(ctx);
+  const diagnostics = getAirtableConfigDiagnostics();
   return {
     configured: isAirtableMcpConfigured(),
     selectedMode: getAirtableRuntimeMode(),
@@ -92,6 +94,7 @@ export async function getAirtableConnectionStatus(ctx: UserIntegrationContext) {
     source: runtime.source,
     canDisconnect: runtime.canDisconnect,
     needsReconnect: runtime.needsReconnect ?? false,
+    diagnostics,
   };
 }
 
