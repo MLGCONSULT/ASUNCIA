@@ -155,7 +155,10 @@ function buildDeterministicReadOnlySql(
   const wantsRecent = /\brecent|recents|recentes|dernier|derniers|nouv/.test(p);
   const wantsOldest = /\bancien|anciens|plus ancien|premier arrive/.test(p);
 
-  const safeTable = `"${table.name.replace(/"/g, '""')}"`;
+  const safeTable = table.name
+    .split(".")
+    .map((part) => `"${part.replace(/"/g, '""')}"`)
+    .join(".");
   let sql = `select * from ${safeTable}`;
 
   if (orderCol && (wantsRecent || wantsOldest)) {

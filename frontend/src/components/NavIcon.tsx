@@ -4,7 +4,7 @@
  * Icônes de navigation au style lofi cyberpunk : contours nets, léger glow, géométrique.
  * Utiliser className pour la couleur (ex. text-accent-cyan, text-text-muted).
  */
-type IconName = "chat" | "mail" | "user" | "grid" | "document" | "workflow";
+type IconName = "chat" | "mail" | "user" | "grid" | "document" | "workflow" | "database";
 
 const iconClass = "w-full h-full drop-shadow-[0_0_3px_currentColor]";
 const stroke = 2;
@@ -52,6 +52,13 @@ const icons: Record<IconName, () => React.ReactNode> = {
       <circle cx="18" cy="6" r="2.5" />
       <circle cx="12" cy="18" r="2.5" />
       <path d="M8.5 6H12v6M15.5 6H12v6M12 12v6" />
+    </svg>
+  ),
+  database: () => (
+    <svg className={iconClass} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={stroke} strokeLinecap={cap} strokeLinejoin={join} aria-hidden>
+      <ellipse cx="12" cy="5" rx="7" ry="3" />
+      <path d="M5 5v6c0 1.66 3.13 3 7 3s7-1.34 7-3V5" />
+      <path d="M5 11v6c0 1.66 3.13 3 7 3s7-1.34 7-3v-6" />
     </svg>
   ),
 };

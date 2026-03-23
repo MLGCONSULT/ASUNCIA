@@ -12,9 +12,10 @@ import { fetchBackend } from "@/lib/api";
 const NAV_ITEMS: { href: string; label: string; icon: IconName }[] = [
   { href: "/app/dashboard", label: "Assistant", icon: "chat" },
   { href: "/app/mails", label: "Mails", icon: "mail" },
-  { href: "/app/airtable", label: "Donnees", icon: "grid" },
+  { href: "/app/airtable", label: "Airtable", icon: "grid" },
   { href: "/app/notion", label: "Notion", icon: "document" },
-  { href: "/app/n8n", label: "Auto", icon: "workflow" },
+  { href: "/app/supabase", label: "Supabase", icon: "database" },
+  { href: "/app/n8n", label: "Workflows", icon: "workflow" },
 ];
 
 export default function NavWheel() {
@@ -48,7 +49,7 @@ export default function NavWheel() {
   return (
     <>
       <footer
-        className="fixed bottom-0 left-0 right-0 z-50 pt-8 pb-4 px-4 bg-surface/90 backdrop-blur-md"
+        className="fixed bottom-0 left-0 right-0 z-50 pt-7 pb-3 px-2 bg-surface/90 backdrop-blur-md"
         aria-label="Navigation"
       >
         {/* Délimitation en arc de cercle (bordure supérieure du footer) */}
@@ -58,26 +59,42 @@ export default function NavWheel() {
           aria-hidden
         />
         <nav
-          className="relative flex items-center justify-between gap-1 max-w-2xl mx-auto"
+          className="relative flex items-stretch gap-1 max-w-3xl mx-auto overflow-x-auto no-scrollbar px-1"
           aria-label="Navigation principale"
         >
           {NAV_ITEMS.map((item, i) => {
             const isActive = activeIndex === i;
             return (
-              <Link
+              <motion.div
                 key={item.href}
+                whileTap={{ scale: 0.93 }}
+                transition={{ type: "spring", stiffness: 500, damping: 26 }}
+              >
+                <Link
                 href={item.href}
                 title={item.label}
                 aria-current={isActive ? "page" : undefined}
-                className={`flex flex-1 min-w-0 flex-col items-center justify-center rounded-xl py-2 transition-all duration-200 hover:scale-[1.03] ${
+                className={`relative flex min-w-[74px] flex-1 flex-col items-center justify-center rounded-2xl py-2.5 px-2 transition-all duration-200 ${
                   isActive
-                    ? "bg-accent-cyan/15 text-accent-cyan border border-accent-cyan/30 shadow-[0_0_12px_-2px_rgba(34,211,238,0.25)]"
+                    ? "bg-accent-cyan/15 text-accent-cyan border border-accent-cyan/35 shadow-[0_0_12px_-2px_rgba(34,211,238,0.25)]"
                     : "text-text-muted hover:bg-white/10 hover:text-text-primary border border-transparent"
                 }`}
               >
-                <NavIcon name={item.icon} className="h-5 w-5 shrink-0" />
-                <span className="mt-1 text-[11px] leading-none">{item.label}</span>
-              </Link>
+                {isActive && (
+                  <motion.span
+                    layoutId="navwheel-active-pill"
+                    className="absolute inset-0 rounded-2xl border border-accent-cyan/35"
+                    transition={{ type: "spring", bounce: 0.18, duration: 0.35 }}
+                  />
+                )}
+                <span className="relative">
+                  <NavIcon name={item.icon} className="h-5 w-5 shrink-0" />
+                </span>
+                <span className="relative mt-1 text-[11px] leading-none font-medium truncate max-w-[68px]">
+                  {item.label}
+                </span>
+                </Link>
+              </motion.div>
             );
           })}
         </nav>
