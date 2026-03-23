@@ -58,6 +58,18 @@ function parseMcpPayload(text: string): unknown {
   return tryParseJson(text) ?? extractJsonFromUntrustedEnvelope(text) ?? text;
 }
 
+function readMcpError(result: unknown): string | null {
+  const isErr = Boolean((result as { isError?: unknown })?.isError);
+  if (!isErr) return null;
+  const raw = mcpResultToText(result);
+  const parsed = parseMcpPayload(raw) as any;
+  if (typeof parsed?.error?.message === "string") return parsed.error.message;
+  if (typeof parsed?.error === "string") return parsed.error;
+  if (typeof parsed?.message === "string") return parsed.message;
+  if (typeof raw === "string" && raw.trim().length > 0) return raw;
+  return "Erreur MCP inconnue";
+}
+
 function buildSchemaText(tables: { name: string; columns: { name: string; type: string }[] }[]): string {
   if (tables.length === 0) return "Aucune table trouvée dans le schéma public.";
   return tables
@@ -155,6 +167,10 @@ async function getPublicSchema(limitTables: number): Promise<{ name: string; col
       name: "execute_sql",
       arguments: { query: tablesSql },
     });
+    const tablesErr = readMcpError(tablesRes);
+    if (tablesErr) {
+      throw new Error(`MCP execute_sql (tables) a échoué: ${tablesErr}`);
+    }
 
     const tablesText = mcpResultToText(tablesRes);
     const parsedTables = parseMcpPayload(tablesText);
@@ -182,6 +198,10 @@ async function getPublicSchema(limitTables: number): Promise<{ name: string; col
         name: "execute_sql",
         arguments: { query: colsSql },
       });
+      const colsErr = readMcpError(colsRes);
+      if (colsErr) {
+        throw new Error(`MCP execute_sql (colonnes/${name}) a échoué: ${colsErr}`);
+      }
       const colsText = mcpResultToText(colsRes);
       const parsedCols = parseMcpPayload(colsText);
       const cols: { name: string; type: string }[] = [];
@@ -221,7 +241,7 @@ export class SqlFromPromptController {
         throw new HttpException(
           {
             error:
-              "Impossible de lire le schéma de la base via MCP Supabase. Vérifie SUPABASE_ACCESS_TOKEN/SUPABASE_PROJECT_REF.",
+              "Aucune table trouvée via MCP Supabase (schéma public vide ou inaccessible).",
           },
           HttpStatus.BAD_GATEWAY,
         );
