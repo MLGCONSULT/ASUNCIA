@@ -31,6 +31,8 @@ export default function N8nView() {
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  /** Pied de page contextuel : ne pas afficher « configurez N8N_MCP » pour 401/502 si ce n’est pas un souci d’env. */
+  const [errorHint, setErrorHint] = useState<"mcp-env" | "auth" | null>(null);
   const [executingId, setExecutingId] = useState<string | null>(null);
   const [actioningId, setActioningId] = useState<string | null>(null);
   const [actionType, setActionType] = useState<"activate" | "deactivate" | "delete" | null>(null);
@@ -49,11 +51,38 @@ export default function N8nView() {
   const loadWorkflows = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setErrorHint(null);
     try {
       const r = await fetchBackend("/api/n8n/workflows?limit=50");
-      if (r.status === 503) throw new Error("n8n n'est pas configuré. Vérifiez N8N_MCP_URL et N8N_MCP_ACCESS_TOKEN dans le backend.");
-      if (!r.ok) throw new Error("Impossible de charger les workflows.");
-      const data = await r.json();
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        const msg =
+          typeof data?.error === "string"
+            ? data.error
+            : typeof (data as { message?: string })?.message === "string"
+              ? (data as { message: string }).message
+              : "";
+        if (r.status === 503) {
+          setError(
+            msg ||
+              "n8n n'est pas configuré côté backend. Vérifiez N8N_MCP_URL et N8N_MCP_ACCESS_TOKEN sur le projet Vercel du backend.",
+          );
+          setErrorHint("mcp-env");
+          return;
+        }
+        if (r.status === 401) {
+          setError(
+            msg ||
+              "Session expirée ou non connecté. Reconnecte-toi et réessaie (le front doit envoyer le JWT Supabase).",
+          );
+          setErrorHint("auth");
+          return;
+        }
+        setError(
+          msg || `Impossible de charger les workflows (HTTP ${r.status}).`,
+        );
+        return;
+      }
       setWorkflows(Array.isArray(data.workflows) ? data.workflows : []);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erreur");
@@ -279,10 +308,19 @@ export default function N8nView() {
       >
         <p className="text-accent-rose font-semibold">Workflows n8n indisponibles</p>
         <p className="text-text-muted text-sm mt-1">{error}</p>
-        <p className="text-text-dim text-xs mt-3">
-          Configurez <code className="bg-white/10 px-1 rounded">N8N_MCP_URL</code> et{" "}
-          <code className="bg-white/10 px-1 rounded">N8N_MCP_ACCESS_TOKEN</code> dans le backend.
-        </p>
+        {errorHint === "mcp-env" && (
+          <p className="text-text-dim text-xs mt-3">
+            Configurez <code className="bg-white/10 px-1 rounded">N8N_MCP_URL</code> et{" "}
+            <code className="bg-white/10 px-1 rounded">N8N_MCP_ACCESS_TOKEN</code> sur le projet Vercel du{" "}
+            <strong>backend</strong>, puis redéployez.
+          </p>
+        )}
+        {errorHint === "auth" && (
+          <p className="text-text-dim text-xs mt-3">
+            Vérifie que <code className="bg-white/10 px-1 rounded">NEXT_PUBLIC_BACKEND_URL</code> sur le front
+            pointe bien vers le même backend que tes tests Postman.
+          </p>
+        )}
       </motion.div>
     );
   }
