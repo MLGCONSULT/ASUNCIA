@@ -1,6 +1,5 @@
 import { Body, Controller, HttpException, HttpStatus, Post, Req } from "@nestjs/common";
 import type { Request } from "express";
-import OpenAI from "openai";
 import { withSupabaseMcpClient } from "../mcp/supabase-client";
 import { isSupabaseMcpConfigured } from "../mcp/supabase-client";
 import { mcpResultToText } from "../mcp/result";
@@ -13,12 +12,17 @@ type SqlFromPromptBody = {
 
 function normalizeSql(sql: string): string {
   // Supprime les espaces inutiles et le point-virgule final éventuel.
-  const trimmed = sql.trim().replace(/;+\s*$/g, "");
+  const withoutFences = sql.replace(/```[a-zA-Z]*\s*/g, "").replace(/```/g, "").trim();
+  const trimmed = withoutFences.trim().replace(/;+\s*$/g, "");
   return trimmed;
 }
 
 function isReadOnlySql(sql: string): boolean {
-  const s = normalizeSql(sql);
+  // On supprime les commentaires pour éviter des faux positifs.
+  const s = normalizeSql(sql)
+    .replace(/--.*$/gm, "")
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .trim();
   if (!s) return false;
 
   const forbidden = /\b(insert|update|delete|alter|drop|truncate|create|grant|revoke|comment|merge|call)\b/i;
@@ -31,21 +35,27 @@ function isReadOnlySql(sql: string): boolean {
   return /^(select|with|show|explain|describe)\b/i.test(s);
 }
 
-function extractSqlFromModelOutput(raw: string): string {
-  // On tente d'abord un JSON strict.
+function tryParseJson(raw: string): unknown | null {
   try {
-    const parsed = JSON.parse(raw);
-    const sql = typeof parsed?.sql === "string" ? parsed.sql : undefined;
-    if (sql) return String(sql);
+    return JSON.parse(raw);
   } catch {
-    // ignore
+    return null;
   }
+}
 
-  // Sinon, on extrait la première occurrence commençant par SELECT/WITH.
-  const match = raw.match(/(with|select)\b[\s\S]*/i);
-  if (match?.[0]) return match[0].trim();
+function extractJsonFromUntrustedEnvelope(text: string): unknown | null {
+  // Exemple MCP:
+  // {"result":"...<untrusted-data-uuid>\n[...json...]\n</untrusted-data-uuid>..."}
+  const outer = tryParseJson(text) as { result?: unknown } | null;
+  const resultText = typeof outer?.result === "string" ? outer.result : text;
+  const match = resultText.match(/<untrusted-data-[^>]+>\s*([\s\S]*?)\s*<\/untrusted-data-[^>]+>/i);
+  const inner = match?.[1]?.trim();
+  if (!inner) return null;
+  return tryParseJson(inner);
+}
 
-  return raw.trim();
+function parseMcpPayload(text: string): unknown {
+  return tryParseJson(text) ?? extractJsonFromUntrustedEnvelope(text) ?? text;
 }
 
 function buildSchemaText(tables: { name: string; columns: { name: string; type: string }[] }[]): string {
@@ -59,6 +69,75 @@ function buildSchemaText(tables: { name: string; columns: { name: string; type: 
       return `Table ${t.name}\n${cols}`;
     })
     .join("\n\n");
+}
+
+function normalizePrompt(prompt: string): string {
+  return prompt
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+function extractLimit(prompt: string): number {
+  const p = normalizePrompt(prompt);
+  const top = p.match(/\btop\s+(\d+)\b/);
+  if (top?.[1]) return Math.max(1, Math.min(Number(top[1]), 200));
+
+  const firstN = p.match(/\b(\d+)\s+(premier|premiere|premieres|premiers|elements|enregistrements|lignes)\b/);
+  if (firstN?.[1]) return Math.max(1, Math.min(Number(firstN[1]), 200));
+
+  if (/\bpremier\b|\bpremiere\b/.test(p)) return 1;
+  return 10;
+}
+
+function extractRequestedTable(prompt: string): string | null {
+  const p = normalizePrompt(prompt);
+  const m = p.match(/\btable\s+([a-z0-9_]+)/i);
+  if (m?.[1]) return m[1];
+  return null;
+}
+
+function resolveTableFromPrompt(
+  prompt: string,
+  tables: { name: string; columns: { name: string; type: string }[] }[],
+): { table: string; matchedBy: "explicit" | "contains" } | null {
+  const requested = extractRequestedTable(prompt);
+  if (requested) {
+    const exact = tables.find((t) => t.name.toLowerCase() === requested);
+    if (exact) return { table: exact.name, matchedBy: "explicit" };
+  }
+
+  const p = normalizePrompt(prompt);
+  const byContains = [...tables]
+    .sort((a, b) => b.name.length - a.name.length)
+    .find((t) => p.includes(t.name.toLowerCase()));
+  if (byContains) return { table: byContains.name, matchedBy: "contains" };
+
+  return null;
+}
+
+function buildDeterministicReadOnlySql(
+  prompt: string,
+  table: { name: string; columns: { name: string; type: string }[] },
+): string {
+  const limit = extractLimit(prompt);
+  const p = normalizePrompt(prompt);
+  const colNames = table.columns.map((c) => c.name.toLowerCase());
+
+  const candidateDateCols = ["created_at", "date_creation", "createdat", "date", "updated_at", "date_mise_a_jour"];
+  const orderCol = candidateDateCols.find((c) => colNames.includes(c));
+  const wantsRecent = /\brecent|recents|recentes|dernier|derniers|nouv/.test(p);
+  const wantsOldest = /\bancien|anciens|plus ancien|premier arrive/.test(p);
+
+  const safeTable = `"${table.name.replace(/"/g, '""')}"`;
+  let sql = `select * from ${safeTable}`;
+
+  if (orderCol && (wantsRecent || wantsOldest)) {
+    const safeOrder = `"${orderCol.replace(/"/g, '""')}"`;
+    sql += wantsOldest ? ` order by ${safeOrder} asc` : ` order by ${safeOrder} desc`;
+  }
+  sql += ` limit ${limit}`;
+  return sql;
 }
 
 async function getPublicSchema(limitTables: number): Promise<{ name: string; columns: { name: string; type: string }[] }[]> {
@@ -78,21 +157,16 @@ async function getPublicSchema(limitTables: number): Promise<{ name: string; col
     });
 
     const tablesText = mcpResultToText(tablesRes);
+    const parsedTables = parseMcpPayload(tablesText);
     let tableNames: string[] = [];
-    try {
-      const parsed = JSON.parse(tablesText);
-      if (Array.isArray(parsed)) {
-        tableNames = parsed
-          .map((row: any) => (typeof row?.table_name === "string" ? row.table_name : undefined))
-          .filter(Boolean);
-      } else if (parsed && typeof parsed === "object" && Array.isArray((parsed as any).rows)) {
-        tableNames = (parsed as any).rows
-          .map((row: any) => (typeof row?.table_name === "string" ? row.table_name : undefined))
-          .filter(Boolean);
-      }
-    } catch {
-      // si impossible à parser, on renvoie vide (le modèle devra travailler sans schéma complet)
-      tableNames = [];
+    if (Array.isArray(parsedTables)) {
+      tableNames = parsedTables
+        .map((row: any) => (typeof row?.table_name === "string" ? row.table_name : undefined))
+        .filter(Boolean);
+    } else if (parsedTables && typeof parsedTables === "object" && Array.isArray((parsedTables as any).rows)) {
+      tableNames = (parsedTables as any).rows
+        .map((row: any) => (typeof row?.table_name === "string" ? row.table_name : undefined))
+        .filter(Boolean);
     }
 
     const tables: { name: string; columns: { name: string; type: string }[] }[] = [];
@@ -109,18 +183,14 @@ async function getPublicSchema(limitTables: number): Promise<{ name: string; col
         arguments: { query: colsSql },
       });
       const colsText = mcpResultToText(colsRes);
+      const parsedCols = parseMcpPayload(colsText);
       const cols: { name: string; type: string }[] = [];
-      try {
-        const parsed = JSON.parse(colsText);
-        if (Array.isArray(parsed)) {
-          for (const row of parsed as any[]) {
-            if (typeof row?.column_name === "string" && typeof row?.data_type === "string") {
-              cols.push({ name: row.column_name, type: row.data_type });
-            }
+      if (Array.isArray(parsedCols)) {
+        for (const row of parsedCols as any[]) {
+          if (typeof row?.column_name === "string" && typeof row?.data_type === "string") {
+            cols.push({ name: row.column_name, type: row.data_type });
           }
         }
-      } catch {
-        // ignore : schéma partiel
       }
       tables.push({ name, columns: cols });
     }
@@ -133,69 +203,63 @@ async function getPublicSchema(limitTables: number): Promise<{ name: string; col
 export class SqlFromPromptController {
   @Post("sql-from-prompt")
   async sqlFromPrompt(@Req() req: AuthRequest, @Body() body: SqlFromPromptBody) {
-    if (!req.user) {
-      throw new HttpException({ error: "Non authentifié" }, HttpStatus.UNAUTHORIZED);
+    try {
+      if (!req.user) {
+        throw new HttpException({ error: "Non authentifié" }, HttpStatus.UNAUTHORIZED);
+      }
+      if (!isSupabaseMcpConfigured()) {
+        throw new HttpException({ error: "MCP Supabase non configuré" }, HttpStatus.SERVICE_UNAVAILABLE);
+      }
+      const prompt = String(body?.prompt ?? "").trim();
+      if (!prompt) {
+        throw new HttpException({ error: "prompt requis" }, HttpStatus.BAD_REQUEST);
+      }
+
+      // Introspection du schéma via MCP Supabase (read-only)
+      const schemaTables = await getPublicSchema(25);
+      if (schemaTables.length === 0) {
+        throw new HttpException(
+          {
+            error:
+              "Impossible de lire le schéma de la base via MCP Supabase. Vérifie SUPABASE_ACCESS_TOKEN/SUPABASE_PROJECT_REF.",
+          },
+          HttpStatus.BAD_GATEWAY,
+        );
+      }
+
+      const resolved = resolveTableFromPrompt(prompt, schemaTables);
+      if (!resolved) {
+        const sample = schemaTables.slice(0, 8).map((t) => t.name);
+        throw new HttpException(
+          {
+            error:
+              "Je ne trouve pas de table correspondante dans votre base. Mentionne explicitement le nom de la table (ex: table documents).",
+            availableTablesSample: sample,
+          },
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      const table = schemaTables.find((t) => t.name === resolved.table)!;
+      const sql = normalizeSql(buildDeterministicReadOnlySql(prompt, table));
+
+      if (!isReadOnlySql(sql)) {
+        throw new HttpException(
+          {
+            error: "La requête générée n'est pas considérée comme non destructive. Réessaie la demande.",
+            generatedPreview: sql.slice(0, 180),
+          },
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      return { sql, resolvedTable: table.name, mode: "mcp-deterministic" };
+    } catch (err) {
+      // On renvoie toujours une réponse { error } lisible côté front.
+      if (err instanceof HttpException) throw err;
+      const message = err instanceof Error ? err.message : String(err);
+      throw new HttpException({ error: message }, HttpStatus.BAD_GATEWAY);
     }
-    if (!isSupabaseMcpConfigured()) {
-      throw new HttpException({ error: "MCP Supabase non configuré" }, HttpStatus.SERVICE_UNAVAILABLE);
-    }
-    const prompt = String(body?.prompt ?? "").trim();
-    if (!prompt) {
-      throw new HttpException({ error: "prompt requis" }, HttpStatus.BAD_REQUEST);
-    }
-
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
-      throw new HttpException({ error: "OPENAI_API_KEY manquant" }, HttpStatus.INTERNAL_SERVER_ERROR);
-    }
-
-    const model = process.env.OPENAI_CHAT_MODEL || "gpt-4o-mini";
-
-    // Introspection légère du schéma via MCP Supabase (read-only)
-    const schemaTables = await getPublicSchema(25);
-    const schemaText = buildSchemaText(schemaTables);
-
-    const system = `Tu génères une requête SQL POUR SUPABASE à partir d'une demande en français.
-Contraintes:
-- SORTIE: renvoie STRICTEMENT un JSON { "sql": "<requête>" } (pas de texte autour).
-- La requête doit être non destructive (SELECT uniquement).
-- La requête doit commencer par SELECT ou WITH.
-- Interdis totalement insert/update/delete/alter/drop/truncate/create/grant/revoke.
-- Si la demande demande "les 5 premiers"/"top 5"/"premiers": utilise LIMIT 5.
-- Utilise uniquement des tables et colonnes présentes dans le schéma ci-dessous.
-`;
-
-    const user = `Demande: ${prompt}
-
-Schéma public (tables/colonnes):
-${schemaText}
-
-Retourne la requête SQL demandée.`;
-
-    const openai = new OpenAI({ apiKey });
-    const completion = await openai.chat.completions.create({
-      model,
-      messages: [
-        { role: "system", content: system },
-        { role: "user", content: user },
-      ],
-      temperature: 0.2,
-      max_completion_tokens: 500,
-      // Pas de tool ici : on s'appuie sur le schéma obtenu via MCP.
-    });
-
-    const raw = completion.choices[0]?.message?.content ?? "";
-    const sqlCandidate = extractSqlFromModelOutput(raw);
-    const sql = normalizeSql(sqlCandidate);
-
-    if (!isReadOnlySql(sql)) {
-      throw new HttpException(
-        { error: "La requête générée n'est pas considérée comme non destructive. Réessaie la demande." },
-        HttpStatus.BAD_REQUEST,
-      );
-    }
-
-    return { sql };
   }
 }
 

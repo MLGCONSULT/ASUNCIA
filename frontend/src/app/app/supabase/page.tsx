@@ -99,11 +99,16 @@ export default function SupabasePage() {
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
-        setError(data?.error ?? "Erreur lors de la génération SQL.");
+        setError(
+          data?.error ??
+            data?.message ??
+            (typeof data === "string" ? data : null) ??
+            "Erreur lors de la génération SQL.",
+        );
         return;
       }
       if (typeof data?.sql !== "string" || !data.sql.trim()) {
-        setError(data?.error ?? "Aucun SQL généré.");
+        setError(data?.error ?? data?.message ?? "Aucun SQL généré.");
         return;
       }
       setSql(data.sql);
