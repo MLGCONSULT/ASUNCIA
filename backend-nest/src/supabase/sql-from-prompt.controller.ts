@@ -104,25 +104,39 @@ function extractLimit(prompt: string): number {
 
 function extractRequestedTable(prompt: string): string | null {
   const p = normalizePrompt(prompt);
-  const m = p.match(/\btable\s+([a-z0-9_]+)/i);
+  const m = p.match(/\btable\s+([a-z0-9_.]+)/i);
   if (m?.[1]) return m[1];
   return null;
+}
+
+function stripSchemaPrefix(tableName: string): string {
+  const parts = tableName.split(".");
+  return parts[parts.length - 1];
 }
 
 function resolveTableFromPrompt(
   prompt: string,
   tables: { name: string; columns: { name: string; type: string }[] }[],
 ): { table: string; matchedBy: "explicit" | "contains" } | null {
-  const requested = extractRequestedTable(prompt);
+  const requestedRaw = extractRequestedTable(prompt);
+  const requested = requestedRaw ? stripSchemaPrefix(requestedRaw.toLowerCase()) : null;
   if (requested) {
-    const exact = tables.find((t) => t.name.toLowerCase() === requested);
+    const exact = tables.find((t) => {
+      const full = t.name.toLowerCase();
+      const short = stripSchemaPrefix(full);
+      return full === requested || short === requested;
+    });
     if (exact) return { table: exact.name, matchedBy: "explicit" };
   }
 
   const p = normalizePrompt(prompt);
   const byContains = [...tables]
     .sort((a, b) => b.name.length - a.name.length)
-    .find((t) => p.includes(t.name.toLowerCase()));
+    .find((t) => {
+      const full = t.name.toLowerCase();
+      const short = stripSchemaPrefix(full);
+      return p.includes(full) || p.includes(short);
+    });
   if (byContains) return { table: byContains.name, matchedBy: "contains" };
 
   return null;
