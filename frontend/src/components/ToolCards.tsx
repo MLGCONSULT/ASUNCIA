@@ -19,15 +19,6 @@ type ToolCard = {
 
 const TOOLS: ToolCard[] = [
   {
-    id: "gmail",
-    href: "/app/mails",
-    label: "Mails",
-    description: "Lire et répondre.",
-    assistantPrompt: "Résume mes derniers mails importants et propose les réponses prioritaires.",
-    icon: "mail",
-    accent: "cyan",
-  },
-  {
     id: "airtable",
     href: "/app/airtable",
     label: "Airtable",
@@ -80,10 +71,6 @@ export default function ToolCards() {
 
     async function loadStatuses() {
       const entries = await Promise.all([
-        fetchBackend("/api/gmail/status")
-          .then((response) => response.json())
-          .then((data) => ["gmail", { connected: Boolean(data.connected), available: Boolean(data.configured), source: data.source as string | undefined }] as const)
-          .catch(() => ["gmail", { connected: false, available: false }] as const),
         fetchBackend("/api/auth/airtable/status")
           .then((response) => response.json())
           .then((data) => ["airtable", { connected: Boolean(data.connected), available: Boolean(data.configured), source: data.source as string | undefined }] as const)
@@ -109,7 +96,7 @@ export default function ToolCards() {
   }, []);
 
   return (
-    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3 xl:grid-cols-4">
+    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3 xl:grid-cols-3">
       {TOOLS.map((tool, i) => (
         <motion.div
           key={tool.href}

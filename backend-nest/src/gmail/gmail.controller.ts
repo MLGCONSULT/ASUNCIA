@@ -11,7 +11,6 @@ import {
 import type { Request } from "express";
 import { callGmailMcpTool, isGmailMcpConfigured } from "../mcp/gmail-client";
 import { parseMcpResultJson } from "../mcp/result";
-import { MCP_ERROR_MESSAGES } from "../config/mcp";
 import { createUserSupabaseFromRequest } from "../services/auth-context";
 import {
   getGmailAccessTokenForContext,
@@ -34,6 +33,9 @@ type GmailSendBody = {
 
 @Controller("gmail")
 export class GmailController {
+  private readonly gmailUnavailableMessage =
+    "Gmail est desactive dans cette version (MCP retire).";
+
   private getUserContext(req: AuthRequest): UserIntegrationContext {
     if (!req.user) {
       throw new HttpException({ error: "Non authentifié" }, HttpStatus.UNAUTHORIZED);
@@ -50,7 +52,7 @@ export class GmailController {
       throw new HttpException({ error: "Non authentifié" }, HttpStatus.UNAUTHORIZED);
     }
     if (!isGmailMcpConfigured()) {
-      throw new HttpException({ error: MCP_ERROR_MESSAGES.gmail }, HttpStatus.SERVICE_UNAVAILABLE);
+      throw new HttpException({ error: this.gmailUnavailableMessage }, HttpStatus.SERVICE_UNAVAILABLE);
     }
     try {
       const ctx = this.getUserContext(req);
@@ -85,7 +87,7 @@ export class GmailController {
       throw new HttpException({ error: "Non authentifié" }, HttpStatus.UNAUTHORIZED);
     }
     if (!isGmailMcpConfigured()) {
-      throw new HttpException({ error: MCP_ERROR_MESSAGES.gmail }, HttpStatus.SERVICE_UNAVAILABLE);
+      throw new HttpException({ error: this.gmailUnavailableMessage }, HttpStatus.SERVICE_UNAVAILABLE);
     }
     try {
       const ctx = this.getUserContext(req);
@@ -112,7 +114,7 @@ export class GmailController {
       throw new HttpException({ error: "Non authentifié" }, HttpStatus.UNAUTHORIZED);
     }
     if (!isGmailMcpConfigured()) {
-      throw new HttpException({ error: MCP_ERROR_MESSAGES.gmail }, HttpStatus.SERVICE_UNAVAILABLE);
+      throw new HttpException({ error: this.gmailUnavailableMessage }, HttpStatus.SERVICE_UNAVAILABLE);
     }
     try {
       const ctx = this.getUserContext(req);

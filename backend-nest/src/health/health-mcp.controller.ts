@@ -15,7 +15,6 @@ import {
   isNotionMcpConfigured,
   listNotionMcpTools,
 } from "../mcp/notion-client";
-import { isGmailMcpConfigured } from "../mcp/gmail-client";
 import { isSupabaseMcpConfigured, listMcpTools } from "../mcp/supabase-client";
 
 // Attention : dans main.ts, on a un middleware qui réécrit /api/... en /...
@@ -123,28 +122,5 @@ export class HealthMcpController {
     });
   }
 
-  @Get("mcp-gmail")
-  mcpGmail(@Res() res: Response) {
-    if (!isGmailMcpConfigured()) {
-      res
-        .status(HttpStatus.SERVICE_UNAVAILABLE)
-        .json({ ok: false, error: "GMAIL_MCP_URL manquant" });
-      return;
-    }
-    const oauthConfigured =
-      !!process.env.GOOGLE_CLIENT_ID?.trim() && !!process.env.GOOGLE_CLIENT_SECRET?.trim();
-
-    res.json({
-      ok: oauthConfigured,
-      mode: "oauth",
-      selectedMode: "read-send",
-      capabilities: ["read_messages", "send_email"],
-      requiresUserConnection: true,
-      oauthConfigured,
-      message: oauthConfigured
-        ? "Gmail MCP et OAuth Google configurés. Connectez un utilisateur pour vérifier les outils."
-        : "GOOGLE_CLIENT_ID ou GOOGLE_CLIENT_SECRET manquant.",
-    });
-  }
 }
 

@@ -86,22 +86,6 @@ export const CHAT_TOOLS: ChatCompletionTool[] = [
   {
     type: "function",
     function: {
-      name: "mcp_gmail",
-      description: "Appel au MCP Gmail : lire, envoyer, rechercher des emails.",
-      parameters: {
-        type: "object",
-        properties: {
-          toolName: { type: "string" },
-          arguments: { type: "object", additionalProperties: true },
-        },
-        required: ["toolName"],
-        additionalProperties: false,
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
       name: "mcp_airtable",
       description: "Appel au MCP Airtable : lister bases, tables, enregistrements.",
       parameters: {
@@ -127,20 +111,6 @@ export const CHAT_TOOLS: ChatCompletionTool[] = [
           arguments: { type: "object", additionalProperties: true },
         },
         required: ["toolName"],
-        additionalProperties: false,
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "gmail_list_messages",
-      description: "Liste les derniers emails Gmail.",
-      parameters: {
-        type: "object",
-        properties: {
-          maxResults: { type: "number", default: 15 },
-        },
         additionalProperties: false,
       },
     },

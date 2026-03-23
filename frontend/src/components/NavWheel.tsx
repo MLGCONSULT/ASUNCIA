@@ -28,14 +28,6 @@ const NAV_ITEMS: NavItem[] = [
     accentBg: "from-cyan-400/20 to-cyan-400/5",
   },
   {
-    href: "/app/mails",
-    label: "Mails",
-    icon: "mail",
-    accentText: "text-sky-300",
-    accentGlow: "shadow-[0_0_20px_-6px_rgba(125,211,252,0.8)]",
-    accentBg: "from-sky-300/20 to-sky-300/5",
-  },
-  {
     href: "/app/airtable",
     label: "Airtable",
     icon: "grid",

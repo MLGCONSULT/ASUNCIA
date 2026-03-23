@@ -1,5 +1,4 @@
 import { isN8nMcpConfigured } from "../mcp/n8n-client";
-import { isGmailMcpConfigured } from "../mcp/gmail-client";
 import { isAirtableMcpConfigured } from "../mcp/airtable-client";
 import { isNotionMcpConfigured } from "../mcp/notion-client";
 import { isSupabaseMcpConfigured } from "../mcp/supabase-client";
@@ -12,10 +11,6 @@ export const MCP = {
   n8n: {
     envVars: ["N8N_MCP_URL", "N8N_MCP_ACCESS_TOKEN"],
     isConfigured: isN8nMcpConfigured,
-  },
-  gmail: {
-    envVars: ["GMAIL_MCP_URL", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "Scope OAuth lecture + envoi"],
-    isConfigured: isGmailMcpConfigured,
   },
   airtable: {
     envVars: [
@@ -39,8 +34,6 @@ export const MCP_ERROR_MESSAGES = {
   supabase:
     "Configurez le MCP Supabase : SUPABASE_ACCESS_TOKEN et SUPABASE_PROJECT_REF (ou NEXT_PUBLIC_SUPABASE_URL) dans .env",
   n8n: "Configurez le serveur MCP n8n : N8N_MCP_URL et N8N_MCP_ACCESS_TOKEN dans .env",
-  gmail:
-    "Configurez Gmail : GMAIL_MCP_URL, GOOGLE_CLIENT_ID et GOOGLE_CLIENT_SECRET dans .env, avec un scope OAuth lecture + envoi.",
   airtable:
     "Configurez Airtable : AIRTABLE_MCP_URL, AIRTABLE_RUNTIME_MODE puis soit AIRTABLE_OAUTH_CLIENT_ID, soit AIRTABLE_MCP_TOKEN/AIRTABLE_TOKEN dans .env.",
   notion:

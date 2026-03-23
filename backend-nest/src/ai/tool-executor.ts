@@ -1,7 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { callMcpTool } from "../mcp/supabase-client";
 import { callN8nMcpTool, isN8nMcpConfigured } from "../mcp/n8n-client";
-import { callGmailMcpTool, isGmailMcpConfigured } from "../mcp/gmail-client";
 import { callAirtableMcpTool, isAirtableMcpConfigured } from "../mcp/airtable-client";
 import {
   callNotionMcpTool,
@@ -11,7 +10,6 @@ import {
 import { mcpResultToText } from "../mcp/result";
 import { MCP_ERROR_MESSAGES } from "../config/mcp";
 import { getAirtableRuntimeAccess } from "../services/integrations/airtable";
-import { getGmailAccessTokenForContext } from "../services/integrations/gmail";
 import { getNotionRuntimeAccess } from "../services/integrations/notion";
 
 export type ToolContext = { supabase: SupabaseClient; userId: string };
@@ -78,16 +76,6 @@ export async function executeTool(
         const result = await callN8nMcpTool(toolName, toolArgs);
         return mcpResultToText(result);
       }
-      case "mcp_gmail": {
-        const toolName = String(args.toolName ?? "").trim();
-        const toolArgs = (args.arguments as Record<string, unknown>) ?? {};
-        if (!toolName) return "toolName requis.";
-        if (!isGmailMcpConfigured()) return MCP_ERROR_MESSAGES.gmail;
-        const accessToken = await getGmailAccessTokenForContext({ supabase, userId });
-        if (!accessToken) return "Impossible d'accéder à Gmail. Reconnecter depuis la page Mails.";
-        const result = await callGmailMcpTool(toolName, toolArgs, accessToken);
-        return mcpResultToText(result);
-      }
       case "mcp_airtable": {
         const toolName = String(args.toolName ?? "").trim();
         const toolArgs = (args.arguments as Record<string, unknown>) ?? {};
@@ -108,14 +96,6 @@ export async function executeTool(
         if (!runtime.available)
           return "Notion non connecté. L'utilisateur peut connecter Notion depuis les paramètres (OAuth).";
         const result = await callNotionMcpTool(toolName, toolArgs, runtime.accessToken);
-        return mcpResultToText(result);
-      }
-      case "gmail_list_messages": {
-        if (!isGmailMcpConfigured()) return MCP_ERROR_MESSAGES.gmail;
-        const accessToken = await getGmailAccessTokenForContext({ supabase, userId });
-        if (!accessToken) return "Impossible d'accéder à Gmail.";
-        const maxResults = Math.min(Number(args.maxResults) || 15, 30);
-        const result = await callGmailMcpTool("list_messages", { max_results: maxResults }, accessToken);
         return mcpResultToText(result);
       }
       case "airtable_list_bases": {

@@ -6,7 +6,6 @@ Mission principale :
 - Tu restes aussi capable de répondre aux questions générales du quotidien (style assistant ChatGPT), même hors outils.
 
 Correspondance des intentions vers onglets :
-- Emails / Gmail -> /app/mails
 - Airtable -> /app/airtable
 - Notion -> /app/notion
 - Supabase / SQL / base interne -> /app/supabase
