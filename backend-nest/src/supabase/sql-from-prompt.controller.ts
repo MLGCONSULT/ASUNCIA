@@ -154,68 +154,62 @@ function buildDeterministicReadOnlySql(
 
 async function getPublicSchema(limitTables: number): Promise<{ name: string; columns: { name: string; type: string }[] }[]> {
   return withSupabaseMcpClient(async (client) => {
-    // 1) Tables publiques
-    const tablesSql = `
-      select table_name
-      from information_schema.tables
-      where table_schema = 'public'
-        and table_type = 'BASE TABLE'
-      order by table_name
-      limit ${limitTables};
-    `;
+    // Utilise l'outil MCP natif list_tables (plus fiable que information_schema selon les projets).
     const tablesRes = await client.callTool({
-      name: "execute_sql",
-      arguments: { query: tablesSql },
+      name: "list_tables",
+      arguments: { schemas: ["public"], verbose: true },
     });
     const tablesErr = readMcpError(tablesRes);
     if (tablesErr) {
-      throw new Error(`MCP execute_sql (tables) a échoué: ${tablesErr}`);
+      throw new Error(`MCP list_tables a échoué: ${tablesErr}`);
     }
 
     const tablesText = mcpResultToText(tablesRes);
-    const parsedTables = parseMcpPayload(tablesText);
-    let tableNames: string[] = [];
-    if (Array.isArray(parsedTables)) {
-      tableNames = parsedTables
-        .map((row: any) => (typeof row?.table_name === "string" ? row.table_name : undefined))
-        .filter(Boolean);
-    } else if (parsedTables && typeof parsedTables === "object" && Array.isArray((parsedTables as any).rows)) {
-      tableNames = (parsedTables as any).rows
-        .map((row: any) => (typeof row?.table_name === "string" ? row.table_name : undefined))
-        .filter(Boolean);
-    }
+    const payload = parseMcpPayload(tablesText) as any;
+    const rawTables = Array.isArray(payload)
+      ? payload
+      : Array.isArray(payload?.tables)
+        ? payload.tables
+        : Array.isArray(payload?.data)
+          ? payload.data
+          : Array.isArray(payload?.rows)
+            ? payload.rows
+            : [];
 
-    const tables: { name: string; columns: { name: string; type: string }[] }[] = [];
-    for (const name of tableNames) {
-      const colsSql = `
-        select column_name, data_type
-        from information_schema.columns
-        where table_schema = 'public'
-          and table_name = '${name.replace(/'/g, "''")}'
-        order by ordinal_position;
-      `;
-      const colsRes = await client.callTool({
-        name: "execute_sql",
-        arguments: { query: colsSql },
-      });
-      const colsErr = readMcpError(colsRes);
-      if (colsErr) {
-        throw new Error(`MCP execute_sql (colonnes/${name}) a échoué: ${colsErr}`);
-      }
-      const colsText = mcpResultToText(colsRes);
-      const parsedCols = parseMcpPayload(colsText);
+    const normalized: { name: string; columns: { name: string; type: string }[] }[] = [];
+    for (const t of rawTables.slice(0, limitTables)) {
+      const name =
+        typeof t?.name === "string"
+          ? t.name
+          : typeof t?.table_name === "string"
+            ? t.table_name
+            : typeof t?.table === "string"
+              ? t.table
+              : null;
+      if (!name) continue;
+
+      const rawCols = Array.isArray(t?.columns) ? t.columns : [];
       const cols: { name: string; type: string }[] = [];
-      if (Array.isArray(parsedCols)) {
-        for (const row of parsedCols as any[]) {
-          if (typeof row?.column_name === "string" && typeof row?.data_type === "string") {
-            cols.push({ name: row.column_name, type: row.data_type });
-          }
-        }
+      for (const c of rawCols) {
+        const colName =
+          typeof c?.name === "string"
+            ? c.name
+            : typeof c?.column_name === "string"
+              ? c.column_name
+              : null;
+        const colType =
+          typeof c?.type === "string"
+            ? c.type
+            : typeof c?.data_type === "string"
+              ? c.data_type
+              : "unknown";
+        if (colName) cols.push({ name: colName, type: colType });
       }
-      tables.push({ name, columns: cols });
+
+      normalized.push({ name, columns: cols });
     }
 
-    return tables;
+    return normalized;
   });
 }
 
