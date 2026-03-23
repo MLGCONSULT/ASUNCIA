@@ -9,13 +9,64 @@ import CommandPalette from "@/components/CommandPalette";
 import { createClient } from "@/lib/supabase/client";
 import { fetchBackend } from "@/lib/api";
 
-const NAV_ITEMS: { href: string; label: string; icon: IconName }[] = [
-  { href: "/app/dashboard", label: "Assistant", icon: "chat" },
-  { href: "/app/mails", label: "Mails", icon: "mail" },
-  { href: "/app/airtable", label: "Airtable", icon: "grid" },
-  { href: "/app/notion", label: "Notion", icon: "document" },
-  { href: "/app/supabase", label: "Supabase", icon: "database" },
-  { href: "/app/n8n", label: "Workflows", icon: "workflow" },
+type NavItem = {
+  href: string;
+  label: string;
+  icon: IconName;
+  accentText: string;
+  accentGlow: string;
+  accentBg: string;
+};
+
+const NAV_ITEMS: NavItem[] = [
+  {
+    href: "/app/dashboard",
+    label: "Assistant",
+    icon: "chat",
+    accentText: "text-accent-cyan",
+    accentGlow: "shadow-[0_0_20px_-6px_rgba(34,211,238,0.8)]",
+    accentBg: "from-cyan-400/20 to-cyan-400/5",
+  },
+  {
+    href: "/app/mails",
+    label: "Mails",
+    icon: "mail",
+    accentText: "text-sky-300",
+    accentGlow: "shadow-[0_0_20px_-6px_rgba(125,211,252,0.8)]",
+    accentBg: "from-sky-300/20 to-sky-300/5",
+  },
+  {
+    href: "/app/airtable",
+    label: "Airtable",
+    icon: "grid",
+    accentText: "text-emerald-300",
+    accentGlow: "shadow-[0_0_20px_-6px_rgba(110,231,183,0.8)]",
+    accentBg: "from-emerald-300/20 to-emerald-300/5",
+  },
+  {
+    href: "/app/notion",
+    label: "Notion",
+    icon: "document",
+    accentText: "text-fuchsia-300",
+    accentGlow: "shadow-[0_0_20px_-6px_rgba(240,171,252,0.8)]",
+    accentBg: "from-fuchsia-300/20 to-fuchsia-300/5",
+  },
+  {
+    href: "/app/supabase",
+    label: "Supabase",
+    icon: "database",
+    accentText: "text-amber-300",
+    accentGlow: "shadow-[0_0_20px_-6px_rgba(252,211,77,0.8)]",
+    accentBg: "from-amber-300/20 to-amber-300/5",
+  },
+  {
+    href: "/app/n8n",
+    label: "Workflows",
+    icon: "workflow",
+    accentText: "text-violet-300",
+    accentGlow: "shadow-[0_0_20px_-6px_rgba(196,181,253,0.8)]",
+    accentBg: "from-violet-300/20 to-violet-300/5",
+  },
 ];
 
 export default function NavWheel() {
@@ -49,17 +100,17 @@ export default function NavWheel() {
   return (
     <>
       <footer
-        className="fixed bottom-0 left-0 right-0 z-50 pt-7 pb-3 px-2 bg-surface/90 backdrop-blur-md"
+        className="fixed bottom-0 left-0 right-0 z-50 pt-7 pb-3 px-2 bg-surface/75 backdrop-blur-2xl"
         aria-label="Navigation"
       >
         {/* Délimitation en arc de cercle (bordure supérieure du footer) */}
         <div
-          className="absolute left-0 right-0 top-0 h-8 border-t border-white/10 bg-surface/90 backdrop-blur-md rounded-t-[50%]"
-          style={{ boxShadow: "0 -1px 0 0 rgb(255 255 255 / 0.06)" }}
+          className="absolute left-0 right-0 top-0 h-8 border-t border-white/10 bg-gradient-to-b from-white/[0.08] to-surface/70 backdrop-blur-2xl rounded-t-[50%]"
+          style={{ boxShadow: "0 -1px 0 0 rgb(255 255 255 / 0.08), 0 -18px 28px -24px rgba(125,211,252,0.45)" }}
           aria-hidden
         />
         <nav
-          className="relative flex items-stretch gap-1 max-w-3xl mx-auto overflow-x-auto no-scrollbar px-1"
+          className="relative flex items-stretch gap-1.5 max-w-3xl mx-auto overflow-x-auto no-scrollbar px-1"
           aria-label="Navigation principale"
         >
           {NAV_ITEMS.map((item, i) => {
@@ -71,28 +122,45 @@ export default function NavWheel() {
                 transition={{ type: "spring", stiffness: 500, damping: 26 }}
               >
                 <Link
-                href={item.href}
-                title={item.label}
-                aria-current={isActive ? "page" : undefined}
-                className={`relative flex min-w-[74px] flex-1 flex-col items-center justify-center rounded-2xl py-2.5 px-2 transition-all duration-200 ${
-                  isActive
-                    ? "bg-accent-cyan/15 text-accent-cyan border border-accent-cyan/35 shadow-[0_0_12px_-2px_rgba(34,211,238,0.25)]"
-                    : "text-text-muted hover:bg-white/10 hover:text-text-primary border border-transparent"
-                }`}
-              >
-                {isActive && (
-                  <motion.span
-                    layoutId="navwheel-active-pill"
-                    className="absolute inset-0 rounded-2xl border border-accent-cyan/35"
-                    transition={{ type: "spring", bounce: 0.18, duration: 0.35 }}
-                  />
-                )}
-                <span className="relative">
-                  <NavIcon name={item.icon} className="h-5 w-5 shrink-0" />
-                </span>
-                <span className="relative mt-1 text-[11px] leading-none font-medium truncate max-w-[68px]">
-                  {item.label}
-                </span>
+                  href={item.href}
+                  title={item.label}
+                  aria-current={isActive ? "page" : undefined}
+                  className={`relative overflow-hidden flex min-w-[78px] flex-1 flex-col items-center justify-center rounded-2xl py-2.5 px-2 transition-all duration-300 border ${
+                    isActive
+                      ? `bg-gradient-to-b ${item.accentBg} border-white/20 ${item.accentGlow} ${item.accentText}`
+                      : "bg-white/[0.03] border-white/5 text-text-muted hover:bg-white/[0.07] hover:text-text-primary hover:border-white/20"
+                  }`}
+                >
+                  {isActive && (
+                    <>
+                      <motion.span
+                        layoutId="navwheel-active-pill"
+                        className="absolute inset-0 rounded-2xl border border-white/20"
+                        transition={{ type: "spring", bounce: 0.18, duration: 0.35 }}
+                      />
+                      <motion.span
+                        className="absolute -top-5 left-1/2 w-16 h-16 -translate-x-1/2 rounded-full blur-xl bg-white/20"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 0.65 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.25 }}
+                        aria-hidden
+                      />
+                    </>
+                  )}
+                  <span
+                    className={`relative flex items-center justify-center rounded-xl px-2.5 py-1.5 ${
+                      isActive ? "bg-white/[0.08]" : ""
+                    }`}
+                  >
+                    <NavIcon name={item.icon} className="h-5 w-5 shrink-0" />
+                  </span>
+                  <span className="relative mt-1 text-[11px] leading-none font-semibold truncate max-w-[70px]">
+                    {item.label}
+                  </span>
+                  {isActive && (
+                    <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-current" aria-hidden />
+                  )}
                 </Link>
               </motion.div>
             );

@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { fetchBackend } from "@/lib/api";
@@ -20,6 +21,36 @@ type ConversationItem = {
   dateCreation: string;
   dateMiseAJour: string;
 };
+
+function renderMessageWithLinks(content: string): React.ReactNode {
+  const regex = /(https?:\/\/[^\s]+|\/app\/[a-zA-Z0-9/_-]+)/g;
+  const parts = content.split(regex);
+  return parts.map((part, index) => {
+    const isInternal = /^\/app\/[a-zA-Z0-9/_-]+$/.test(part);
+    const isExternal = /^https?:\/\/[^\s]+$/.test(part);
+    if (isInternal) {
+      return (
+        <Link key={`${part}-${index}`} href={part} className="underline decoration-accent-cyan/50 hover:text-accent-cyan">
+          {part}
+        </Link>
+      );
+    }
+    if (isExternal) {
+      return (
+        <a
+          key={`${part}-${index}`}
+          href={part}
+          target="_blank"
+          rel="noreferrer"
+          className="underline decoration-accent-cyan/50 hover:text-accent-cyan"
+        >
+          {part}
+        </a>
+      );
+    }
+    return <span key={`${index}-${part.slice(0, 8)}`}>{part}</span>;
+  });
+}
 
 export default function ChatAssistant({
   compact = false,
@@ -386,7 +417,9 @@ export default function ChatAssistant({
                     : "glass text-text-primary border border-white/10"
                 }`}
               >
-                <p className="lava-text-safe text-sm whitespace-pre-wrap">{m.content}</p>
+                <p className="lava-text-safe text-sm whitespace-pre-wrap break-words">
+                  {renderMessageWithLinks(m.content)}
+                </p>
               </div>
             </motion.div>
           ))}
