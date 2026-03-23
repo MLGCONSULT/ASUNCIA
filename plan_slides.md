@@ -106,18 +106,46 @@ But: aider quelqu'un qui n'est pas du milieu a faire un PowerPoint clair, joli e
 
 ### Slide 6 - Exemples de prompts Cursor
 
-**Mettre 3 exemples concrets:**
-- Prompt 1: migration backend
-- Prompt 2: debug integration
-- Prompt 3: amelioration UX
+Objectif de cette slide: montrer que la demarche IA est intelligente, concrete, et controlee.
 
-**Structure a afficher pour chaque prompt:**
-- "Ce qu'on a demande"
-- "Ce que ca a produit"
-- "Pourquoi c'etait utile"
+**Format visuel recommande (3 cartes):**
+- Carte 1: "Probleme"
+- Carte 2: "Prompt Cursor"
+- Carte 3: "Resultat mesurable"
 
-**A dire:**
-"Cursor accelere, mais on garde toujours un controle humain."
+Tu peux copier-coller ces 3 exemples:
+
+**Exemple 1 - Debug n8n (cas reel)**
+- Probleme: l'onglet n8n affichait une erreur "invalid type: limit string".
+- Prompt Cursor:
+  - "Analyse l'erreur MCP n8n sur `search_workflows` et corrige backend + frontend pour envoyer `limit` en integer. Affiche un message d'erreur clair cote UI."
+- Resultat a afficher:
+  - "Correction en 1 passe: parsing `limit` cote backend + message UI detaille."
+  - "Impact: l'onglet n8n est redevenu utilisable."
+
+**Exemple 2 - UX orientee usage (n8n)**
+- Probleme: l'utilisateur ne pouvait pas exploiter facilement les workflows.
+- Prompt Cursor:
+  - "Transforme l'onglet n8n en interface orientee action: recherche workflow, detail, JSON copiable, lien direct vers n8n, execution."
+- Resultat a afficher:
+  - "Nouvelle UX plus claire + JSON exploitable."
+  - "Impact: moins de clics, meilleur confort, plus de valeur produit."
+
+**Exemple 3 - Assistant guide utilisateur**
+- Probleme: l'IA repondait sans toujours orienter vers le bon onglet.
+- Prompt Cursor:
+  - "Reecris le system prompt pour forcer une reponse guidee: onglet conseille, pourquoi, etapes, resultat attendu, puis mode chat general pour questions quotidiennes."
+- Resultat a afficher:
+  - "L'assistant devient un copilote concret, pas juste un chatbot."
+  - "Impact: onboarding plus rapide et meilleure comprehension des fonctionnalites."
+
+**A dire a l'oral (phrase simple):**
+"On utilise Cursor pour aller plus vite, mais chaque changement est relu, teste et valide humainement."
+
+**Ce qu'il faut mettre exactement sur la slide:**
+- 1 titre: "Comment Cursor nous fait gagner du temps"
+- 3 cartes (une par exemple ci-dessus)
+- en bas: une ligne "Gain: debug plus rapide + UX meilleure + livrables plus propres"
 
 ---
 

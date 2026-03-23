@@ -13,6 +13,11 @@ type TodayState = {
   loading: boolean;
 };
 
+type N8nWorkflowRow = {
+  id?: string;
+  active?: boolean | null;
+};
+
 const initialState: TodayState = {
   n8nActive: null,
   n8nTotal: null,
@@ -36,8 +41,10 @@ export default function DashboardToday() {
         const n8nData = n8nRes?.ok ? await n8nRes.json().catch(() => ({})) : {};
         const airtableData = airtableRes?.ok ? await airtableRes.json().catch(() => ({})) : {};
 
-        const workflows = Array.isArray(n8nData?.workflows) ? n8nData.workflows : [];
-        const activeWorkflows = workflows.filter((w) => Boolean((w as { active?: boolean }).active));
+        const workflows: N8nWorkflowRow[] = Array.isArray(n8nData?.workflows)
+          ? (n8nData.workflows as N8nWorkflowRow[])
+          : [];
+        const activeWorkflows = workflows.filter((w: N8nWorkflowRow) => Boolean(w.active));
         const bases = Array.isArray(airtableData?.bases) ? airtableData.bases : [];
 
         if (!active) return;
