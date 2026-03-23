@@ -11,7 +11,7 @@ import {
   HttpStatus,
 } from "@nestjs/common";
 import type { Request } from "express";
-import { callN8nMcpTool, isN8nMcpConfigured } from "../mcp/n8n-client";
+import { callN8nMcpTool, getN8nEditorBaseUrl, isN8nMcpConfigured } from "../mcp/n8n-client";
 import { parseMcpResultJson } from "../mcp/result";
 import { MCP_ERROR_MESSAGES } from "../config/mcp";
 import { callFirstAvailableTool } from "../services/integrations/n8n";
@@ -20,7 +20,7 @@ type AuthRequest = Request & { user?: { id: string } };
 
 type N8nWorkflowsQuery = {
   query?: string;
-  limit?: number;
+  limit?: number | string;
 };
 
 type N8nWorkflowIdParams = {
@@ -62,14 +62,23 @@ export class N8nController {
     }
     try {
       const { query, limit } = (req.query || {}) as N8nWorkflowsQuery;
-      const result = await callN8nMcpTool("search_workflows", { query, limit });
+      const normalizedLimit =
+        typeof limit === "number"
+          ? limit
+          : typeof limit === "string" && limit.trim() !== ""
+            ? Number(limit)
+            : undefined;
+      const result = await callN8nMcpTool("search_workflows", {
+        query,
+        ...(Number.isFinite(normalizedLimit) ? { limit: normalizedLimit } : {}),
+      });
       const data = parseMcpResultJson<{ workflows?: unknown[]; data?: unknown[] } | unknown[]>(result);
       const workflows = Array.isArray(data)
         ? data
         : ((data as { workflows?: unknown[] }).workflows ??
           (data as { data?: unknown[] }).data ??
           []);
-      return { workflows };
+      return { workflows, editorBaseUrl: getN8nEditorBaseUrl() };
     } catch (err) {
       const message = err instanceof Error ? err.message : "Erreur n8n";
       throw new HttpException({ error: message }, HttpStatus.BAD_GATEWAY);
@@ -89,7 +98,11 @@ export class N8nController {
         workflowId: id,
       });
       const data = parseMcpResultJson(result);
-      return data;
+      const editorBaseUrl = getN8nEditorBaseUrl();
+      if (data !== null && typeof data === "object" && !Array.isArray(data)) {
+        return { ...(data as Record<string, unknown>), editorBaseUrl };
+      }
+      return { data, editorBaseUrl };
     } catch (err) {
       const message = err instanceof Error ? err.message : "Erreur n8n";
       throw new HttpException({ error: message }, HttpStatus.BAD_GATEWAY);

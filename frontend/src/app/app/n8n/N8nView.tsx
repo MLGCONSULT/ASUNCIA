@@ -27,7 +27,23 @@ type WorkflowDetail = {
   [key: string]: unknown;
 };
 
+const toPrettyJson = (value: unknown) => {
+  try {
+    return JSON.stringify(value ?? {}, null, 2);
+  } catch {
+    return "{}";
+  }
+};
+
+const buildN8nWorkflowUrl = (base: string | null, workflowId: string) => {
+  const b = base?.trim().replace(/\/+$/, "");
+  if (!b || !workflowId) return null;
+  return `${b}/workflow/${encodeURIComponent(workflowId)}`;
+};
+
 export default function N8nView() {
+  /** Dérivé côté backend depuis N8N_MCP_URL (aucune variable NEXT_PUBLIC supplémentaire). */
+  const [editorBaseUrl, setEditorBaseUrl] = useState<string | null>(null);
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -43,9 +59,11 @@ export default function N8nView() {
   const [executeResultDetail, setExecuteResultDetail] = useState<{ ok: boolean; message?: string } | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createName, setCreateName] = useState("");
+  const [createJson, setCreateJson] = useState<string>('{\n  "nodes": [],\n  "connections": {},\n  "settings": {}\n}');
   const [creating, setCreating] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editName, setEditName] = useState("");
+  const [editJson, setEditJson] = useState<string>("");
   const [editing, setEditing] = useState(false);
 
   const loadWorkflows = useCallback(async () => {
@@ -53,7 +71,7 @@ export default function N8nView() {
     setError(null);
     setErrorHint(null);
     try {
-      const r = await fetchBackend("/api/n8n/workflows?limit=50");
+      const r = await fetchBackend("/api/n8n/workflows");
       const data = await r.json().catch(() => ({}));
       if (!r.ok) {
         const msg =
@@ -84,6 +102,7 @@ export default function N8nView() {
         return;
       }
       setWorkflows(Array.isArray(data.workflows) ? data.workflows : []);
+      setEditorBaseUrl(typeof data.editorBaseUrl === "string" ? data.editorBaseUrl : null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erreur");
     } finally {
@@ -108,7 +127,12 @@ export default function N8nView() {
         if (!r.ok) throw new Error("Impossible de charger le détail.");
         return r.json();
       })
-      .then(setDetail)
+      .then((payload) => {
+        setDetail(payload);
+        if (typeof payload?.editorBaseUrl === "string") {
+          setEditorBaseUrl(payload.editorBaseUrl);
+        }
+      })
       .catch(() => setDetail(null))
       .finally(() => setDetailLoading(false));
   }, [selectedId]);
@@ -213,65 +237,132 @@ export default function N8nView() {
   }, [loadWorkflows, selectedId]);
 
   const handleCreate = useCallback(async () => {
-    if (!createName.trim()) return;
     setCreating(true);
     try {
+      const parsed = JSON.parse(createJson || "{}") as Record<string, unknown>;
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+        throw new Error("Le JSON doit être un objet.");
+      }
       const r = await fetchBackend("/api/n8n/workflows", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: createName.trim(),
-          nodes: [],
-          connections: {},
-          settings: {},
+          name: createName.trim() || (typeof parsed.name === "string" ? parsed.name : "Workflow MCP"),
+          nodes: Array.isArray(parsed.nodes) ? parsed.nodes : [],
+          connections:
+            parsed.connections && typeof parsed.connections === "object" && !Array.isArray(parsed.connections)
+              ? parsed.connections
+              : {},
+          settings:
+            parsed.settings && typeof parsed.settings === "object" && !Array.isArray(parsed.settings)
+              ? parsed.settings
+              : {},
         }),
       });
       const data = await r.json();
       if (r.ok) {
         setShowCreateModal(false);
         setCreateName("");
+        setCreateJson('{\n  "nodes": [],\n  "connections": {},\n  "settings": {}\n}');
         await loadWorkflows();
         setExecuteResult({ id: "", ok: true, message: "Workflow créé." });
       } else {
         setExecuteResult({ id: "", ok: false, message: data.error || "Erreur" });
       }
-    } catch {
-      setExecuteResult({ id: "", ok: false, message: "Erreur réseau." });
+    } catch (e) {
+      setExecuteResult({
+        id: "",
+        ok: false,
+        message: e instanceof Error ? e.message : "Erreur réseau.",
+      });
     } finally {
       setCreating(false);
     }
-  }, [createName, loadWorkflows]);
+  }, [createName, createJson, loadWorkflows]);
 
   const handleUpdate = useCallback(async () => {
-    if (!selectedId || !editName.trim()) return;
+    if (!selectedId) return;
     setEditing(true);
     try {
+      const parsed = JSON.parse(editJson || "{}") as Record<string, unknown>;
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+        throw new Error("Le JSON d'édition doit être un objet.");
+      }
+      const payload: Record<string, unknown> = {
+        name: editName.trim() || (typeof parsed.name === "string" ? parsed.name : undefined),
+      };
+      if (Array.isArray(parsed.nodes)) payload.nodes = parsed.nodes;
+      if (parsed.connections && typeof parsed.connections === "object" && !Array.isArray(parsed.connections)) {
+        payload.connections = parsed.connections;
+      }
+      if (parsed.settings && typeof parsed.settings === "object" && !Array.isArray(parsed.settings)) {
+        payload.settings = parsed.settings;
+      }
+      if (typeof parsed.active === "boolean") payload.active = parsed.active;
       const r = await fetchBackend("/api/n8n/workflows/" + encodeURIComponent(selectedId), {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: editName.trim(),
-        }),
+        body: JSON.stringify(payload),
       });
       const data = await r.json();
       if (r.ok) {
         setShowEditModal(false);
         await loadWorkflows();
-        setDetail((prev) => (prev ? { ...prev, name: editName.trim() } : null));
+        setDetail((prev) =>
+          prev
+            ? {
+                ...prev,
+                ...payload,
+                name: (payload.name as string | undefined) ?? prev.name,
+              }
+            : null,
+        );
         setExecuteResult({ id: selectedId, ok: true, message: "Workflow mis à jour." });
       } else {
         setExecuteResult({ id: selectedId, ok: false, message: data.error || "Erreur" });
       }
-    } catch {
-      setExecuteResult({ id: selectedId, ok: false, message: "Erreur réseau." });
+    } catch (e) {
+      setExecuteResult({
+        id: selectedId,
+        ok: false,
+        message: e instanceof Error ? e.message : "Erreur réseau.",
+      });
     } finally {
       setEditing(false);
     }
-  }, [selectedId, editName, loadWorkflows]);
+  }, [selectedId, editName, editJson, loadWorkflows]);
+
+  const handleCopyDetailJson = useCallback(async () => {
+    if (!detail) return;
+    try {
+      await navigator.clipboard.writeText(toPrettyJson(detail));
+      setExecuteResult({
+        id: selectedId ?? "",
+        ok: true,
+        message: "JSON du workflow copié.",
+      });
+    } catch {
+      setExecuteResult({
+        id: selectedId ?? "",
+        ok: false,
+        message: "Impossible de copier le JSON (clipboard non disponible).",
+      });
+    }
+  }, [detail, selectedId]);
 
   useEffect(() => {
     if (showEditModal && detail) {
       setEditName(detail.name || "");
+      setEditJson(
+        toPrettyJson({
+          name: detail.name ?? "",
+          active: detail.active ?? false,
+          nodes: detail.nodes ?? [],
+          connections:
+            detail.connections && typeof detail.connections === "object" ? detail.connections : {},
+          settings: detail.settings && typeof detail.settings === "object" ? detail.settings : {},
+        }),
+      );
     }
   }, [showEditModal, detail]);
 
@@ -400,6 +491,18 @@ export default function N8nView() {
                     </p>
                   </button>
                   <div className="flex items-center gap-2 shrink-0">
+                    {buildN8nWorkflowUrl(editorBaseUrl, w.id) && (
+                      <a
+                        href={buildN8nWorkflowUrl(editorBaseUrl, w.id) ?? "#"}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="px-2.5 py-1 rounded-lg bg-white/10 text-text-muted text-xs font-medium hover:bg-white/15 transition-colors"
+                        title="Ouvrir dans n8n"
+                      >
+                        ↗ n8n
+                      </a>
+                    )}
                     {w.active ? (
                       <button
                         type="button"
@@ -468,12 +571,18 @@ export default function N8nView() {
                 type="text"
                 value={createName}
                 onChange={(e) => setCreateName(e.target.value)}
-                placeholder="Nom du workflow"
+                placeholder="Nom du workflow (ou mettre dans le JSON)"
                 className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-accent-violet/50 mb-3"
                 onKeyDown={(e) => {
                   if (e.key === "Enter") handleCreate();
                 }}
                 autoFocus
+              />
+              <textarea
+                value={createJson}
+                onChange={(e) => setCreateJson(e.target.value)}
+                className="w-full min-h-48 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-text-primary text-xs font-mono focus:outline-none focus:ring-2 focus:ring-accent-violet/50 mb-3"
+                spellCheck={false}
               />
               <div className="flex gap-2 justify-end">
                 <button
@@ -486,7 +595,7 @@ export default function N8nView() {
                 <button
                   type="button"
                   onClick={handleCreate}
-                  disabled={creating || !createName.trim()}
+                  disabled={creating}
                   className="px-3 py-1.5 rounded-lg bg-accent-violet/20 text-accent-violet text-sm font-medium hover:bg-accent-violet/30 disabled:opacity-50 transition-colors"
                 >
                   {creating ? "Création…" : "Créer"}
@@ -526,6 +635,12 @@ export default function N8nView() {
                 }}
                 autoFocus
               />
+              <textarea
+                value={editJson}
+                onChange={(e) => setEditJson(e.target.value)}
+                className="w-full min-h-48 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-text-primary text-xs font-mono focus:outline-none focus:ring-2 focus:ring-accent-violet/50 mb-3"
+                spellCheck={false}
+              />
               <div className="flex gap-2 justify-end">
                 <button
                   type="button"
@@ -537,7 +652,7 @@ export default function N8nView() {
                 <button
                   type="button"
                   onClick={handleUpdate}
-                  disabled={editing || !editName.trim()}
+                  disabled={editing}
                   className="px-3 py-1.5 rounded-lg bg-accent-violet/20 text-accent-violet text-sm font-medium hover:bg-accent-violet/30 disabled:opacity-50 transition-colors"
                 >
                   {editing ? "Mise à jour…" : "Enregistrer"}
@@ -587,6 +702,16 @@ export default function N8nView() {
                       <p className="text-xs text-text-muted mt-0.5">
                         {detail.active ? "Actif" : "Inactif"} · ID : {selectedId}
                       </p>
+                      {buildN8nWorkflowUrl(editorBaseUrl, selectedId) && (
+                        <a
+                          href={buildN8nWorkflowUrl(editorBaseUrl, selectedId) ?? "#"}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex mt-2 text-xs text-accent-violet hover:text-accent-violet/80"
+                        >
+                          Ouvrir dans n8n ↗
+                        </a>
+                      )}
                     </div>
                     {detail.nodes && detail.nodes.length > 0 && (
                       <div>
@@ -640,6 +765,13 @@ export default function N8nView() {
                         </button>
                       </div>
                       <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={handleCopyDetailJson}
+                          className="flex-1 px-4 py-2.5 rounded-lg bg-white/10 text-text-primary font-medium hover:bg-white/15 transition-colors"
+                        >
+                          Copier JSON
+                        </button>
                         <button
                           type="button"
                           onClick={() => setShowEditModal(true)}

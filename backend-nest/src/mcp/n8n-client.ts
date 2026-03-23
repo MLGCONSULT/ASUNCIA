@@ -21,6 +21,30 @@ export function isN8nMcpConfigured(): boolean {
   return getN8nMcpConfig() !== null;
 }
 
+/**
+ * URL de base de l’UI n8n (ex. https://n8n.example.com), dérivée de {@link N8N_MCP_URL}
+ * ou de {@link N8N_BASE_URL} — sans variable d’environnement supplémentaire côté front.
+ */
+export function getN8nEditorBaseUrl(): string | null {
+  const mcp = process.env.N8N_MCP_URL?.trim();
+  if (mcp) {
+    try {
+      return new URL(mcp).origin;
+    } catch {
+      /* ignore */
+    }
+  }
+  const base = process.env.N8N_BASE_URL?.trim();
+  if (base) {
+    try {
+      return new URL(base).origin;
+    } catch {
+      /* ignore */
+    }
+  }
+  return null;
+}
+
 export async function listN8nMcpTools() {
   const config = getN8nMcpConfig();
   if (!config) throw new Error("MCP n8n non configuré : N8N_MCP_URL et N8N_MCP_ACCESS_TOKEN requis.");
