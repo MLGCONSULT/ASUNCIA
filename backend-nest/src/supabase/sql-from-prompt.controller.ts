@@ -74,7 +74,7 @@ async function getPublicSchema(limitTables: number): Promise<{ name: string; col
     `;
     const tablesRes = await client.callTool({
       name: "execute_sql",
-      arguments: { sql: tablesSql },
+      arguments: { query: tablesSql },
     });
 
     const tablesText = mcpResultToText(tablesRes);
@@ -106,7 +106,7 @@ async function getPublicSchema(limitTables: number): Promise<{ name: string; col
       `;
       const colsRes = await client.callTool({
         name: "execute_sql",
-        arguments: { sql: colsSql },
+        arguments: { query: colsSql },
       });
       const colsText = mcpResultToText(colsRes);
       const cols: { name: string; type: string }[] = [];

@@ -40,7 +40,7 @@ export default function SupabasePage() {
         method: "POST",
         body: JSON.stringify({
           toolName: "execute_sql",
-          arguments: { sql },
+          arguments: { query: sql },
         }),
       });
       const data = await response.json().catch(() => ({}));

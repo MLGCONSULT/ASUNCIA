@@ -19,6 +19,17 @@ function normalizeTools(result: unknown): { name: string; description?: string }
   return list.map((t) => ({ name: t?.name ?? "", description: t?.description }));
 }
 
+function normalizeToolArguments(
+  toolName: string,
+  args: Record<string, unknown>,
+): Record<string, unknown> {
+  // Compatibilité: certains clients envoient `sql`, alors que MCP Supabase attend `query`.
+  if (toolName === "execute_sql" && typeof args.query !== "string" && typeof args.sql === "string") {
+    return { ...args, query: args.sql };
+  }
+  return args;
+}
+
 @Controller("mcp")
 export class McpController {
   @Get("tools")
@@ -42,7 +53,9 @@ export class McpController {
         const result = await listMcpTools();
         return { tools: normalizeTools(result) };
       }
-      const result = await callMcpTool(body.toolName, body.arguments ?? {});
+      const rawArgs = (body.arguments ?? {}) as Record<string, unknown>;
+      const normalizedArgs = normalizeToolArguments(body.toolName, rawArgs);
+      const result = await callMcpTool(body.toolName, normalizedArgs);
       return {
         content: (result as { content?: unknown }).content,
         isError: (result as { isError?: boolean }).isError,
