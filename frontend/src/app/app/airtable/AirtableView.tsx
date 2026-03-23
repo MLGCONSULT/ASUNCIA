@@ -337,22 +337,12 @@ export default function AirtableView({ hasAirtable: initialHasAirtable }: Props)
   return (
     <motion.div className="flex-1 min-h-0 flex flex-col gap-3" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
       <div className="flex flex-wrap gap-2 shrink-0">
-        <Link
-          href={buildAssistantPromptUrl(
-            selectedBase
-              ? `Analyse la base Airtable ${selectedBase.name} et dis-moi quelles actions prioritaires je devrais entreprendre.`
-              : "Analyse mes bases Airtable et dis-moi quelles informations importantes je devrais regarder."
-          )}
-          className="px-3 py-2 rounded-full border border-white/10 bg-white/5 text-xs text-text-muted hover:text-text-primary hover:border-accent-fuchsia/30 hover:bg-accent-fuchsia/10 transition-colors"
-        >
-          Analyser mes donnees
-        </Link>
         {selectedBase && selectedTable ? (
           <Link
-            href={buildAssistantPromptUrl(`Observe la table ${selectedTable.name} de la base ${selectedBase.name} et propose-moi les prochaines actions utiles.`)}
+            href={buildAssistantPromptUrl(`Analyse la table ${selectedTable.name} de la base ${selectedBase.name}. Donne-moi: 1) qualité des données, 2) anomalies visibles, 3) top 5 actions concrètes.`)}
             className="px-3 py-2 rounded-full border border-white/10 bg-white/5 text-xs text-text-muted hover:text-text-primary hover:border-accent-fuchsia/30 hover:bg-accent-fuchsia/10 transition-colors"
           >
-            Prioriser cette table
+            Agent IA: analyser cette table
           </Link>
         ) : null}
       </div>
@@ -393,9 +383,24 @@ export default function AirtableView({ hasAirtable: initialHasAirtable }: Props)
           <ul className="divide-y divide-white/5 flex-1 min-h-0 overflow-y-auto">
             {bases.map((base, i) => (
               <motion.li key={base.id} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.03 }}>
-                <button type="button" onClick={() => setSelectedBase(base)} className={`w-full text-left px-3 py-2.5 text-sm transition-colors ${selectedBase?.id === base.id ? "bg-accent-cyan/15 text-accent-cyan border-l-2 border-accent-cyan" : "text-text-muted hover:bg-white/5 hover:text-text-primary"}`}>
-                  {base.name}
-                </button>
+                <div className={`w-full flex items-center gap-2 px-3 py-2.5 text-sm transition-colors ${selectedBase?.id === base.id ? "bg-accent-cyan/15 border-l-2 border-accent-cyan" : "text-text-muted hover:bg-white/5"}`}>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedBase(base)}
+                    className={`min-w-0 flex-1 text-left truncate ${selectedBase?.id === base.id ? "text-accent-cyan" : "text-text-muted hover:text-text-primary"}`}
+                  >
+                    {base.name}
+                  </button>
+                  <a
+                    href={`https://airtable.com/${encodeURIComponent(base.id)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="shrink-0 text-xs text-text-muted hover:text-accent-cyan"
+                    title="Ouvrir la base dans Airtable"
+                  >
+                    ↗
+                  </a>
+                </div>
               </motion.li>
             ))}
           </ul>
@@ -406,9 +411,26 @@ export default function AirtableView({ hasAirtable: initialHasAirtable }: Props)
             <ul className="divide-y divide-white/5 flex-1 min-h-0 overflow-y-auto">
               {tables.map((table, i) => (
                 <motion.li key={table.id} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.03 }}>
-                  <button type="button" onClick={() => setSelectedTable(table)} className={`w-full text-left px-3 py-2.5 text-sm transition-colors ${selectedTable?.id === table.id ? "bg-accent-violet/15 text-accent-violet border-l-2 border-accent-violet" : "text-text-muted hover:bg-white/5 hover:text-text-primary"}`}>
-                    {table.name}
-                  </button>
+                  <div className={`w-full flex items-center gap-2 px-3 py-2.5 text-sm transition-colors ${selectedTable?.id === table.id ? "bg-accent-violet/15 border-l-2 border-accent-violet" : "text-text-muted hover:bg-white/5"}`}>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedTable(table)}
+                      className={`min-w-0 flex-1 text-left truncate ${selectedTable?.id === table.id ? "text-accent-violet" : "text-text-muted hover:text-text-primary"}`}
+                    >
+                      {table.name}
+                    </button>
+                    {selectedBase && (
+                      <a
+                        href={`https://airtable.com/${encodeURIComponent(selectedBase.id)}/${encodeURIComponent(table.id)}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="shrink-0 text-xs text-text-muted hover:text-accent-violet"
+                        title="Ouvrir la table dans Airtable"
+                      >
+                        ↗
+                      </a>
+                    )}
+                  </div>
                 </motion.li>
               ))}
             </ul>

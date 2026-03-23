@@ -33,6 +33,22 @@ type AirtableFieldsBody = Record<string, unknown>;
 
 @Controller("airtable")
 export class AirtableController {
+  private async callAirtableWithArgVariants(
+    toolName: string,
+    argVariants: Record<string, unknown>[],
+    accessToken?: string,
+  ) {
+    let lastError: unknown = null;
+    for (const args of argVariants) {
+      try {
+        return await callAirtableMcpTool(toolName, args, accessToken);
+      } catch (err) {
+        lastError = err;
+      }
+    }
+    throw lastError ?? new Error(`Aucune variante d'arguments compatible pour ${toolName}.`);
+  }
+
   private getUserContext(req: AuthRequest): UserIntegrationContext {
     if (!req.user) {
       throw new HttpException({ error: "Non authentifié" }, HttpStatus.UNAUTHORIZED);
@@ -89,7 +105,11 @@ export class AirtableController {
           HttpStatus.FORBIDDEN,
         );
       }
-      const result = await callAirtableMcpTool("list_tables", { base_id: baseId }, runtime.accessToken);
+      const result = await this.callAirtableWithArgVariants(
+        "list_tables",
+        [{ base_id: baseId }, { baseId }, { id: baseId }],
+        runtime.accessToken,
+      );
       const data = parseMcpResultJson<{ tables?: { id: string; name: string }[] }>(result);
       return {
         tables: Array.isArray(data.tables) ? data.tables : (data as { tables?: unknown }).tables ?? [],
@@ -123,9 +143,14 @@ export class AirtableController {
           HttpStatus.FORBIDDEN,
         );
       }
-      const result = await callAirtableMcpTool(
+      const result = await this.callAirtableWithArgVariants(
         "list_records",
-        { base_id: baseId, table_id: tableId, max_records: maxRecords },
+        [
+          { base_id: baseId, table_id: tableId, max_records: maxRecords },
+          { baseId, tableId, maxRecords },
+          { base_id: baseId, tableId, maxRecords },
+          { baseId, table_id: tableId, max_records: maxRecords },
+        ],
         runtime.accessToken,
       );
       const data = parseMcpResultJson<{ records?: { id: string; fields: Record<string, unknown> }[] }>(result);
@@ -162,9 +187,14 @@ export class AirtableController {
           HttpStatus.FORBIDDEN,
         );
       }
-      const result = await callAirtableMcpTool(
+      const result = await this.callAirtableWithArgVariants(
         "create_record",
-        { base_id: baseId, table_id: tableId, fields },
+        [
+          { base_id: baseId, table_id: tableId, fields },
+          { baseId, tableId, fields },
+          { base_id: baseId, tableId, fields },
+          { baseId, table_id: tableId, fields },
+        ],
         runtime.accessToken,
       );
       return parseMcpResultJson(result);
@@ -196,13 +226,20 @@ export class AirtableController {
           HttpStatus.FORBIDDEN,
         );
       }
-      const result = await callAirtableMcpTool(
+      const result = await this.callAirtableWithArgVariants(
         "update_records",
-        {
-          base_id: baseId,
-          table_id: tableId,
-          records: [{ id: recordId, fields }],
-        },
+        [
+          {
+            base_id: baseId,
+            table_id: tableId,
+            records: [{ id: recordId, fields }],
+          },
+          {
+            baseId,
+            tableId,
+            records: [{ id: recordId, fields }],
+          },
+        ],
         runtime.accessToken,
       );
       return parseMcpResultJson(result);

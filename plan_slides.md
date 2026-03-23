@@ -58,7 +58,7 @@ But: aider quelqu'un qui n'est pas du milieu a faire un PowerPoint clair, joli e
 
 **Mettre (niveau non-tech):**
 - Assistant IA integre
-- Onglets: Mails, Airtable, Notion, Supabase, n8n
+- Onglets: Airtable, Notion, Supabase, n8n
 - Auth utilisateur securisee
 - Dashboard utile (actions du jour + raccourcis)
 
@@ -75,7 +75,7 @@ But: aider quelqu'un qui n'est pas du milieu a faire un PowerPoint clair, joli e
 **Mettre:**
 - L'utilisateur agit dans le front (site)
 - Le backend fait les traitements
-- Les donnees viennent de services connectes (Gmail, Airtable, etc.)
+- Les donnees viennent de services connectes (Airtable, Notion, n8n, Supabase)
 
 **A dire:**
 "L'appli sert de chef d'orchestre entre l'utilisateur et les outils."
@@ -158,6 +158,7 @@ Tu peux copier-coller ces 3 exemples:
 - tests Postman
 - deploiement
 - incidents connus + solutions
+- detail important: Notion passe par MCP (mode OAuth ou mode server-token)
 
 **A dire:**
 "La doc permet a quelqu'un d'autre de reprendre le projet."
@@ -172,6 +173,7 @@ Tu peux copier-coller ces 3 exemples:
 **Mettre:**
 - risques: connexions externes, variables d'env, erreurs API
 - solutions: health checks, messages clairs, procedures de test
+- preciser que Notion peut etre en MCP OAuth ou MCP token serveur selon le besoin
 
 **A dire:**
 "Les risques sont connus et traites avec une methode."
