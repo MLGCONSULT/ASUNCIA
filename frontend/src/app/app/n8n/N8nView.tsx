@@ -1,15 +1,14 @@
 "use client";
 
-import Link from "next/link";
-import { useEffect, useState, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { motion } from "framer-motion";
 import { fetchBackend } from "@/lib/api";
 import NavIcon from "@/components/NavIcon";
-import { buildAssistantPromptUrl } from "@/lib/assistant-intents";
 
 type Workflow = {
   id: string;
   name?: string | null;
+  description?: string | null;
   active?: boolean | null;
   createdAt?: string | null;
   updatedAt?: string | null;
@@ -17,13 +16,10 @@ type Workflow = {
   canExecute?: boolean;
 };
 
-type WorkflowDetail = {
-  id?: string;
-  name?: string;
-  active?: boolean;
-  nodes?: { name?: string; type?: string; parameters?: unknown }[];
-  meta?: { instanceId?: string };
-  settings?: unknown;
+type WorkflowDetailsResponse = {
+  workflow?: Record<string, unknown>;
+  triggerInfo?: string;
+  editorBaseUrl?: string;
   [key: string]: unknown;
 };
 
@@ -35,769 +31,284 @@ const toPrettyJson = (value: unknown) => {
   }
 };
 
-const buildN8nWorkflowUrl = (base: string | null, workflowId: string) => {
+const buildN8nWorkflowUrl = (base: string | null, workflowId?: string) => {
   const b = base?.trim().replace(/\/+$/, "");
   if (!b || !workflowId) return null;
   return `${b}/workflow/${encodeURIComponent(workflowId)}`;
 };
 
 export default function N8nView() {
-  /** Dérivé côté backend depuis N8N_MCP_URL (aucune variable NEXT_PUBLIC supplémentaire). */
+  const [query, setQuery] = useState("");
+  const [loadingList, setLoadingList] = useState(true);
+  const [runningQuery, setRunningQuery] = useState(false);
+  const [loadingDetail, setLoadingDetail] = useState(false);
+  const [executing, setExecuting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [editorBaseUrl, setEditorBaseUrl] = useState<string | null>(null);
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  /** Pied de page contextuel : ne pas afficher « configurez N8N_MCP » pour 401/502 si ce n’est pas un souci d’env. */
-  const [errorHint, setErrorHint] = useState<"mcp-env" | "auth" | null>(null);
-  const [executingId, setExecutingId] = useState<string | null>(null);
-  const [actioningId, setActioningId] = useState<string | null>(null);
-  const [actionType, setActionType] = useState<"activate" | "deactivate" | "delete" | null>(null);
-  const [executeResult, setExecuteResult] = useState<{ id: string; ok: boolean; message?: string } | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [detail, setDetail] = useState<WorkflowDetail | null>(null);
-  const [detailLoading, setDetailLoading] = useState(false);
-  const [executeResultDetail, setExecuteResultDetail] = useState<{ ok: boolean; message?: string } | null>(null);
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [createName, setCreateName] = useState("");
-  const [createJson, setCreateJson] = useState<string>('{\n  "nodes": [],\n  "connections": {},\n  "settings": {}\n}');
-  const [creating, setCreating] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [editName, setEditName] = useState("");
-  const [editJson, setEditJson] = useState<string>("");
-  const [editing, setEditing] = useState(false);
+  const [triggerInfo, setTriggerInfo] = useState<string>("");
+  const [workflowJson, setWorkflowJson] = useState<string>("");
 
-  const loadWorkflows = useCallback(async () => {
-    setLoading(true);
+  const selectedWorkflow = useMemo(
+    () => workflows.find((w) => w.id === selectedId) ?? null,
+    [workflows, selectedId],
+  );
+
+  const runSearch = useCallback(async (q: string, autoPickFirst = false) => {
     setError(null);
-    setErrorHint(null);
+    setNotice(null);
+    setRunningQuery(true);
     try {
-      const r = await fetchBackend("/api/n8n/workflows");
+      const qs = new URLSearchParams();
+      qs.set("limit", "50");
+      if (q.trim()) qs.set("query", q.trim());
+      const r = await fetchBackend(`/api/n8n/workflows?${qs.toString()}`);
       const data = await r.json().catch(() => ({}));
       if (!r.ok) {
-        const msg =
-          typeof data?.error === "string"
-            ? data.error
-            : typeof (data as { message?: string })?.message === "string"
-              ? (data as { message: string }).message
-              : "";
-        if (r.status === 503) {
-          setError(
-            msg ||
-              "n8n n'est pas configuré côté backend. Vérifiez N8N_MCP_URL et N8N_MCP_ACCESS_TOKEN sur le projet Vercel du backend.",
-          );
-          setErrorHint("mcp-env");
-          return;
-        }
-        if (r.status === 401) {
-          setError(
-            msg ||
-              "Session expirée ou non connecté. Reconnecte-toi et réessaie (le front doit envoyer le JWT Supabase).",
-          );
-          setErrorHint("auth");
-          return;
-        }
-        setError(
-          msg || `Impossible de charger les workflows (HTTP ${r.status}).`,
+        throw new Error(
+          typeof data?.error === "string" ? data.error : `Impossible de lister les workflows (HTTP ${r.status}).`,
         );
-        return;
       }
-      setWorkflows(Array.isArray(data.workflows) ? data.workflows : []);
+      const list = Array.isArray(data.workflows) ? (data.workflows as Workflow[]) : [];
+      setWorkflows(list);
       setEditorBaseUrl(typeof data.editorBaseUrl === "string" ? data.editorBaseUrl : null);
+      if (autoPickFirst && list.length > 0) {
+        setSelectedId(list[0].id);
+      }
+      if (autoPickFirst && list.length === 0) {
+        setSelectedId(null);
+        setWorkflowJson("");
+        setTriggerInfo("");
+        setNotice("Aucun workflow trouvé pour cette demande.");
+      }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Erreur");
+      setError(e instanceof Error ? e.message : "Erreur réseau.");
     } finally {
-      setLoading(false);
+      setRunningQuery(false);
+      setLoadingList(false);
+    }
+  }, []);
+
+  const loadDetails = useCallback(async (id: string) => {
+    setLoadingDetail(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const r = await fetchBackend("/api/n8n/workflows/" + encodeURIComponent(id));
+      const data = (await r.json().catch(() => ({}))) as WorkflowDetailsResponse;
+      if (!r.ok) {
+        throw new Error(
+          typeof data?.error === "string" ? data.error : `Impossible de charger le workflow (HTTP ${r.status}).`,
+        );
+      }
+      if (typeof data.editorBaseUrl === "string") setEditorBaseUrl(data.editorBaseUrl);
+      setTriggerInfo(typeof data.triggerInfo === "string" ? data.triggerInfo : "");
+      setWorkflowJson(toPrettyJson(data.workflow ?? data));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Erreur réseau.");
+      setWorkflowJson("");
+      setTriggerInfo("");
+    } finally {
+      setLoadingDetail(false);
     }
   }, []);
 
   useEffect(() => {
-    loadWorkflows();
-  }, [loadWorkflows]);
+    runSearch("", true);
+  }, [runSearch]);
 
   useEffect(() => {
-    if (!selectedId) {
-      setDetail(null);
-      setExecuteResultDetail(null);
-      return;
+    if (!selectedId) return;
+    loadDetails(selectedId);
+  }, [selectedId, loadDetails]);
+
+  const handleExecute = useCallback(async () => {
+    if (!selectedId) return;
+    setExecuting(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const r = await fetchBackend("/api/n8n/workflows/" + encodeURIComponent(selectedId) + "/execute", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          inputs: { type: "chat", chatInput: "Execution manuelle depuis AsuncIA" },
+        }),
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        throw new Error(
+          typeof data?.error === "string" ? data.error : `Impossible d'executer le workflow (HTTP ${r.status}).`,
+        );
+      }
+      setNotice("Workflow execute.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Erreur réseau.");
+    } finally {
+      setExecuting(false);
     }
-    setDetailLoading(true);
-    setExecuteResultDetail(null);
-    fetchBackend("/api/n8n/workflows/" + encodeURIComponent(selectedId))
-      .then((r) => {
-        if (!r.ok) throw new Error("Impossible de charger le détail.");
-        return r.json();
-      })
-      .then((payload) => {
-        setDetail(payload);
-        if (typeof payload?.editorBaseUrl === "string") {
-          setEditorBaseUrl(payload.editorBaseUrl);
-        }
-      })
-      .catch(() => setDetail(null))
-      .finally(() => setDetailLoading(false));
   }, [selectedId]);
 
-  const handleExecute = useCallback(async (id: string, chatInput?: string) => {
-    setExecutingId(id);
-    setExecuteResult(null);
-    setExecuteResultDetail(null);
+  const handleCopyJson = useCallback(async () => {
+    if (!workflowJson) return;
     try {
-      const r = await fetchBackend("/api/n8n/workflows/" + encodeURIComponent(id) + "/execute", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          inputs: { type: "chat", chatInput: chatInput?.trim() || "Exécution manuelle depuis l'app" },
-        }),
-      });
-      const data = await r.json();
-      setExecuteResult({ id, ok: r.ok, message: r.ok ? "Workflow exécuté." : (data.error || "Erreur") });
-      setExecuteResultDetail({ ok: r.ok, message: r.ok ? "Workflow exécuté." : (data.error || "Erreur") });
+      await navigator.clipboard.writeText(workflowJson);
+      setNotice("JSON copie dans le presse-papiers.");
     } catch {
-      setExecuteResult({ id, ok: false, message: "Erreur réseau." });
-      setExecuteResultDetail({ ok: false, message: "Erreur réseau." });
-    } finally {
-      setExecutingId(null);
+      setError("Impossible de copier le JSON (clipboard indisponible).");
     }
-  }, []);
-
-  const handleActivate = useCallback(async (id: string) => {
-    setActioningId(id);
-    setActionType("activate");
-    try {
-      const r = await fetchBackend("/api/n8n/workflows/" + encodeURIComponent(id) + "/activate", {
-        method: "POST",
-      });
-      const data = await r.json();
-      if (r.ok) {
-        await loadWorkflows();
-        if (selectedId === id) {
-          setDetail((prev) => (prev ? { ...prev, active: true } : null));
-        }
-        setExecuteResult({ id, ok: true, message: "Workflow activé." });
-      } else {
-        setExecuteResult({ id, ok: false, message: data.error || "Erreur" });
-      }
-    } catch {
-      setExecuteResult({ id, ok: false, message: "Erreur réseau." });
-    } finally {
-      setActioningId(null);
-      setActionType(null);
-    }
-  }, [loadWorkflows, selectedId]);
-
-  const handleDeactivate = useCallback(async (id: string) => {
-    setActioningId(id);
-    setActionType("deactivate");
-    try {
-      const r = await fetchBackend("/api/n8n/workflows/" + encodeURIComponent(id) + "/deactivate", {
-        method: "POST",
-      });
-      const data = await r.json();
-      if (r.ok) {
-        await loadWorkflows();
-        if (selectedId === id) {
-          setDetail((prev) => (prev ? { ...prev, active: false } : null));
-        }
-        setExecuteResult({ id, ok: true, message: "Workflow désactivé." });
-      } else {
-        setExecuteResult({ id, ok: false, message: data.error || "Erreur" });
-      }
-    } catch {
-      setExecuteResult({ id, ok: false, message: "Erreur réseau." });
-    } finally {
-      setActioningId(null);
-      setActionType(null);
-    }
-  }, [loadWorkflows, selectedId]);
-
-  const handleDelete = useCallback(async (id: string) => {
-    if (!confirm("Êtes-vous sûr de vouloir supprimer ce workflow ?")) return;
-    setActioningId(id);
-    setActionType("delete");
-    try {
-      const r = await fetchBackend("/api/n8n/workflows/" + encodeURIComponent(id), {
-        method: "DELETE",
-      });
-      const data = await r.json();
-      if (r.ok) {
-        await loadWorkflows();
-        if (selectedId === id) {
-          setSelectedId(null);
-        }
-        setExecuteResult({ id, ok: true, message: "Workflow supprimé." });
-      } else {
-        setExecuteResult({ id, ok: false, message: data.error || "Erreur" });
-      }
-    } catch {
-      setExecuteResult({ id, ok: false, message: "Erreur réseau." });
-    } finally {
-      setActioningId(null);
-      setActionType(null);
-    }
-  }, [loadWorkflows, selectedId]);
-
-  const handleCreate = useCallback(async () => {
-    setCreating(true);
-    try {
-      const parsed = JSON.parse(createJson || "{}") as Record<string, unknown>;
-      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-        throw new Error("Le JSON doit être un objet.");
-      }
-      const r = await fetchBackend("/api/n8n/workflows", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: createName.trim() || (typeof parsed.name === "string" ? parsed.name : "Workflow MCP"),
-          nodes: Array.isArray(parsed.nodes) ? parsed.nodes : [],
-          connections:
-            parsed.connections && typeof parsed.connections === "object" && !Array.isArray(parsed.connections)
-              ? parsed.connections
-              : {},
-          settings:
-            parsed.settings && typeof parsed.settings === "object" && !Array.isArray(parsed.settings)
-              ? parsed.settings
-              : {},
-        }),
-      });
-      const data = await r.json();
-      if (r.ok) {
-        setShowCreateModal(false);
-        setCreateName("");
-        setCreateJson('{\n  "nodes": [],\n  "connections": {},\n  "settings": {}\n}');
-        await loadWorkflows();
-        setExecuteResult({ id: "", ok: true, message: "Workflow créé." });
-      } else {
-        setExecuteResult({ id: "", ok: false, message: data.error || "Erreur" });
-      }
-    } catch (e) {
-      setExecuteResult({
-        id: "",
-        ok: false,
-        message: e instanceof Error ? e.message : "Erreur réseau.",
-      });
-    } finally {
-      setCreating(false);
-    }
-  }, [createName, createJson, loadWorkflows]);
-
-  const handleUpdate = useCallback(async () => {
-    if (!selectedId) return;
-    setEditing(true);
-    try {
-      const parsed = JSON.parse(editJson || "{}") as Record<string, unknown>;
-      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-        throw new Error("Le JSON d'édition doit être un objet.");
-      }
-      const payload: Record<string, unknown> = {
-        name: editName.trim() || (typeof parsed.name === "string" ? parsed.name : undefined),
-      };
-      if (Array.isArray(parsed.nodes)) payload.nodes = parsed.nodes;
-      if (parsed.connections && typeof parsed.connections === "object" && !Array.isArray(parsed.connections)) {
-        payload.connections = parsed.connections;
-      }
-      if (parsed.settings && typeof parsed.settings === "object" && !Array.isArray(parsed.settings)) {
-        payload.settings = parsed.settings;
-      }
-      if (typeof parsed.active === "boolean") payload.active = parsed.active;
-      const r = await fetchBackend("/api/n8n/workflows/" + encodeURIComponent(selectedId), {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const data = await r.json();
-      if (r.ok) {
-        setShowEditModal(false);
-        await loadWorkflows();
-        setDetail((prev) =>
-          prev
-            ? {
-                ...prev,
-                ...payload,
-                name: (payload.name as string | undefined) ?? prev.name,
-              }
-            : null,
-        );
-        setExecuteResult({ id: selectedId, ok: true, message: "Workflow mis à jour." });
-      } else {
-        setExecuteResult({ id: selectedId, ok: false, message: data.error || "Erreur" });
-      }
-    } catch (e) {
-      setExecuteResult({
-        id: selectedId,
-        ok: false,
-        message: e instanceof Error ? e.message : "Erreur réseau.",
-      });
-    } finally {
-      setEditing(false);
-    }
-  }, [selectedId, editName, editJson, loadWorkflows]);
-
-  const handleCopyDetailJson = useCallback(async () => {
-    if (!detail) return;
-    try {
-      await navigator.clipboard.writeText(toPrettyJson(detail));
-      setExecuteResult({
-        id: selectedId ?? "",
-        ok: true,
-        message: "JSON du workflow copié.",
-      });
-    } catch {
-      setExecuteResult({
-        id: selectedId ?? "",
-        ok: false,
-        message: "Impossible de copier le JSON (clipboard non disponible).",
-      });
-    }
-  }, [detail, selectedId]);
-
-  useEffect(() => {
-    if (showEditModal && detail) {
-      setEditName(detail.name || "");
-      setEditJson(
-        toPrettyJson({
-          name: detail.name ?? "",
-          active: detail.active ?? false,
-          nodes: detail.nodes ?? [],
-          connections:
-            detail.connections && typeof detail.connections === "object" ? detail.connections : {},
-          settings: detail.settings && typeof detail.settings === "object" ? detail.settings : {},
-        }),
-      );
-    }
-  }, [showEditModal, detail]);
-
-  if (loading) {
-    return (
-      <motion.div
-        className="glass-strong rounded-xl border border-white/10 p-6"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-      >
-        <div className="flex items-center gap-3 text-text-muted">
-          <div className="flex gap-1">
-            {[0, 1, 2].map((i) => (
-              <motion.span
-                key={i}
-                className="w-2 h-2 rounded-full bg-accent-violet"
-                animate={{ opacity: [0.4, 1, 0.4] }}
-                transition={{ duration: 1, repeat: Infinity, delay: i * 0.2 }}
-              />
-            ))}
-          </div>
-          Chargement des workflows…
-        </div>
-      </motion.div>
-    );
-  }
-
-  if (error) {
-    return (
-      <motion.div
-        className="glass-strong rounded-xl border border-accent-rose/30 p-6 card-glow"
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-      >
-        <p className="text-accent-rose font-semibold">Workflows n8n indisponibles</p>
-        <p className="text-text-muted text-sm mt-1">{error}</p>
-        {errorHint === "mcp-env" && (
-          <p className="text-text-dim text-xs mt-3">
-            Configurez <code className="bg-white/10 px-1 rounded">N8N_MCP_URL</code> et{" "}
-            <code className="bg-white/10 px-1 rounded">N8N_MCP_ACCESS_TOKEN</code> sur le projet Vercel du{" "}
-            <strong>backend</strong>, puis redéployez.
-          </p>
-        )}
-        {errorHint === "auth" && (
-          <p className="text-text-dim text-xs mt-3">
-            Vérifie que <code className="bg-white/10 px-1 rounded">NEXT_PUBLIC_BACKEND_URL</code> sur le front
-            pointe bien vers le même backend que tes tests Postman.
-          </p>
-        )}
-      </motion.div>
-    );
-  }
+  }, [workflowJson]);
 
   return (
     <motion.div
       className="flex flex-col flex-1 min-h-0 gap-3"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      transition={{ duration: 0.3 }}
+      transition={{ duration: 0.25 }}
     >
-      <div className="flex flex-wrap gap-2 shrink-0">
-        <Link
-          href={buildAssistantPromptUrl(
-            selectedId && detail?.name
-              ? `Explique-moi le workflow n8n ${detail.name} et dis-moi si son fonctionnement est coherent.`
-              : "Liste mes workflows n8n importants et explique-moi leur utilite."
-          )}
-          className="px-3 py-2 rounded-full border border-white/10 bg-white/5 text-xs text-text-muted hover:text-text-primary hover:border-accent-amber/30 hover:bg-accent-amber/10 transition-colors"
-        >
-          Expliquer les workflows
-        </Link>
-        <Link
-          href={buildAssistantPromptUrl("Propose-moi une idee d'automatisation n8n utile a partir de mes outils connectes.")}
-          className="px-3 py-2 rounded-full border border-white/10 bg-white/5 text-xs text-text-muted hover:text-text-primary hover:border-accent-amber/30 hover:bg-accent-amber/10 transition-colors"
-        >
-          Imaginer une automatisation
-        </Link>
-      </div>
-      {executeResult && (
-        <motion.div
-          initial={{ opacity: 0, y: -8 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0 }}
-          className={`shrink-0 rounded-xl border px-4 py-2 text-sm ${executeResult.ok ? "border-accent-cyan/40 bg-accent-cyan/10 text-accent-cyan" : "border-accent-rose/40 bg-accent-rose/10 text-accent-rose"}`}
-        >
-          {executeResult.message}
-        </motion.div>
-      )}
-      <div className="glass-strong rounded-xl border border-white/10 overflow-hidden card-glow flex flex-col flex-1 min-h-0">
-        <div className="p-3 border-b border-white/10 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-2">
-            <NavIcon name="workflow" className="w-5 h-5 text-accent-violet" />
-            <h2 className="font-semibold text-text-primary text-sm">Workflows n8n</h2>
-          </div>
+      <div className="glass-strong rounded-xl border border-white/10 p-3 card-glow">
+        <div className="flex items-center gap-2 mb-2">
+          <NavIcon name="workflow" className="w-5 h-5 text-accent-violet" />
+          <p className="font-semibold text-text-primary text-sm">Agent Workflow n8n</p>
+        </div>
+        <div className="flex gap-2">
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") runSearch(query, true);
+            }}
+            placeholder="Demande un workflow (ex: generation visuels, projet asuncia, webhook...)"
+            className="flex-1 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-accent-violet/50"
+          />
           <button
             type="button"
-            onClick={() => setShowCreateModal(true)}
-            className="shrink-0 px-3 py-1.5 rounded-lg bg-accent-violet/20 text-accent-violet text-sm font-medium hover:bg-accent-violet/30 transition-colors flex items-center gap-1.5"
+            onClick={() => runSearch(query, true)}
+            disabled={runningQuery}
+            className="px-3 py-2 rounded-lg bg-accent-violet/20 text-accent-violet text-sm font-medium hover:bg-accent-violet/30 disabled:opacity-50 transition-colors"
           >
-            <span>+</span>
-            <span>Créer</span>
+            {runningQuery ? "Recherche..." : "Trouver"}
+          </button>
+          <button
+            type="button"
+            onClick={() => runSearch("", false)}
+            disabled={runningQuery}
+            className="px-3 py-2 rounded-lg bg-white/10 text-text-muted text-sm font-medium hover:bg-white/15 disabled:opacity-50 transition-colors"
+          >
+            Tout
           </button>
         </div>
-        <ul className="divide-y divide-white/5 flex-1 min-h-0 overflow-y-auto">
-          <AnimatePresence mode="popLayout">
-            {workflows.length === 0 ? (
-              <li className="px-4 py-6 text-center text-text-muted text-sm">Aucun workflow.</li>
-            ) : (
-              workflows.map((w, i) => (
-                <motion.li
-                  key={w.id}
-                  initial={{ opacity: 0, x: -8 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: i * 0.03 }}
-                  className="flex items-center justify-between gap-3 px-3 py-2.5 hover:bg-white/5 transition-colors"
-                >
-                  <button
-                    type="button"
-                    onClick={() => setSelectedId(w.id)}
-                    className="min-w-0 flex-1 text-left"
-                  >
-                    <p className="font-medium text-text-primary truncate">{w.name || "Sans nom"}</p>
-                    <p className="text-xs text-text-muted">
-                      {w.active ? "Actif" : "Inactif"}
-                      {w.triggerCount != null && ` · ${w.triggerCount} trigger(s)`}
-                    </p>
-                  </button>
-                  <div className="flex items-center gap-2 shrink-0">
-                    {buildN8nWorkflowUrl(editorBaseUrl, w.id) && (
-                      <a
-                        href={buildN8nWorkflowUrl(editorBaseUrl, w.id) ?? "#"}
-                        target="_blank"
-                        rel="noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        className="px-2.5 py-1 rounded-lg bg-white/10 text-text-muted text-xs font-medium hover:bg-white/15 transition-colors"
-                        title="Ouvrir dans n8n"
-                      >
-                        ↗ n8n
-                      </a>
-                    )}
-                    {w.active ? (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeactivate(w.id);
-                        }}
-                        disabled={actioningId !== null}
-                        className="px-2.5 py-1 rounded-lg bg-white/10 text-text-muted text-xs font-medium hover:bg-white/15 disabled:opacity-50 transition-colors"
-                        title="Désactiver"
-                      >
-                        {actioningId === w.id && actionType === "deactivate" ? "…" : "⏸"}
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleActivate(w.id);
-                        }}
-                        disabled={actioningId !== null}
-                        className="px-2.5 py-1 rounded-lg bg-white/10 text-text-muted text-xs font-medium hover:bg-white/15 disabled:opacity-50 transition-colors"
-                        title="Activer"
-                      >
-                        {actioningId === w.id && actionType === "activate" ? "…" : "▶"}
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleExecute(w.id);
-                      }}
-                      disabled={executingId !== null}
-                      className="px-3 py-1.5 rounded-lg bg-accent-violet/20 text-accent-violet text-sm font-medium hover:bg-accent-violet/30 disabled:opacity-50 transition-colors"
-                    >
-                      {executingId === w.id ? "Exécution…" : "Exécuter"}
-                    </button>
-                  </div>
-                </motion.li>
-              ))
-            )}
-          </AnimatePresence>
-        </ul>
       </div>
 
-      {/* Modal création */}
-      <AnimatePresence>
-        {showCreateModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
-            onClick={() => setShowCreateModal(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="w-full max-w-md bg-background border border-white/10 rounded-xl shadow-xl p-4"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <h3 className="font-semibold text-text-primary text-sm mb-3">Créer un workflow</h3>
-              <input
-                type="text"
-                value={createName}
-                onChange={(e) => setCreateName(e.target.value)}
-                placeholder="Nom du workflow (ou mettre dans le JSON)"
-                className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-accent-violet/50 mb-3"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleCreate();
-                }}
-                autoFocus
-              />
-              <textarea
-                value={createJson}
-                onChange={(e) => setCreateJson(e.target.value)}
-                className="w-full min-h-48 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-text-primary text-xs font-mono focus:outline-none focus:ring-2 focus:ring-accent-violet/50 mb-3"
-                spellCheck={false}
-              />
-              <div className="flex gap-2 justify-end">
-                <button
-                  type="button"
-                  onClick={() => setShowCreateModal(false)}
-                  className="px-3 py-1.5 rounded-lg bg-white/10 text-text-muted text-sm hover:bg-white/15 transition-colors"
-                >
-                  Annuler
-                </button>
-                <button
-                  type="button"
-                  onClick={handleCreate}
-                  disabled={creating}
-                  className="px-3 py-1.5 rounded-lg bg-accent-violet/20 text-accent-violet text-sm font-medium hover:bg-accent-violet/30 disabled:opacity-50 transition-colors"
-                >
-                  {creating ? "Création…" : "Créer"}
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {error && (
+        <div className="shrink-0 rounded-xl border border-accent-rose/40 bg-accent-rose/10 text-accent-rose px-4 py-2 text-sm">
+          {error}
+        </div>
+      )}
+      {notice && (
+        <div className="shrink-0 rounded-xl border border-accent-cyan/40 bg-accent-cyan/10 text-accent-cyan px-4 py-2 text-sm">
+          {notice}
+        </div>
+      )}
 
-      {/* Modal édition */}
-      <AnimatePresence>
-        {showEditModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
-            onClick={() => setShowEditModal(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="w-full max-w-md bg-background border border-white/10 rounded-xl shadow-xl p-4"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <h3 className="font-semibold text-text-primary text-sm mb-3">Modifier le workflow</h3>
-              <input
-                type="text"
-                value={editName}
-                onChange={(e) => setEditName(e.target.value)}
-                placeholder="Nom du workflow"
-                className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-accent-violet/50 mb-3"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleUpdate();
-                }}
-                autoFocus
-              />
-              <textarea
-                value={editJson}
-                onChange={(e) => setEditJson(e.target.value)}
-                className="w-full min-h-48 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-text-primary text-xs font-mono focus:outline-none focus:ring-2 focus:ring-accent-violet/50 mb-3"
-                spellCheck={false}
-              />
-              <div className="flex gap-2 justify-end">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 flex-1 min-h-0">
+        <div className="glass-strong rounded-xl border border-white/10 overflow-hidden flex flex-col min-h-0">
+          <div className="px-3 py-2 border-b border-white/10 text-sm text-text-muted">
+            Workflows disponibles ({workflows.length})
+          </div>
+          <div className="flex-1 min-h-0 overflow-y-auto divide-y divide-white/5">
+            {loadingList ? (
+              <p className="p-4 text-sm text-text-muted">Chargement...</p>
+            ) : workflows.length === 0 ? (
+              <p className="p-4 text-sm text-text-muted">Aucun workflow.</p>
+            ) : (
+              workflows.map((w) => (
                 <button
+                  key={w.id}
                   type="button"
-                  onClick={() => setShowEditModal(false)}
-                  className="px-3 py-1.5 rounded-lg bg-white/10 text-text-muted text-sm hover:bg-white/15 transition-colors"
+                  onClick={() => setSelectedId(w.id)}
+                  className={`w-full text-left px-3 py-2.5 hover:bg-white/5 transition-colors ${
+                    selectedId === w.id ? "bg-white/5" : ""
+                  }`}
                 >
-                  Annuler
+                  <p className="font-medium text-text-primary truncate">{w.name || "Sans nom"}</p>
+                  <p className="text-xs text-text-muted">
+                    {w.active ? "Actif" : "Inactif"}
+                    {w.triggerCount != null ? ` · ${w.triggerCount} trigger(s)` : ""}
+                    {w.canExecute === false ? " · non executable" : ""}
+                  </p>
                 </button>
-                <button
-                  type="button"
-                  onClick={handleUpdate}
-                  disabled={editing}
-                  className="px-3 py-1.5 rounded-lg bg-accent-violet/20 text-accent-violet text-sm font-medium hover:bg-accent-violet/30 disabled:opacity-50 transition-colors"
-                >
-                  {editing ? "Mise à jour…" : "Enregistrer"}
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+              ))
+            )}
+          </div>
+        </div>
 
-      {/* Drawer détail workflow */}
-      <AnimatePresence>
-        {selectedId && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex justify-end bg-black/60"
-            onClick={() => setSelectedId(null)}
-          >
-            <motion.div
-              initial={{ x: "100%" }}
-              animate={{ x: 0 }}
-              exit={{ x: "100%" }}
-              transition={{ type: "tween", duration: 0.2 }}
-              className="w-full max-w-md bg-background border-l border-white/10 shadow-xl overflow-hidden flex flex-col"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="p-3 border-b border-white/10 flex items-center justify-between">
-                <h3 className="font-semibold text-text-primary text-sm">Détail du workflow</h3>
-                <button
-                  type="button"
-                  onClick={() => setSelectedId(null)}
-                  className="p-2 rounded-lg hover:bg-white/10 text-text-muted"
-                  aria-label="Fermer"
+        <div className="glass-strong rounded-xl border border-white/10 overflow-hidden flex flex-col min-h-0">
+          <div className="px-3 py-2 border-b border-white/10 flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-text-primary truncate">
+                {selectedWorkflow?.name || "Selectionne un workflow"}
+              </p>
+              {selectedWorkflow && (
+                <p className="text-xs text-text-muted truncate">
+                  ID: {selectedWorkflow.id}
+                </p>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              {selectedWorkflow && buildN8nWorkflowUrl(editorBaseUrl, selectedWorkflow.id) && (
+                <a
+                  href={buildN8nWorkflowUrl(editorBaseUrl, selectedWorkflow.id) ?? "#"}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="px-2.5 py-1 rounded-lg bg-white/10 text-text-muted text-xs font-medium hover:bg-white/15 transition-colors"
                 >
-                  ×
-                </button>
-              </div>
-              <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                {detailLoading ? (
-                  <p className="text-text-muted text-sm">Chargement…</p>
-                ) : detail ? (
-                  <>
-                    <div>
-                      <p className="font-medium text-text-primary">{detail.name ?? "Sans nom"}</p>
-                      <p className="text-xs text-text-muted mt-0.5">
-                        {detail.active ? "Actif" : "Inactif"} · ID : {selectedId}
-                      </p>
-                      {buildN8nWorkflowUrl(editorBaseUrl, selectedId) && (
-                        <a
-                          href={buildN8nWorkflowUrl(editorBaseUrl, selectedId) ?? "#"}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex mt-2 text-xs text-accent-violet hover:text-accent-violet/80"
-                        >
-                          Ouvrir dans n8n ↗
-                        </a>
-                      )}
-                    </div>
-                    {detail.nodes && detail.nodes.length > 0 && (
-                      <div>
-                        <p className="text-xs text-text-muted font-medium mb-1">Nœuds / déclencheurs</p>
-                        <ul className="space-y-1 text-sm text-text-primary">
-                          {detail.nodes.slice(0, 10).map((node, idx) => (
-                            <li key={idx} className="flex items-center gap-2">
-                              <span className="text-accent-violet">{node.type ?? "node"}</span>
-                              {node.name && <span>{node.name}</span>}
-                            </li>
-                          ))}
-                          {detail.nodes.length > 10 && (
-                            <li className="text-text-muted">… et {detail.nodes.length - 10} autre(s)</li>
-                          )}
-                        </ul>
-                      </div>
-                    )}
-                    {executeResultDetail && (
-                      <p className={`text-sm ${executeResultDetail.ok ? "text-accent-cyan" : "text-accent-rose"}`}>
-                        {executeResultDetail.message}
-                      </p>
-                    )}
-                    <div className="pt-2 space-y-2">
-                      <div className="flex gap-2">
-                        {detail.active ? (
-                          <button
-                            type="button"
-                            onClick={() => handleDeactivate(selectedId)}
-                            disabled={actioningId !== null}
-                            className="flex-1 px-4 py-2.5 rounded-lg bg-white/10 text-text-muted font-medium hover:bg-white/15 disabled:opacity-50 transition-colors"
-                          >
-                            {actioningId === selectedId && actionType === "deactivate" ? "Désactivation…" : "Désactiver"}
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => handleActivate(selectedId)}
-                            disabled={actioningId !== null}
-                            className="flex-1 px-4 py-2.5 rounded-lg bg-accent-cyan/20 text-accent-cyan font-medium hover:bg-accent-cyan/30 disabled:opacity-50 transition-colors"
-                          >
-                            {actioningId === selectedId && actionType === "activate" ? "Activation…" : "Activer"}
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => handleExecute(selectedId)}
-                          disabled={executingId !== null}
-                          className="flex-1 px-4 py-2.5 rounded-lg bg-accent-violet/20 text-accent-violet font-medium hover:bg-accent-violet/30 disabled:opacity-50 transition-colors"
-                        >
-                          {executingId === selectedId ? "Exécution…" : "Exécuter"}
-                        </button>
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          onClick={handleCopyDetailJson}
-                          className="flex-1 px-4 py-2.5 rounded-lg bg-white/10 text-text-primary font-medium hover:bg-white/15 transition-colors"
-                        >
-                          Copier JSON
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setShowEditModal(true)}
-                          className="flex-1 px-4 py-2.5 rounded-lg bg-white/10 text-text-primary font-medium hover:bg-white/15 transition-colors"
-                        >
-                          Modifier
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(selectedId)}
-                          disabled={actioningId !== null}
-                          className="flex-1 px-4 py-2.5 rounded-lg bg-accent-rose/20 text-accent-rose font-medium hover:bg-accent-rose/30 disabled:opacity-50 transition-colors"
-                        >
-                          {actioningId === selectedId && actionType === "delete" ? "Suppression…" : "Supprimer"}
-                        </button>
-                      </div>
-                    </div>
-                  </>
-                ) : (
-                  <p className="text-accent-rose text-sm">Impossible de charger le détail.</p>
+                  Ouvrir n8n ↗
+                </a>
+              )}
+              <button
+                type="button"
+                onClick={handleExecute}
+                disabled={!selectedWorkflow || executing}
+                className="px-3 py-1.5 rounded-lg bg-accent-violet/20 text-accent-violet text-sm font-medium hover:bg-accent-violet/30 disabled:opacity-50 transition-colors"
+              >
+                {executing ? "Execution..." : "Executer"}
+              </button>
+              <button
+                type="button"
+                onClick={handleCopyJson}
+                disabled={!workflowJson}
+                className="px-3 py-1.5 rounded-lg bg-white/10 text-text-muted text-sm font-medium hover:bg-white/15 disabled:opacity-50 transition-colors"
+              >
+                Copier JSON
+              </button>
+            </div>
+          </div>
+          <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-3">
+            {loadingDetail ? (
+              <p className="text-sm text-text-muted">Chargement du detail...</p>
+            ) : (
+              <>
+                {triggerInfo && (
+                  <div className="rounded-lg border border-white/10 bg-white/5 p-3">
+                    <p className="text-xs text-text-muted mb-1">Comment le declencher</p>
+                    <p className="text-sm text-text-primary whitespace-pre-wrap">{triggerInfo}</p>
+                  </div>
                 )}
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+                <textarea
+                  value={workflowJson}
+                  readOnly
+                  spellCheck={false}
+                  placeholder="Le JSON du workflow apparaitra ici."
+                  className="w-full min-h-[360px] rounded-lg border border-white/10 bg-white/5 p-3 text-xs font-mono text-text-primary focus:outline-none"
+                />
+              </>
+            )}
+          </div>
+        </div>
+      </div>
     </motion.div>
   );
 }
