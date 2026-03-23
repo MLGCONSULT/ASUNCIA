@@ -1,10 +1,15 @@
 import { Body, Controller, Get, HttpException, HttpStatus, Post } from "@nestjs/common";
+import { IsObject, IsOptional, IsString } from "class-validator";
 import { callMcpTool, listMcpTools } from "./supabase-client";
 
 type McpTool = { name?: string; description?: string };
 
 class McpCallDto {
+  @IsString()
   toolName!: string;
+
+  @IsOptional()
+  @IsObject()
   arguments?: Record<string, unknown>;
 }
 
