@@ -4,6 +4,47 @@ import { useState } from "react";
 import PageMotion from "@/components/PageMotion";
 import { fetchBackend } from "@/lib/api";
 
+function parseJsonSafely(text: string): unknown | null {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+}
+
+function extractMcpText(content: unknown): string {
+  if (typeof content === "string") return content;
+  if (Array.isArray(content)) {
+    const textPart = content.find(
+      (p: any) => p?.type === "text" && typeof p?.text === "string",
+    ) as { text?: string } | undefined;
+    if (typeof textPart?.text === "string") return textPart.text;
+    return JSON.stringify(content);
+  }
+  if (content && typeof content === "object") return JSON.stringify(content);
+  return String(content ?? "");
+}
+
+function extractMcpErrorMessage(content: unknown): string {
+  const raw = extractMcpText(content);
+  const parsed = parseJsonSafely(raw) as any;
+  if (typeof parsed?.error?.message === "string") return parsed.error.message;
+  if (typeof parsed?.error === "string") return parsed.error;
+
+  const resultText = typeof parsed?.result === "string" ? parsed.result : raw;
+  const match = resultText.match(
+    /<untrusted-data-[^>]+>\s*([\s\S]*?)\s*<\/untrusted-data-[^>]+>/i,
+  );
+  const inner = match?.[1]?.trim();
+  if (inner) {
+    const innerParsed = parseJsonSafely(inner) as any;
+    if (typeof innerParsed?.error?.message === "string") return innerParsed.error.message;
+    if (typeof innerParsed?.error === "string") return innerParsed.error;
+  }
+
+  return raw;
+}
+
 export default function SupabasePage() {
   const [sql, setSql] = useState("select now();");
   const [nlPrompt, setNlPrompt] = useState("Liste-moi les 5 premiers pays de France en PIB.");
@@ -49,20 +90,12 @@ export default function SupabasePage() {
         return;
       }
       if (data?.isError) {
-        setError(typeof data.content === "string" ? data.content : "Erreur renvoyée par le MCP Supabase.");
+        setError(extractMcpErrorMessage(data.content) || "Erreur renvoyée par le MCP Supabase.");
         return;
       }
       // Le MCP renvoie souvent `content: [{ type: "text", text: "..." }]`.
       const content = (data as any)?.content ?? data;
-      const extractedText =
-        typeof content === "string"
-          ? content
-          : Array.isArray(content)
-            ? (content.find((p: any) => p?.type === "text" && typeof p?.text === "string")?.text as string | undefined) ??
-              JSON.stringify(content, null, 2)
-            : typeof content === "object"
-              ? JSON.stringify(content, null, 2)
-              : String(content ?? "");
+      const extractedText = extractMcpText(content);
 
       // Tentative de parsing JSON pour afficher un tableau.
       let parsed: unknown = null;
