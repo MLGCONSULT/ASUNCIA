@@ -55,8 +55,32 @@ function parseMcpResultPayload(content: unknown): unknown {
   const inner = match?.[1]?.trim();
   if (!inner) return parsed ?? raw;
 
-  const innerParsed = parseJsonSafely(inner);
-  return innerParsed ?? inner;
+  const cleaned = inner
+    .replace(/^```json\s*/i, "")
+    .replace(/^```\s*/i, "")
+    .replace(/```$/i, "")
+    .trim();
+
+  const innerParsed = parseJsonSafely(cleaned);
+  if (innerParsed != null) return innerParsed;
+
+  // Fallback robuste: récupère la plus grande portion JSON tableau/objet.
+  const arrStart = cleaned.indexOf("[");
+  const arrEnd = cleaned.lastIndexOf("]");
+  if (arrStart >= 0 && arrEnd > arrStart) {
+    const candidate = cleaned.slice(arrStart, arrEnd + 1);
+    const parsedArr = parseJsonSafely(candidate);
+    if (parsedArr != null) return parsedArr;
+  }
+  const objStart = cleaned.indexOf("{");
+  const objEnd = cleaned.lastIndexOf("}");
+  if (objStart >= 0 && objEnd > objStart) {
+    const candidate = cleaned.slice(objStart, objEnd + 1);
+    const parsedObj = parseJsonSafely(candidate);
+    if (parsedObj != null) return parsedObj;
+  }
+
+  return cleaned;
 }
 
 export default function SupabasePage() {
