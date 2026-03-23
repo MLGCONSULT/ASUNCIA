@@ -25,7 +25,8 @@ function normalizeToolArguments(
 ): Record<string, unknown> {
   // Compatibilité: certains clients envoient `sql`, alors que MCP Supabase attend `query`.
   if (toolName === "execute_sql" && typeof args.query !== "string" && typeof args.sql === "string") {
-    return { ...args, query: args.sql };
+    const { sql, ...rest } = args;
+    return { ...rest, query: sql };
   }
   return args;
 }
