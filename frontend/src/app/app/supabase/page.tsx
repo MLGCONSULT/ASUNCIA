@@ -45,6 +45,20 @@ function extractMcpErrorMessage(content: unknown): string {
   return raw;
 }
 
+function parseMcpResultPayload(content: unknown): unknown {
+  const raw = extractMcpText(content);
+  const parsed = parseJsonSafely(raw) as any;
+  const resultText = typeof parsed?.result === "string" ? parsed.result : raw;
+  const match = resultText.match(
+    /<untrusted-data-[^>]+>\s*([\s\S]*?)\s*<\/untrusted-data-[^>]+>/i,
+  );
+  const inner = match?.[1]?.trim();
+  if (!inner) return parsed ?? raw;
+
+  const innerParsed = parseJsonSafely(inner);
+  return innerParsed ?? inner;
+}
+
 export default function SupabasePage() {
   const [sql, setSql] = useState("select now();");
   const [nlPrompt, setNlPrompt] = useState("Liste-moi les 5 premiers pays de France en PIB.");
@@ -93,19 +107,12 @@ export default function SupabasePage() {
         setError(extractMcpErrorMessage(data.content) || "Erreur renvoyée par le MCP Supabase.");
         return;
       }
-      // Le MCP renvoie souvent `content: [{ type: "text", text: "..." }]`.
+      // Le MCP renvoie souvent `content: [{ type: "text", text: "..." }]` avec un wrapper "untrusted-data".
       const content = (data as any)?.content ?? data;
-      const extractedText = extractMcpText(content);
-
-      // Tentative de parsing JSON pour afficher un tableau.
-      let parsed: unknown = null;
-      try {
-        parsed = JSON.parse(extractedText);
-      } catch {
-        parsed = null;
-      }
-
-      setResultValue(parsed ?? extractedText);
+      const payload = parseMcpResultPayload(content);
+      const extractedText =
+        typeof payload === "string" ? payload : JSON.stringify(payload, null, 2);
+      setResultValue(payload);
       setResultText(extractedText);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur réseau.");
