@@ -10,6 +10,7 @@ import { ChatModule } from "./chat/chat.module";
 import { ConversationModule } from "./conversation/conversation.module";
 import { ConversationsModule } from "./conversations/conversations.module";
 import { AuthModule } from "./auth/auth.module";
+import { SupabaseSqlModule } from "./supabase/supabase-sql.module";
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { AuthModule } from "./auth/auth.module";
     ConversationModule,
     ConversationsModule,
     AuthModule,
+    SupabaseSqlModule,
   ],
   controllers: [AppController],
 })
