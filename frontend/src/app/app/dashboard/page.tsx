@@ -2,6 +2,8 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import PageMotion from "@/components/PageMotion";
 import { buildAssistantPromptUrl } from "@/lib/assistant-intents";
+import ToolCards from "@/components/ToolCards";
+import DashboardToday from "@/components/DashboardToday";
 
 type Bubble = {
   id: string;
@@ -32,10 +34,11 @@ const toneClasses: Record<Bubble["tone"], string> = {
 
 export default async function DashboardPage() {
   const supabase = await createClient();
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("nom_affichage")
-    .maybeSingle();
+  const [{ data: profile }, { count: leadsCount }, { count: convCount }] = await Promise.all([
+    supabase.from("profiles").select("nom_affichage").maybeSingle(),
+    supabase.from("leads").select("id", { count: "exact", head: true }),
+    supabase.from("ai_conversations").select("id", { count: "exact", head: true }),
+  ]);
 
   const talkUrl = buildAssistantPromptUrl(
     "Ouvre une nouvelle session avec l'assistant et propose-moi les actions importantes du moment pour mon CRM (leads, mails, bases, automatisations).",
@@ -43,7 +46,7 @@ export default async function DashboardPage() {
 
   return (
     <PageMotion className="dashboard-scene relative isolate flex h-full min-h-0 flex-col gap-4 overflow-visible">
-      <section className="relative flex min-h-[420px] flex-1 items-center justify-center px-4 py-4">
+      <section className="relative flex min-h-[360px] items-center justify-center px-4 py-4">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_0%,rgba(56,189,248,0.12),transparent_55%),radial-gradient(circle_at_80%_100%,rgba(147,51,234,0.12),transparent_55%)]" />
 
         <div className="relative z-10 mx-auto flex w-full max-w-5xl flex-col items-center gap-6">
@@ -52,7 +55,7 @@ export default async function DashboardPage() {
             {profile?.nom_affichage ? <span>{profile.nom_affichage}</span> : null}
           </div>
 
-          <div className="relative flex w-full max-w-4xl flex-col items-center gap-8">
+          <div className="relative flex w-full max-w-4xl flex-col items-center gap-7">
             {/* Bulle centrale Agent IA */}
             <div className="relative flex h-52 w-52 flex-col items-center justify-center rounded-full border border-white/10 bg-black/80 shadow-[0_24px_70px_rgba(0,0,0,0.9)] backdrop-blur-2xl">
               <span className="text-[11px] uppercase tracking-[0.22em] text-text-dim">
@@ -85,6 +88,57 @@ export default async function DashboardPage() {
           </div>
         </div>
       </section>
+
+      <section className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="glass-strong rounded-xl border border-white/10 p-4 card-glow">
+          <p className="text-xs uppercase tracking-[0.18em] text-text-dim">Leads</p>
+          <p className="mt-2 text-2xl font-semibold text-text-primary">{leadsCount ?? 0}</p>
+          <p className="text-xs text-text-muted mt-1">contacts dans ton CRM</p>
+          <Link href="/app/supabase" className="inline-block mt-3 text-xs text-accent-cyan hover:underline">
+            Explorer les données
+          </Link>
+        </div>
+        <div className="glass-strong rounded-xl border border-white/10 p-4 card-glow">
+          <p className="text-xs uppercase tracking-[0.18em] text-text-dim">Conversations IA</p>
+          <p className="mt-2 text-2xl font-semibold text-text-primary">{convCount ?? 0}</p>
+          <p className="text-xs text-text-muted mt-1">historique de guidage</p>
+          <Link href={talkUrl} className="inline-block mt-3 text-xs text-accent-cyan hover:underline">
+            Ouvrir l'assistant
+          </Link>
+        </div>
+        <div className="glass-strong rounded-xl border border-white/10 p-4 card-glow">
+          <p className="text-xs uppercase tracking-[0.18em] text-text-dim">Démarrage rapide</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Link href="/app/airtable" className="px-2.5 py-1 rounded-full bg-white/10 text-xs text-text-primary hover:bg-white/15">
+              Airtable
+            </Link>
+            <Link href="/app/mails" className="px-2.5 py-1 rounded-full bg-white/10 text-xs text-text-primary hover:bg-white/15">
+              Mails
+            </Link>
+            <Link href="/app/n8n" className="px-2.5 py-1 rounded-full bg-white/10 text-xs text-text-primary hover:bg-white/15">
+              n8n
+            </Link>
+            <Link href="/app/notion" className="px-2.5 py-1 rounded-full bg-white/10 text-xs text-text-primary hover:bg-white/15">
+              Notion
+            </Link>
+          </div>
+          <p className="text-xs text-text-muted mt-3">
+            Le dashboard sert de hub : vue d'ensemble + raccourcis + guidage.
+          </p>
+        </div>
+      </section>
+
+      <section className="space-y-2">
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-semibold text-text-primary">Outils et statut</p>
+          <Link href={talkUrl} className="text-xs text-text-muted hover:text-text-primary">
+            Besoin d'aide ? Demander à l'IA
+          </Link>
+        </div>
+        <ToolCards />
+      </section>
+
+      <DashboardToday />
     </PageMotion>
   );
 }

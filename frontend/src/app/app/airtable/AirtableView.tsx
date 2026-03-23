@@ -40,6 +40,16 @@ export default function AirtableView({ hasAirtable: initialHasAirtable }: Props)
     initialHasAirtable ? "oauth" : "none"
   );
   const [canDisconnect, setCanDisconnect] = useState(initialHasAirtable);
+  const [status, setStatus] = useState<{
+    selectedMode: "oauth" | "server-token" | "none";
+    configured: boolean;
+    statusChecked: boolean;
+  }>({
+    selectedMode: initialHasAirtable ? "oauth" : "none",
+    configured: initialHasAirtable,
+    statusChecked: false,
+  });
+  const [statusLoading, setStatusLoading] = useState(false);
   const [callbackMessage, setCallbackMessage] = useState<"success" | "error" | null>(null);
   const [callbackErrorText, setCallbackErrorText] = useState<string | null>(null);
   const [bases, setBases] = useState<Base[]>([]);
@@ -61,20 +71,56 @@ export default function AirtableView({ hasAirtable: initialHasAirtable }: Props)
     setHasAirtable(initialHasAirtable);
     setConnectionSource(initialHasAirtable ? "oauth" : "none");
     setCanDisconnect(initialHasAirtable);
+    setStatus({
+      selectedMode: initialHasAirtable ? "oauth" : "none",
+      configured: initialHasAirtable,
+      statusChecked: false,
+    });
   }, [initialHasAirtable]);
 
-  useEffect(() => {
-    fetchBackend("/api/auth/airtable/status")
-      .then((response) => response.json())
-      .then((data) => {
-        if (typeof data.connected === "boolean") {
-          setHasAirtable(data.connected);
-          setConnectionSource((data.source as "oauth" | "server-token" | "none") ?? "none");
-          setCanDisconnect(Boolean(data.canDisconnect));
+  const loadStatus = useCallback(async () => {
+    setStatusLoading(true);
+    try {
+      const response = await fetchBackend("/api/auth/airtable/status");
+      const data = await response.json();
+      const selectedMode =
+        (data.selectedMode as "oauth" | "server-token" | "none" | undefined) ??
+        ((data.source as "oauth" | "server-token" | "none" | undefined) ?? "none");
+      const configured = Boolean(data.configured);
+      setStatus({
+        selectedMode,
+        configured,
+        statusChecked: true,
+      });
+
+      if (selectedMode === "server-token") {
+        if (configured) {
+          setHasAirtable(true);
+          setConnectionSource("server-token");
+          setCanDisconnect(false);
+        } else {
+          setHasAirtable(false);
+          setConnectionSource("server-token");
+          setCanDisconnect(false);
         }
-      })
-      .catch(() => undefined);
+        return;
+      }
+
+      if (typeof data.connected === "boolean") {
+        setHasAirtable(data.connected);
+        setConnectionSource((data.source as "oauth" | "server-token" | "none") ?? "none");
+        setCanDisconnect(Boolean(data.canDisconnect));
+      }
+    } catch {
+      setStatus((prev) => ({ ...prev, statusChecked: true }));
+    } finally {
+      setStatusLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    loadStatus();
+  }, [loadStatus]);
 
   useEffect(() => {
     const connected = searchParams.get("connected");
@@ -85,6 +131,11 @@ export default function AirtableView({ hasAirtable: initialHasAirtable }: Props)
       setHasAirtable(true);
       setConnectionSource("oauth");
       setCanDisconnect(true);
+      setStatus({
+        selectedMode: "oauth",
+        configured: true,
+        statusChecked: true,
+      });
       window.history.replaceState({}, "", "/app/airtable");
       return;
     }
@@ -195,6 +246,35 @@ export default function AirtableView({ hasAirtable: initialHasAirtable }: Props)
   }, [selectedBase, selectedTable]);
 
   if (!hasAirtable) {
+    if (!status.statusChecked) {
+      return (
+        <motion.div className="glass-strong rounded-xl border border-white/10 p-6 card-glow" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+          <p className="font-semibold text-text-primary mb-2">Vérification de la configuration Airtable</p>
+          <p className="text-text-muted text-sm">Détection du mode de connexion en cours…</p>
+        </motion.div>
+      );
+    }
+
+    if (status.selectedMode === "server-token") {
+      return (
+        <motion.div className="glass-strong rounded-xl border border-accent-cyan/30 p-6 card-glow" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+          <p className="font-semibold text-text-primary mb-2">Mode token serveur détecté</p>
+          <p className="text-text-muted text-sm mb-4">
+            Le mode token serveur est actif, mais Airtable n&apos;est pas encore configuré côté backend.
+            Vérifiez la configuration serveur puis relancez la détection.
+          </p>
+          <button
+            type="button"
+            onClick={loadStatus}
+            disabled={statusLoading}
+            className="px-4 py-2 rounded-lg bg-accent-cyan/20 text-accent-cyan font-medium hover:bg-accent-cyan/30 disabled:opacity-50 transition-colors"
+          >
+            {statusLoading ? "Vérification…" : "Réessayer"}
+          </button>
+        </motion.div>
+      );
+    }
+
     return (
       <motion.div className="glass-strong rounded-xl border border-white/10 p-6 card-glow" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
         <p className="font-semibold text-text-primary mb-2">Connectez votre compte Airtable</p>
@@ -243,10 +323,11 @@ export default function AirtableView({ hasAirtable: initialHasAirtable }: Props)
           ) : null}
           <button
             type="button"
-            onClick={() => window.location.reload()}
+            onClick={loadStatus}
+            disabled={statusLoading}
             className="px-3 py-1.5 rounded-lg bg-accent-cyan/20 text-accent-cyan text-sm font-medium hover:bg-accent-cyan/30"
           >
-            Réessayer
+            {statusLoading ? "Vérification…" : "Réessayer"}
           </button>
         </div>
       </motion.div>

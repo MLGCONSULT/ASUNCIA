@@ -25,7 +25,7 @@ export default async function AirtablePage() {
           Airtable
         </h1>
         <p className="text-text-muted text-xs mt-0.5">
-          Bases et tables connectées (OAuth Airtable).
+          Bases et tables connectées (OAuth ou token serveur).
         </p>
       </div>
       <div className="flex-1 min-h-0 flex flex-col">

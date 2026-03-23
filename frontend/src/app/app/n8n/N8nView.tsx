@@ -31,6 +31,21 @@ const toPrettyJson = (value: unknown) => {
   }
 };
 
+const normalizeTriggerInfoToFrench = (value: string) => {
+  return value
+    .replace("This workflow has the following trigger(s):", "Ce workflow contient les déclencheurs suivants :")
+    .replace("Schedule trigger(s):", "Déclencheur(s) planifié(s) :")
+    .replace("Scheduled workflows can be executed directly through MCP clients and do not require external inputs.", "Les workflows planifiés peuvent être exécutés directement via MCP et ne nécessitent pas d'entrée externe.")
+    .replace(/Node name:/g, "Nom du noeud :");
+};
+
+const defaultWorkflowTemplate = `{
+  "name": "Nouveau workflow",
+  "nodes": [],
+  "connections": {},
+  "settings": {}
+}`;
+
 const buildN8nWorkflowUrl = (base: string | null, workflowId?: string) => {
   const b = base?.trim().replace(/\/+$/, "");
   if (!b || !workflowId) return null;
@@ -50,6 +65,8 @@ export default function N8nView() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [triggerInfo, setTriggerInfo] = useState<string>("");
   const [workflowJson, setWorkflowJson] = useState<string>("");
+  const [workflowObject, setWorkflowObject] = useState<Record<string, unknown> | null>(null);
+  const [templateJson, setTemplateJson] = useState<string>(defaultWorkflowTemplate);
 
   const selectedWorkflow = useMemo(
     () => workflows.find((w) => w.id === selectedId) ?? null,
@@ -80,6 +97,7 @@ export default function N8nView() {
       if (autoPickFirst && list.length === 0) {
         setSelectedId(null);
         setWorkflowJson("");
+        setWorkflowObject(null);
         setTriggerInfo("");
         setNotice("Aucun workflow trouvé pour cette demande.");
       }
@@ -104,11 +122,14 @@ export default function N8nView() {
         );
       }
       if (typeof data.editorBaseUrl === "string") setEditorBaseUrl(data.editorBaseUrl);
-      setTriggerInfo(typeof data.triggerInfo === "string" ? data.triggerInfo : "");
-      setWorkflowJson(toPrettyJson(data.workflow ?? data));
+      const wf = (data.workflow && typeof data.workflow === "object" ? data.workflow : data) as Record<string, unknown>;
+      setWorkflowObject(wf);
+      setTriggerInfo(typeof data.triggerInfo === "string" ? normalizeTriggerInfoToFrench(data.triggerInfo) : "");
+      setWorkflowJson(toPrettyJson(wf));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erreur réseau.");
       setWorkflowJson("");
+      setWorkflowObject(null);
       setTriggerInfo("");
     } finally {
       setLoadingDetail(false);
@@ -161,6 +182,28 @@ export default function N8nView() {
     }
   }, [workflowJson]);
 
+  const handleCopyTemplateJson = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(templateJson);
+      setNotice("Template JSON copié. Colle-le dans l'éditeur n8n pour créer un workflow.");
+    } catch {
+      setError("Impossible de copier le template JSON.");
+    }
+  }, [templateJson]);
+
+  const nodesSummary = useMemo(() => {
+    const nodes = Array.isArray(workflowObject?.nodes) ? (workflowObject?.nodes as Array<Record<string, unknown>>) : [];
+    const triggerNodes = nodes.filter((n) => {
+      const t = String(n.type ?? "").toLowerCase();
+      return t.includes("trigger") || t.includes("webhook") || t.includes("cron") || t.includes("schedule");
+    });
+    return {
+      total: nodes.length,
+      triggers: triggerNodes.length,
+      top: nodes.slice(0, 8),
+    };
+  }, [workflowObject]);
+
   return (
     <motion.div
       className="flex flex-col flex-1 min-h-0 gap-3"
@@ -200,6 +243,30 @@ export default function N8nView() {
             Tout
           </button>
         </div>
+      </div>
+
+      <div className="rounded-xl border border-accent-amber/35 bg-gradient-to-br from-accent-amber/10 via-white/[0.03] to-accent-violet/10 p-3 card-glow">
+        <div className="flex items-center justify-between gap-2 mb-2">
+          <div>
+            <p className="text-sm font-semibold text-text-primary">Créer un workflow (JSON)</p>
+            <p className="text-xs text-text-muted">
+              Génère ici ton JSON puis copie-colle dans n8n (Nouveau workflow &gt; Import from JSON).
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleCopyTemplateJson}
+            className="px-3 py-1.5 rounded-lg bg-accent-amber/20 text-amber-200 text-sm font-semibold hover:bg-accent-amber/30 border border-accent-amber/40 transition-colors"
+          >
+            Copier le JSON
+          </button>
+        </div>
+        <textarea
+          value={templateJson}
+          onChange={(e) => setTemplateJson(e.target.value)}
+          spellCheck={false}
+          className="w-full min-h-[170px] rounded-lg border border-accent-amber/30 bg-black/30 p-3 text-xs font-mono text-text-primary focus:outline-none focus:ring-2 focus:ring-accent-amber/40"
+        />
       </div>
 
       {error && (
@@ -280,7 +347,7 @@ export default function N8nView() {
                 type="button"
                 onClick={handleCopyJson}
                 disabled={!workflowJson}
-                className="px-3 py-1.5 rounded-lg bg-white/10 text-text-muted text-sm font-medium hover:bg-white/15 disabled:opacity-50 transition-colors"
+                className="px-3 py-1.5 rounded-lg bg-accent-cyan/20 text-accent-cyan text-sm font-semibold hover:bg-accent-cyan/30 border border-accent-cyan/35 disabled:opacity-50 transition-colors"
               >
                 Copier JSON
               </button>
@@ -291,9 +358,26 @@ export default function N8nView() {
               <p className="text-sm text-text-muted">Chargement du detail...</p>
             ) : (
               <>
+                {selectedWorkflow && (
+                  <div className="rounded-lg border border-white/10 bg-white/5 p-3">
+                    <p className="text-xs text-text-muted mb-1">Résumé du workflow</p>
+                    <p className="text-sm text-text-primary">
+                      {nodesSummary.total} noeud(s) dont {nodesSummary.triggers} déclencheur(s).
+                    </p>
+                    {nodesSummary.top.length > 0 && (
+                      <ul className="mt-2 space-y-1">
+                        {nodesSummary.top.map((node, idx) => (
+                          <li key={idx} className="text-xs text-text-muted">
+                            - {String(node.name ?? `Noeud ${idx + 1}`)} ({String(node.type ?? "type inconnu")})
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
                 {triggerInfo && (
                   <div className="rounded-lg border border-white/10 bg-white/5 p-3">
-                    <p className="text-xs text-text-muted mb-1">Comment le declencher</p>
+                    <p className="text-xs text-text-muted mb-1">Comment le déclencher</p>
                     <p className="text-sm text-text-primary whitespace-pre-wrap">{triggerInfo}</p>
                   </div>
                 )}
@@ -301,8 +385,8 @@ export default function N8nView() {
                   value={workflowJson}
                   readOnly
                   spellCheck={false}
-                  placeholder="Le JSON du workflow apparaitra ici."
-                  className="w-full min-h-[360px] rounded-lg border border-white/10 bg-white/5 p-3 text-xs font-mono text-text-primary focus:outline-none"
+                  placeholder="Le JSON du workflow apparaît ici (copiable)."
+                  className="w-full min-h-[360px] rounded-lg border border-accent-cyan/30 bg-black/30 p-3 text-xs font-mono text-text-primary focus:outline-none"
                 />
               </>
             )}

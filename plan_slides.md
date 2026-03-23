@@ -1,211 +1,206 @@
-# Plan PowerPoint - Presentation Projet (27 mars)
+# Guide Slides (pour une personne non-tech)
 
-Objectif: un support visuel SIMPLE pour accompagner une demo live du projet.
+But: aider quelqu'un qui n'est pas du milieu a faire un PowerPoint clair, joli et utile, sans devoir comprendre tout le code.
 
----
+## Ce qu'il faut livrer le 27 mars
 
-## Slide 1 - Titre / contexte
-
-- Titre du projet (AsuncIA)
-- Sous-titre: "Presentation live - 27 mars"
-- Ton nom / role
-- 1 phrase de contexte: "Un assistant CRM unifie, propulse par IA + integrations MCP"
-
-Visuel conseille:
-- Logo + capture de l'interface principale
-
-Message a faire passer:
-- "Je vais montrer un outil deja utilisable, pas seulement un prototype."
+1. Une presentation simple (8 a 10 slides max)
+2. Une demo live du projet
+3. Un lien de test (si possible) pour que Mickael puisse essayer
+4. Une doc technique claire (simple a lire, mais complete)
 
 ---
 
-## Slide 2 - Vision produit
+## Regles simples pour faire les slides
 
-- Probleme vise (fragmentation des outils: CRM, emails, automatisation, bases)
-- Vision: "Une seule interface pour piloter l'activite, assistee par IA"
-- Valeur metier:
-  - gain de temps
-  - moins de friction
-  - meilleure centralisation
-
-Visuel conseille:
-- Schema simple "Avant / Apres" (plusieurs outils -> AsuncIA)
-
-Message a faire passer:
-- "La vision est l'alignement produit + usage terrain."
+- 1 slide = 1 idee
+- 4 a 6 points max par slide
+- phrases courtes
+- beaucoup de captures d'ecran, peu de texte
+- style visuel propre, pas surcharge
+- police lisible (minimum 24 pour titres, 16 pour texte)
 
 ---
 
-## Slide 3 - Ce qui est construit aujourd'hui
+## Plan slide par slide (pret a suivre)
 
-- Frontend Next.js (interface utilisateur)
-- Backend Nest.js (API metier)
-- Auth utilisateur via Supabase (JWT)
-- Integrations actives:
-  - Supabase (MCP SQL read-only)
-  - Airtable
-  - Notion
-  - Gmail
-  - n8n
+### Slide 1 - Titre
 
-Visuel conseille:
-- Tableau 2 colonnes: "Module" / "Statut"
+**Mettre:**
+- AsuncIA - CRM intelligent
+- "Presentation live - 27 mars"
+- Nom + role
 
-Message a faire passer:
-- "Le socle technique est reel et deja fonctionnel."
+**A dire en oral (simple):**
+"Je vais vous montrer un outil deja utilisable, pas un simple prototype."
+
+**Visuel:**
+- logo + belle capture de la page d'accueil/dashboard
 
 ---
 
-## Slide 4 - Architecture simple
+### Slide 2 - Le probleme et la vision
 
-- Front appelle backend
-- Backend orchestre:
-  - logique metier
-  - auth
-  - appels MCP
-- Donnees et services externes relies via MCP / OAuth
+**Mettre:**
+- Probleme: trop d'outils separes (emails, CRM, automatisation, bases)
+- Vision: tout piloter dans une seule interface
+- Benefice: gain de temps + plus simple + meilleure vue globale
 
-Visuel conseille:
-- Diagramme 5 blocs:
-  - Front
-  - Backend Nest
-  - Supabase
-  - MCP (Airtable/Notion/Gmail/n8n)
-  - OpenAI
+**A dire:**
+"On veut enlever la dispersion et centraliser le travail."
 
-Message a faire passer:
-- "Architecture modulaire, deployable, evolutive."
+**Visuel:**
+- schema "Avant / Apres"
 
 ---
 
-## Slide 5 - Demo live: scenario
+### Slide 3 - Ce qui existe deja
 
-- Scenario propose (3-5 min):
-  1. Connexion utilisateur
-  2. Tester une integration (ex: n8n workflows ou Gmail messages)
-  3. Editeur SQL: demande en langage naturel -> SQL genere -> execution
-  4. Montrer resultat lisible
-- Lien de test a partager (si pret)
+**Mettre (niveau non-tech):**
+- Assistant IA integre
+- Onglets: Mails, Airtable, Notion, Supabase, n8n
+- Auth utilisateur securisee
+- Dashboard utile (actions du jour + raccourcis)
 
-Visuel conseille:
-- Liste numerotee + mini captures
+**A dire:**
+"Le coeur du produit est deja en place et fonctionne."
 
-Message a faire passer:
-- "On voit la valeur en direct, sur un vrai flux utilisateur."
-
----
-
-## Slide 6 - Exemples de prompts Cursor utilises
-
-- Prompt 1 (migration backend):
-  - "Porte les routes /api/airtable/* en module/controller Nest avec middleware auth JWT."
-- Prompt 2 (debug OAuth):
-  - "Diagnostique 401 invalid_client Airtable et propose un protocole Postman."
-- Prompt 3 (UX):
-  - "Rends l'affichage des resultats SQL plus lisible (tableau + fallback)."
-
-Ce qu'il faut expliquer:
-- intention du prompt
-- resultat obtenu
-- gain de productivite
-
-Visuel conseille:
-- 3 cartes "Prompt -> Impact"
-
-Message a faire passer:
-- "Cursor a accelere l'implementation, mais avec validation humaine."
+**Visuel:**
+- tableau simple "Fonction / Statut"
 
 ---
 
-## Slide 7 - Documentation technique (a rendre en plus)
+### Slide 4 - Comment ca marche (version simple)
 
-- Contenu minimum de la doc:
-  - prerequis et stack
-  - variables d'environnement (front/back)
-  - procedure de lancement local
-  - endpoints principaux
-  - procedure de test MCP (Postman)
-  - procedure de deploiement Vercel
-  - limites connues / points de vigilance
+**Mettre:**
+- L'utilisateur agit dans le front (site)
+- Le backend fait les traitements
+- Les donnees viennent de services connectes (Gmail, Airtable, etc.)
 
-Visuel conseille:
-- Checklist "Doc prete"
+**A dire:**
+"L'appli sert de chef d'orchestre entre l'utilisateur et les outils."
 
-Message a faire passer:
-- "Le projet est transmissible et maintenable."
+**Visuel:**
+- diagramme 4 blocs: Utilisateur -> App -> Backend -> Outils externes
 
 ---
 
-## Slide 8 - Risques / limites / mitigations
+### Slide 5 - Demo live (script)
 
-- Exemples:
-  - OAuth tiers (Airtable/Google/Notion) sensible aux credentials
-  - Dependance aux environnements (Vercel vars)
-  - Gestion des erreurs et observabilite
-- Mitigations:
-  - checklist env
-  - endpoints health
-  - tests Postman standardises
-  - logs backend
+**Mettre:**
+1. Ouvrir dashboard
+2. Ouvrir un onglet (ex: n8n ou Airtable)
+3. Faire une action simple
+4. Montrer le resultat
 
-Visuel conseille:
-- Tableau "Risque / Action"
+**A dire:**
+"On montre un cas reel du debut a la fin."
 
-Message a faire passer:
-- "Les risques sont identifies et encadres."
+**Visuel:**
+- mini captures des 4 etapes
 
----
-
-## Slide 9 - Roadmap courte
-
-- Court terme:
-  - stabilisation OAuth Airtable
-  - finalisation migration backend unique Nest
-- Moyen terme:
-  - ameliorations UX
-  - meilleure observabilite
-  - enrichissement IA orientee metier
-
-Visuel conseille:
-- Frise simple "Maintenant / Prochainement"
-
-Message a faire passer:
-- "On sait exactement quoi faire ensuite."
+**Important:**
+- ajouter le lien de test si dispo (pour Mickael)
 
 ---
 
-## Slide 10 - Conclusion / Q&A
+### Slide 6 - Exemples de prompts Cursor
 
-- 3 points de conclusion:
-  - vision claire
-  - demo fonctionnelle
-  - base technique solide + doc
-- Inviter aux questions
-- (Option) afficher lien de test
+**Mettre 3 exemples concrets:**
+- Prompt 1: migration backend
+- Prompt 2: debug integration
+- Prompt 3: amelioration UX
 
-Visuel conseille:
-- Slide epuree avec 3 bullets max
+**Structure a afficher pour chaque prompt:**
+- "Ce qu'on a demande"
+- "Ce que ca a produit"
+- "Pourquoi c'etait utile"
 
----
-
-## Conseils de forme (important)
-
-- 10 slides max
-- 1 idee principale par slide
-- peu de texte, police lisible
-- captures reelles de ton app
-- pas d'animations complexes
-- garder 5 min de marge pour Q&A
+**A dire:**
+"Cursor accelere, mais on garde toujours un controle humain."
 
 ---
 
-## Trame orale (ultra simple)
+### Slide 7 - Documentation technique (ce qu'on livre)
 
-- 30s intro (vision)
-- 2 min architecture + ce qui est fait
-- 4 min demo live
-- 2 min prompts Cursor + doc technique
-- 1 min roadmap + conclusion
+**Mettre:**
+- installation
+- variables d'environnement
+- endpoints importants
+- tests Postman
+- deploiement
+- incidents connus + solutions
 
-Temps total cible: 9-10 min.
+**A dire:**
+"La doc permet a quelqu'un d'autre de reprendre le projet."
+
+**Visuel:**
+- checklist "doc complete"
+
+---
+
+### Slide 8 - Risques et solutions
+
+**Mettre:**
+- risques: connexions externes, variables d'env, erreurs API
+- solutions: health checks, messages clairs, procedures de test
+
+**A dire:**
+"Les risques sont connus et traites avec une methode."
+
+---
+
+### Slide 9 - Roadmap
+
+**Mettre:**
+- court terme: stabilisation + fiabilite
+- moyen terme: UX + IA plus proactive metier
+
+**A dire:**
+"On sait deja la suite, ce n'est pas un projet fige."
+
+---
+
+### Slide 10 - Conclusion
+
+**Mettre:**
+- vision claire
+- demo reelle
+- base technique solide
+- doc transmissible
+- Q&A
+
+**A dire:**
+"Le projet est deja utile et evolutif."
+
+---
+
+## Mini guide "doc technique" (a produire en plus)
+
+La doc doit etre en 2 niveaux:
+
+### 1) Version simple (pour lire vite)
+- c'est quoi le projet
+- comment le lancer
+- comment le tester
+- comment le deployer
+
+### 2) Version detaillee (annexe)
+- toutes les variables d'environnement
+- endpoints avec exemples
+- procedures Postman completes
+- checklists de debug par integration
+
+Objectif: comprenable vite, mais exploitable par un dev.
+
+---
+
+## Liste de verification finale
+
+- [ ] Slides 8-10 max
+- [ ] Chaque slide est comprenable sans jargon
+- [ ] Captures d'ecran ajoutees
+- [ ] Lien de test ajoute (si dispo)
+- [ ] Script oral repete (9-10 min)
+- [ ] Doc technique simple + detaillee prete
 
