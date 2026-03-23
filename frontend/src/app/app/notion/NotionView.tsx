@@ -16,7 +16,7 @@ export default function NotionView({ hasNotion: initialHasNotion }: Props) {
   const searchParams = useSearchParams();
   const [hasNotion, setHasNotion] = useState(initialHasNotion);
   const [connectionSource, setConnectionSource] = useState<"oauth" | "server-token" | "none">(
-    initialHasNotion ? "oauth" : "none"
+    "none"
   );
   const [canDisconnect, setCanDisconnect] = useState(initialHasNotion);
   const [callbackMessage, setCallbackMessage] = useState<"success" | "error" | null>(null);
@@ -29,24 +29,40 @@ export default function NotionView({ hasNotion: initialHasNotion }: Props) {
   const [selectedDb, setSelectedDb] = useState<Database | null>(null);
   const [dbPages, setDbPages] = useState<Page[]>([]);
   const [dbPagesLoading, setDbPagesLoading] = useState(false);
+  const [statusChecked, setStatusChecked] = useState(false);
+  const [selectedMode, setSelectedMode] = useState<"oauth" | "server-token" | "none">("none");
 
   useEffect(() => {
     setHasNotion(initialHasNotion);
-    setConnectionSource(initialHasNotion ? "oauth" : "none");
+    setConnectionSource("none");
     setCanDisconnect(initialHasNotion);
   }, [initialHasNotion]);
 
   useEffect(() => {
-    fetchBackend("/api/auth/notion/status")
-      .then((response) => response.json())
-      .then((data) => {
+    const loadStatus = async () => {
+      try {
+        // Backend Nest expose /api/notion/status. Fallback conservé pour compatibilité.
+        let response = await fetchBackend("/api/notion/status");
+        if (!response.ok) {
+          response = await fetchBackend("/api/auth/notion/status");
+        }
+        const data = await response.json();
+        const mode =
+          (data.selectedMode as "oauth" | "server-token" | "none" | undefined) ??
+          ((data.source as "oauth" | "server-token" | "none" | undefined) ?? "none");
+        setSelectedMode(mode);
         if (typeof data.connected === "boolean") {
           setHasNotion(data.connected);
           setConnectionSource((data.source as "oauth" | "server-token" | "none") ?? "none");
           setCanDisconnect(Boolean(data.canDisconnect));
         }
-      })
-      .catch(() => undefined);
+      } catch {
+        // no-op
+      } finally {
+        setStatusChecked(true);
+      }
+    };
+    void loadStatus();
   }, []);
 
   useEffect(() => {
@@ -132,6 +148,46 @@ export default function NotionView({ hasNotion: initialHasNotion }: Props) {
   }
 
   if (!hasNotion) {
+    if (!statusChecked) {
+      return (
+        <motion.div
+          className="glass-strong rounded-xl border border-white/10 p-6 max-w-lg card-glow"
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          <p className="text-text-primary font-semibold mb-2">Vérification de Notion</p>
+          <p className="text-text-muted text-sm">Détection du mode de connexion en cours…</p>
+        </motion.div>
+      );
+    }
+    if (selectedMode === "server-token") {
+      return (
+        <motion.div
+          className="glass-strong rounded-xl border border-accent-cyan/30 p-6 max-w-lg card-glow"
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          <p className="text-text-primary font-semibold mb-2">Mode token serveur détecté</p>
+          <p className="text-text-muted text-sm mb-4">
+            Notion est en mode token serveur. Vérifiez la variable serveur
+            <span className="mx-1 font-mono text-[12px] text-text-primary">NOTION_MCP_TOKEN</span>
+            (ou
+            <span className="mx-1 font-mono text-[12px] text-text-primary">NOTION_API_KEY</span>)
+            puis réessayez.
+          </p>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 rounded-lg bg-accent-violet text-white font-medium hover:opacity-90 transition-opacity"
+          >
+            Réessayer
+          </button>
+          {error && <p className="text-accent-rose text-sm mt-3">{error}</p>}
+        </motion.div>
+      );
+    }
     return (
       <motion.div
         className="glass-strong rounded-xl border border-white/10 p-6 max-w-lg card-glow"

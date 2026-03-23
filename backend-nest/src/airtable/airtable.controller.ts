@@ -31,6 +31,17 @@ type AirtableRecordsQuery = { maxRecords?: number };
 
 type AirtableFieldsBody = Record<string, unknown>;
 
+function pickFirstArray(data: unknown, keys: string[]): unknown[] {
+  if (Array.isArray(data)) return data;
+  if (!data || typeof data !== "object") return [];
+  const obj = data as Record<string, unknown>;
+  for (const key of keys) {
+    const value = obj[key];
+    if (Array.isArray(value)) return value;
+  }
+  return [];
+}
+
 @Controller("airtable")
 export class AirtableController {
   private async callAirtableWithArgVariants(
@@ -77,9 +88,9 @@ export class AirtableController {
         );
       }
       const result = await callAirtableMcpTool("list_bases", {}, runtime.accessToken);
-      const data = parseMcpResultJson<{ bases?: { id: string; name: string }[] }>(result);
+      const data = parseMcpResultJson(result);
       return {
-        bases: Array.isArray(data.bases) ? data.bases : (data as { bases?: unknown }).bases ?? [],
+        bases: pickFirstArray(data, ["bases", "data", "items"]),
       };
     } catch (err) {
       if (err instanceof HttpException) throw err;
@@ -110,9 +121,9 @@ export class AirtableController {
         [{ base_id: baseId }, { baseId }, { id: baseId }],
         runtime.accessToken,
       );
-      const data = parseMcpResultJson<{ tables?: { id: string; name: string }[] }>(result);
+      const data = parseMcpResultJson(result);
       return {
-        tables: Array.isArray(data.tables) ? data.tables : (data as { tables?: unknown }).tables ?? [],
+        tables: pickFirstArray(data, ["tables", "data", "items"]),
       };
     } catch (err) {
       if (err instanceof HttpException) throw err;
@@ -153,11 +164,9 @@ export class AirtableController {
         ],
         runtime.accessToken,
       );
-      const data = parseMcpResultJson<{ records?: { id: string; fields: Record<string, unknown> }[] }>(result);
+      const data = parseMcpResultJson(result);
       return {
-        records: Array.isArray(data.records)
-          ? data.records
-          : (data as { records?: unknown }).records ?? [],
+        records: pickFirstArray(data, ["records", "data", "items"]),
       };
     } catch (err) {
       if (err instanceof HttpException) throw err;

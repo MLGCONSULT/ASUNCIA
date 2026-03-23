@@ -11,6 +11,7 @@ import type { Request } from "express";
 import {
   callNotionMcpTool,
   getNotionMcpToolNames,
+  getNotionRuntimeMode,
   isNotionMcpConfigured,
 } from "../mcp/notion-client";
 import { parseMcpResultJson } from "../mcp/result";
@@ -90,6 +91,12 @@ function normalizeQueryResults(results: unknown[]): NormalizedItem[] {
 
 @Controller("notion")
 export class NotionController {
+  private getNotConnectedMessage(): string {
+    return getNotionRuntimeMode() === "server-token"
+      ? "Notion non disponible : configurez NOTION_MCP_TOKEN (ou NOTION_API_KEY) côté serveur."
+      : "Connectez Notion depuis les paramètres (OAuth).";
+  }
+
   private getUserContext(req: AuthRequest): UserIntegrationContext {
     if (!req.user) {
       throw new HttpException({ error: "Non authentifié" }, HttpStatus.UNAUTHORIZED);
@@ -111,10 +118,7 @@ export class NotionController {
     try {
       const runtime = await getNotionRuntimeAccess(this.getUserContext(req));
       if (!runtime.available) {
-        throw new HttpException(
-          { error: "Connectez Notion depuis les paramètres (OAuth)." },
-          HttpStatus.FORBIDDEN,
-        );
+        throw new HttpException({ error: this.getNotConnectedMessage() }, HttpStatus.FORBIDDEN);
       }
       const { search: searchTool } = getNotionMcpToolNames();
       const { filterType, query: q = "" } = query;
@@ -178,10 +182,7 @@ export class NotionController {
     try {
       const runtime = await getNotionRuntimeAccess(this.getUserContext(req));
       if (!runtime.available) {
-        throw new HttpException(
-          { error: "Connectez Notion depuis les paramètres (OAuth)." },
-          HttpStatus.FORBIDDEN,
-        );
+        throw new HttpException({ error: this.getNotConnectedMessage() }, HttpStatus.FORBIDDEN);
       }
       const { databaseId } = params;
       const { pageSize } = query;

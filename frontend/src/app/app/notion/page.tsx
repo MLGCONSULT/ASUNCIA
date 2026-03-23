@@ -25,7 +25,7 @@ export default async function NotionPage() {
           Notion
         </h1>
         <p className="text-text-muted text-xs mt-0.5">
-          Bases et pages (OAuth Notion).
+          Bases et pages Notion (OAuth ou token serveur).
         </p>
       </div>
       <div className="flex-1 min-h-0 flex flex-col">
