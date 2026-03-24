@@ -33,6 +33,24 @@ type N8nGenerateWorkflowBody = {
   prompt?: string;
 };
 
+type N8nWorkflowNode = {
+  id?: string;
+  name?: string;
+  type?: string;
+  typeVersion?: number;
+  position?: [number, number];
+  parameters?: Record<string, unknown>;
+  [key: string]: unknown;
+};
+
+type N8nWorkflowJson = {
+  name: string;
+  nodes: N8nWorkflowNode[];
+  connections: Record<string, unknown>;
+  settings: Record<string, unknown>;
+  [key: string]: unknown;
+};
+
 @Controller("n8n")
 export class N8nController {
   private extractFirstJsonObject(text: string): string {
@@ -49,16 +67,22 @@ export class N8nController {
   private async generateWorkflowJsonInternal(prompt: string) {
     const apiKey = process.env.OPENAI_API_KEY?.trim();
     if (!apiKey) {
-      throw new HttpException(
-        { error: "OPENAI_API_KEY manquante côté serveur." },
-        HttpStatus.SERVICE_UNAVAILABLE,
-      );
+      const fallback = this.buildSafeImportableFallbackWorkflow(prompt);
+      return {
+        json: fallback,
+        prettyJson: JSON.stringify(fallback, null, 2),
+      };
     }
     const openai = new OpenAI({ apiKey });
     const configuredModel = process.env.OPENAI_CHAT_MODEL?.trim();
     const modelCandidates = [configuredModel, "gpt-4o-mini", "gpt-4.1-mini"].filter(
       (m): m is string => !!m,
     );
+    const knownNodeTypes = await this.collectKnownNodeTypes();
+    const typeGuidance =
+      knownNodeTypes.length > 0
+        ? `Types de noeuds autorisés en priorité (issus de l'instance): ${knownNodeTypes.join(", ")}.`
+        : "Utilise uniquement des types core n8n commençant par n8n-nodes-base.";
     let lastErrorMessage = "Erreur génération JSON n8n";
     for (const model of modelCandidates) {
       try {
@@ -69,7 +93,10 @@ export class N8nController {
             {
               role: "system",
               content:
-                "Tu génères un workflow n8n importable. Réponds avec un objet JSON valide, sans explication. Le JSON doit inclure au minimum: name (string), nodes (array), connections (object), settings (object). Préfère des nodes standards n8n cohérents avec la demande.",
+                `Tu génères un workflow n8n importable (n8n 2026). Réponds uniquement avec un objet JSON valide, sans explication.
+Le JSON doit contenir: name (string), nodes (array), connections (object), settings (object).
+Chaque noeud doit avoir au minimum: name, type, typeVersion, position, parameters.
+${typeGuidance}`,
             },
             {
               role: "user",
@@ -84,15 +111,195 @@ export class N8nController {
         }
         const jsonText = this.extractFirstJsonObject(content);
         const parsed = JSON.parse(jsonText) as Record<string, unknown>;
+        const firstPass = this.normalizeAndValidateWorkflow(parsed, knownNodeTypes);
+        let finalWorkflow = firstPass.workflow;
+        if (firstPass.errors.length > 0) {
+          const repair = await openai.chat.completions.create({
+            model,
+            max_tokens: 1800,
+            messages: [
+              {
+                role: "system",
+                content:
+                  "Corrige le JSON de workflow n8n pour qu'il soit importable. Réponds uniquement en JSON valide, sans texte.",
+              },
+              {
+                role: "user",
+                content: `Corrige ce JSON n8n.\nErreurs à corriger: ${firstPass.errors.join(" | ")}\nJSON:\n${JSON.stringify(firstPass.workflow)}`,
+              },
+            ],
+          });
+          const repairedText = repair.choices?.[0]?.message?.content?.trim() ?? "";
+          if (!repairedText) {
+            throw new Error("Réparation JSON vide.");
+          }
+          const repairedJson = JSON.parse(this.extractFirstJsonObject(repairedText)) as Record<string, unknown>;
+          const secondPass = this.normalizeAndValidateWorkflow(repairedJson, knownNodeTypes);
+          if (secondPass.errors.length > 0) {
+            throw new Error(`Workflow JSON invalide: ${secondPass.errors.join(" | ")}`);
+          }
+          finalWorkflow = secondPass.workflow;
+        }
         return {
-          json: parsed,
-          prettyJson: JSON.stringify(parsed, null, 2),
+          json: finalWorkflow,
+          prettyJson: JSON.stringify(finalWorkflow, null, 2),
         };
       } catch (err) {
         lastErrorMessage = err instanceof Error ? err.message : "Erreur génération JSON n8n";
       }
     }
-    throw new HttpException({ error: lastErrorMessage }, HttpStatus.BAD_GATEWAY);
+    const fallback = this.buildSafeImportableFallbackWorkflow(prompt, lastErrorMessage);
+    return {
+      json: fallback,
+      prettyJson: JSON.stringify(fallback, null, 2),
+    };
+  }
+
+  private buildSafeImportableFallbackWorkflow(prompt: string, _reason?: string): N8nWorkflowJson {
+    return {
+      name: "Workflow généré",
+      nodes: [
+        {
+          id: "manual_trigger_1",
+          name: "Déclenchement manuel",
+          type: "n8n-nodes-base.manualTrigger",
+          typeVersion: 1,
+          position: [280, 300],
+          parameters: {},
+        },
+        {
+          id: "set_1",
+          name: "Contexte demande",
+          type: "n8n-nodes-base.set",
+          typeVersion: 3.4,
+          position: [540, 300],
+          parameters: {
+            keepOnlySet: false,
+            values: {
+              string: [
+                { name: "demande", value: prompt },
+                { name: "status", value: "Ajuste ce workflow selon tes credentials et tes ressources n8n." },
+              ],
+            },
+          },
+        },
+      ],
+      connections: {
+        "Déclenchement manuel": {
+          main: [[{ node: "Contexte demande", type: "main", index: 0 }]],
+        },
+      },
+      settings: {},
+    };
+  }
+
+  private normalizeAndValidateWorkflow(
+    input: Record<string, unknown>,
+    knownNodeTypes: string[],
+  ): { workflow: N8nWorkflowJson; errors: string[] } {
+    const errors: string[] = [];
+    const rawNodes = Array.isArray(input.nodes) ? input.nodes : [];
+    const nodeTypesAllowed = new Set(knownNodeTypes);
+    const nodes: N8nWorkflowNode[] = rawNodes.map((node, index) => {
+      const n = (node && typeof node === "object" ? node : {}) as Record<string, unknown>;
+      const type = typeof n.type === "string" ? n.type.trim() : "";
+      const name = typeof n.name === "string" && n.name.trim() ? n.name.trim() : `Node ${index + 1}`;
+      const id = typeof n.id === "string" && n.id.trim() ? n.id.trim() : `node_${index + 1}`;
+      const rawPos = Array.isArray(n.position) ? n.position : null;
+      const x = rawPos && typeof rawPos[0] === "number" ? rawPos[0] : 240 + index * 220;
+      const y = rawPos && typeof rawPos[1] === "number" ? rawPos[1] : 300;
+      const typeVersion = typeof n.typeVersion === "number" && Number.isFinite(n.typeVersion) ? n.typeVersion : 1;
+      const parameters =
+        n.parameters && typeof n.parameters === "object" && !Array.isArray(n.parameters)
+          ? (n.parameters as Record<string, unknown>)
+          : {};
+      if (!type) {
+        errors.push(`Node ${name}: type manquant.`);
+      } else if (
+        nodeTypesAllowed.size > 0 &&
+        !nodeTypesAllowed.has(type) &&
+        !type.startsWith("n8n-nodes-base.")
+      ) {
+        errors.push(`Node ${name}: type non reconnu pour cette instance (${type}).`);
+      } else if (!type.startsWith("n8n-nodes-base.") && !type.startsWith("@")) {
+        errors.push(`Node ${name}: type potentiellement incompatible (${type}).`);
+      }
+      return {
+        ...n,
+        id,
+        name,
+        type,
+        typeVersion,
+        position: [x, y],
+        parameters,
+      };
+    });
+    if (nodes.length === 0) {
+      errors.push("Aucun noeud généré.");
+    }
+
+    const connections =
+      input.connections && typeof input.connections === "object" && !Array.isArray(input.connections)
+        ? (input.connections as Record<string, unknown>)
+        : {};
+    const nodeNames = new Set(nodes.map((n) => n.name));
+    for (const sourceName of Object.keys(connections)) {
+      if (!nodeNames.has(sourceName)) {
+        errors.push(`Connexion invalide: source ${sourceName} introuvable dans nodes.`);
+      }
+    }
+    const settings =
+      input.settings && typeof input.settings === "object" && !Array.isArray(input.settings)
+        ? (input.settings as Record<string, unknown>)
+        : {};
+    const workflow: N8nWorkflowJson = {
+      ...input,
+      name:
+        typeof input.name === "string" && input.name.trim()
+          ? input.name.trim()
+          : "Workflow généré automatiquement",
+      nodes,
+      connections,
+      settings,
+    };
+    return { workflow, errors };
+  }
+
+  private async collectKnownNodeTypes(): Promise<string[]> {
+    if (!isN8nMcpConfigured()) return [];
+    try {
+      const result = await callN8nMcpTool("search_workflows", { limit: 8 });
+      const data = parseMcpResultJson<{ data?: unknown[] } | unknown[]>(result);
+      const workflows = Array.isArray(data) ? data : ((data as { data?: unknown[] }).data ?? []);
+      const ids = workflows
+        .map((w) => (w && typeof w === "object" ? (w as { id?: unknown }).id : null))
+        .filter((id): id is string => typeof id === "string")
+        .slice(0, 6);
+      const types = new Set<string>();
+      for (const id of ids) {
+        try {
+          const detailResult = await callN8nMcpTool("get_workflow_details", { workflowId: id });
+          const detail = parseMcpResultJson<Record<string, unknown>>(detailResult);
+          const workflowObj =
+            detail && typeof detail === "object" && detail.workflow && typeof detail.workflow === "object"
+              ? (detail.workflow as Record<string, unknown>)
+              : detail;
+          const nodes = Array.isArray(workflowObj?.nodes) ? workflowObj.nodes : [];
+          for (const node of nodes) {
+            if (!node || typeof node !== "object") continue;
+            const type = (node as { type?: unknown }).type;
+            if (typeof type === "string" && type.trim()) {
+              types.add(type.trim());
+            }
+          }
+        } catch {
+          // ignore workflow-specific failures
+        }
+      }
+      return Array.from(types);
+    } catch {
+      return [];
+    }
   }
 
   private ensureAuth(req: AuthRequest): void {
