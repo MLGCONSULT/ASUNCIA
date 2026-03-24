@@ -36,7 +36,17 @@ export async function getNotionRuntimeAccess(ctx: UserIntegrationContext): Promi
     };
   }
 
-  const row = await getOAuthTokenRecord(ctx.supabase, ctx.userId, "notion");
+  let row: Awaited<ReturnType<typeof getOAuthTokenRecord>> = null;
+  try {
+    row = await getOAuthTokenRecord(ctx.supabase, ctx.userId, "notion");
+  } catch {
+    // Status endpoint should not crash if token storage cannot be read.
+    return {
+      available: false,
+      source: "none",
+      canDisconnect: false,
+    };
+  }
   if (!row?.refresh_token && !row?.access_token) {
     return {
       available: false,
@@ -86,15 +96,27 @@ export async function getNotionRuntimeAccess(ctx: UserIntegrationContext): Promi
 }
 
 export async function getNotionConnectionStatus(ctx: UserIntegrationContext) {
-  const runtime = await getNotionRuntimeAccess(ctx);
-  return {
-    configured: isNotionMcpConfigured(),
-    selectedMode: getNotionRuntimeMode(),
-    oauthConfigured: hasNotionOAuthConfig(),
-    connected: runtime.available,
-    source: runtime.source,
-    canDisconnect: runtime.canDisconnect,
-    needsReconnect: runtime.needsReconnect ?? false,
-  };
+  try {
+    const runtime = await getNotionRuntimeAccess(ctx);
+    return {
+      configured: isNotionMcpConfigured(),
+      selectedMode: getNotionRuntimeMode(),
+      oauthConfigured: hasNotionOAuthConfig(),
+      connected: runtime.available,
+      source: runtime.source,
+      canDisconnect: runtime.canDisconnect,
+      needsReconnect: runtime.needsReconnect ?? false,
+    };
+  } catch {
+    return {
+      configured: isNotionMcpConfigured(),
+      selectedMode: getNotionRuntimeMode(),
+      oauthConfigured: hasNotionOAuthConfig(),
+      connected: false,
+      source: "none" as const,
+      canDisconnect: false,
+      needsReconnect: false,
+    };
+  }
 }
 
