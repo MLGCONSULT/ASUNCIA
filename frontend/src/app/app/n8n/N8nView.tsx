@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { fetchBackend } from "@/lib/api";
-import NavIcon from "@/components/NavIcon";
 
 type Workflow = {
   id: string;
@@ -31,14 +30,6 @@ const toPrettyJson = (value: unknown) => {
   }
 };
 
-const normalizeTriggerInfoToFrench = (value: string) => {
-  return value
-    .replace("This workflow has the following trigger(s):", "Ce workflow contient les déclencheurs suivants :")
-    .replace("Schedule trigger(s):", "Déclencheur(s) planifié(s) :")
-    .replace("Scheduled workflows can be executed directly through MCP clients and do not require external inputs.", "Les workflows planifiés peuvent être exécutés directement via MCP et ne nécessitent pas d'entrée externe.")
-    .replace(/Node name:/g, "Nom du noeud :");
-};
-
 const defaultWorkflowTemplate = `{
   "name": "Nouveau workflow",
   "nodes": [],
@@ -62,7 +53,6 @@ export default function N8nView() {
   const [editorBaseUrl, setEditorBaseUrl] = useState<string | null>(null);
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [triggerInfo, setTriggerInfo] = useState<string>("");
   const [workflowJson, setWorkflowJson] = useState<string>("");
   const [workflowObject, setWorkflowObject] = useState<Record<string, unknown> | null>(null);
   const [templateJson, setTemplateJson] = useState<string>(defaultWorkflowTemplate);
@@ -107,8 +97,7 @@ export default function N8nView() {
         setSelectedId(null);
         setWorkflowJson("");
         setWorkflowObject(null);
-        setTriggerInfo("");
-        setNotice("Aucun workflow trouvé pour cette demande.");
+        setNotice("Aucun workflow disponible pour le moment.");
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erreur réseau.");
@@ -133,13 +122,11 @@ export default function N8nView() {
       if (typeof data.editorBaseUrl === "string") setEditorBaseUrl(data.editorBaseUrl);
       const wf = (data.workflow && typeof data.workflow === "object" ? data.workflow : data) as Record<string, unknown>;
       setWorkflowObject(wf);
-      setTriggerInfo(typeof data.triggerInfo === "string" ? normalizeTriggerInfoToFrench(data.triggerInfo) : "");
       setWorkflowJson(toPrettyJson(wf));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erreur réseau.");
       setWorkflowJson("");
       setWorkflowObject(null);
-      setTriggerInfo("");
     } finally {
       setLoadingDetail(false);
     }
@@ -207,7 +194,7 @@ export default function N8nView() {
       }
       setExecutionResult(data);
       setExecutionResultJson(JSON.stringify(data, null, 2));
-      setNotice("Workflow execute.");
+      setNotice("Workflow exécuté.");
     } catch (e) {
       setExecutionResult(null);
       setExecutionResultJson("");
@@ -221,7 +208,7 @@ export default function N8nView() {
     if (!workflowJson) return;
     try {
       await navigator.clipboard.writeText(workflowJson);
-      setNotice("JSON copie dans le presse-papiers.");
+      setNotice("JSON copié.");
     } catch {
       setError("Impossible de copier le JSON (clipboard indisponible).");
     }
@@ -250,25 +237,35 @@ export default function N8nView() {
     setError(null);
     setNotice(null);
     try {
-      const r = await fetchBackend("/api/n8n/generate-workflow-json", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt }),
-      });
-      const data = await r.json().catch(() => ({}));
-      if (!r.ok) {
-        throw new Error(
-          typeof data?.error === "string"
-            ? data.error
-            : `Impossible de générer le JSON du workflow (HTTP ${r.status}).`,
-        );
+      const endpoints = ["/api/n8n/generate-workflow-json", "/api/n8n/generate-mock-json"];
+      let data: Record<string, unknown> = {};
+      let success = false;
+      let lastStatus = 0;
+      let lastError = "";
+      for (const endpoint of endpoints) {
+        const r = await fetchBackend(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt }),
+        });
+        const body = (await r.json().catch(() => ({}))) as Record<string, unknown>;
+        if (r.ok) {
+          data = body;
+          success = true;
+          break;
+        }
+        lastStatus = r.status;
+        lastError = typeof body?.error === "string" ? body.error : "";
+      }
+      if (!success) {
+        throw new Error(lastError || `Impossible de générer le JSON du workflow (HTTP ${lastStatus || 500}).`);
       }
       const pretty =
         typeof data?.prettyJson === "string"
           ? data.prettyJson
           : JSON.stringify(data?.json ?? {}, null, 2);
       setTemplateJson(pretty);
-      setNotice("JSON workflow généré. Tu peux maintenant le copier-coller dans n8n.");
+      setNotice("JSON généré. Tu peux le copier-coller dans n8n.");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erreur réseau.");
     } finally {
@@ -323,23 +320,6 @@ export default function N8nView() {
       animate={{ opacity: 1 }}
       transition={{ duration: 0.25 }}
     >
-      <div className="glass-strong rounded-xl border border-white/10 p-3">
-        <p className="text-xs uppercase tracking-[0.18em] text-text-dim">Ce que le MCP n8n fait</p>
-        <div className="mt-2 text-xs text-text-muted space-y-1">
-          <p>- Peut: rechercher des workflows, lire leurs détails, exécuter un workflow existant.</p>
-          <p>- Ne peut pas: créer/importer un workflow via MCP (import JSON manuel dans n8n).</p>
-        </div>
-      </div>
-
-      <div className="glass-strong rounded-xl border border-white/10 p-3">
-        <p className="text-xs uppercase tracking-[0.18em] text-text-dim">Actions MCP disponibles</p>
-        <div className="mt-2 flex flex-wrap gap-2 text-xs">
-          <span className="px-2.5 py-1 rounded-full bg-white/10 text-text-primary">search_workflows</span>
-          <span className="px-2.5 py-1 rounded-full bg-white/10 text-text-primary">get_workflow_details</span>
-          <span className="px-2.5 py-1 rounded-full bg-white/10 text-text-primary">execute_workflow</span>
-        </div>
-      </div>
-
       <div className="rounded-xl border border-accent-amber/35 bg-gradient-to-br from-accent-amber/10 via-white/[0.03] to-accent-violet/10 p-3 card-glow">
         <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
           <div>
@@ -355,7 +335,7 @@ export default function N8nView() {
               disabled={generatingTemplate}
               className="px-3 py-1.5 rounded-lg bg-accent-amber/20 text-amber-200 text-sm font-semibold hover:bg-accent-amber/30 disabled:opacity-50 transition-colors border border-accent-amber/40"
             >
-              {generatingTemplate ? "Generation..." : "Generer le JSON"}
+              {generatingTemplate ? "Génération..." : "Générer le JSON"}
             </button>
             <button
               type="button"
@@ -369,7 +349,7 @@ export default function N8nView() {
         <textarea
           value={workflowRequest}
           onChange={(e) => setWorkflowRequest(e.target.value)}
-          placeholder="Ex: Cree un workflow qui lit les nouveaux emails Gmail, classe l'intention avec IA, puis envoie une reponse automatique avec validation humaine."
+          placeholder="Ex: Crée un workflow qui récupère les 10 derniers emails et prépare une réponse automatique personnalisée."
           className="w-full min-h-[96px] rounded-lg border border-accent-amber/30 bg-black/30 p-3 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent-amber/40 mb-3"
         />
         <textarea
@@ -422,8 +402,8 @@ export default function N8nView() {
                   <p className="font-medium text-text-primary truncate">{w.name || "Sans nom"}</p>
                   <p className="text-xs text-text-muted">
                     {w.active ? "Actif" : "Inactif"}
-                    {w.triggerCount != null ? ` · ${w.triggerCount} trigger(s)` : ""}
-                    {w.canExecute === false ? " · non executable" : ""}
+                    {w.triggerCount != null ? ` · ${w.triggerCount} déclencheur(s)` : ""}
+                    {w.canExecute === false ? " · exécution non autorisée" : ""}
                   </p>
                 </button>
               ))
@@ -435,7 +415,7 @@ export default function N8nView() {
           <div className="px-3 py-2 border-b border-white/10 flex items-center justify-between gap-2">
             <div className="min-w-0">
               <p className="text-sm font-semibold text-text-primary truncate">
-                {selectedWorkflow?.name || "Détails (get_workflow_details)"}
+                {selectedWorkflow?.name || "Détails du workflow"}
               </p>
               {selectedWorkflow && (
                 <p className="text-xs text-text-muted truncate">
@@ -460,7 +440,7 @@ export default function N8nView() {
                 disabled={!selectedWorkflow || executing || selectedWorkflow?.canExecute === false}
                 className="px-3 py-1.5 rounded-lg bg-accent-violet/20 text-accent-violet text-sm font-medium hover:bg-accent-violet/30 disabled:opacity-50 transition-colors"
               >
-                {executing ? "Execution..." : "Executer (execute_workflow)"}
+                  {executing ? "Exécution..." : "Exécuter"}
               </button>
               <button
                 type="button"
@@ -478,7 +458,7 @@ export default function N8nView() {
             ) : (
               <>
                 <div className="rounded-lg border border-accent-violet/30 bg-accent-violet/10 p-3">
-                  <p className="text-xs text-text-muted mb-2">Exécution - type d'input</p>
+                  <p className="text-xs text-text-muted mb-2">Choisis le type d'entrée</p>
                   <div className="flex flex-wrap gap-2 mb-2">
                     {(["chat", "form", "webhook"] as const).map((mode) => (
                       <button
@@ -491,7 +471,7 @@ export default function N8nView() {
                             : "bg-white/5 border-white/10 text-text-muted hover:bg-white/10"
                         }`}
                       >
-                        {mode}
+                        {mode === "chat" ? "Texte" : mode === "form" ? "JSON simple" : "Webhook"}
                       </button>
                     ))}
                   </div>
@@ -558,12 +538,6 @@ export default function N8nView() {
                         ))}
                       </ul>
                     )}
-                  </div>
-                )}
-                {triggerInfo && (
-                  <div className="rounded-lg border border-white/10 bg-white/5 p-3">
-                    <p className="text-xs text-text-muted mb-1">Comment le déclencher</p>
-                    <p className="text-sm text-text-primary whitespace-pre-wrap">{triggerInfo}</p>
                   </div>
                 )}
                 <div className="rounded-lg border border-accent-cyan/30 bg-accent-cyan/10 p-3">

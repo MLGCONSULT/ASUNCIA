@@ -135,6 +135,60 @@ function normalizeTablesFromUnknown(data: unknown): { id: string; name: string }
   return normalizeNamedItems(deepRows);
 }
 
+function looksLikeAirtableId(value: string): boolean {
+  return /^(fld|tbl|rec|app)[A-Za-z0-9]+$/.test(value);
+}
+
+function needsFieldNameEnrichment(
+  tables: Array<{ id: string; name: string; fields?: Array<{ id: string; name: string; type?: string }> }>,
+): boolean {
+  return tables.some((table) => {
+    const fields = table.fields ?? [];
+    if (fields.length === 0) return true;
+    return fields.every((field) => !field.name || looksLikeAirtableId(field.name));
+  });
+}
+
+function mergeTablesWithSchemaFields(
+  baseTables: Array<{ id: string; name: string; fields?: Array<{ id: string; name: string; type?: string }> }>,
+  schemaTables: Array<{ id: string; name: string; fields?: Array<{ id: string; name: string; type?: string }> }>,
+) {
+  const schemaById = new Map(schemaTables.map((table) => [table.id, table]));
+  return baseTables.map((table) => {
+    const schemaTable = schemaById.get(table.id);
+    const schemaFields = schemaTable?.fields ?? [];
+    const tableFields = table.fields ?? [];
+    const shouldReplace =
+      tableFields.length === 0 ||
+      tableFields.every((field) => !field.name || looksLikeAirtableId(field.name));
+    return {
+      ...table,
+      fields: shouldReplace && schemaFields.length > 0 ? schemaFields : tableFields,
+    };
+  });
+}
+
+function mapRecordFieldsToNames(
+  records: unknown[],
+  fieldMap: Map<string, string>,
+): unknown[] {
+  return records.map((record) => {
+    if (!record || typeof record !== "object") return record;
+    const row = record as Record<string, unknown>;
+    const rawFields = row.fields;
+    if (!rawFields || typeof rawFields !== "object" || Array.isArray(rawFields)) return record;
+    const mapped: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(rawFields as Record<string, unknown>)) {
+      const mappedKey = fieldMap.get(key) ?? key;
+      mapped[mappedKey] = value;
+    }
+    return {
+      ...row,
+      fields: mapped,
+    };
+  });
+}
+
 @Controller("airtable")
 export class AirtableController {
   private async callAirtableWithArgVariants(
@@ -198,7 +252,28 @@ export class AirtableController {
       try {
         const result = await callAirtableMcpTool(attempt.tool, attempt.args, accessToken);
         const data = parseMcpResultJson(result);
-        const tables = normalizeTablesFromUnknown(data);
+        let tables = normalizeTablesFromUnknown(data);
+        if (tables.length > 0 && needsFieldNameEnrichment(tables)) {
+          try {
+            const schemaAttempts = [
+              { tool: "get_base_schema", args: { base_id: baseId } },
+              { tool: "get_base_schema", args: { baseId } },
+              { tool: "describe_base", args: { base_id: baseId } },
+              { tool: "describe_base", args: { baseId } },
+            ].filter((a) => (availableTools.length > 0 ? availableTools.includes(a.tool) : true));
+            for (const schemaAttempt of schemaAttempts) {
+              const schemaResult = await callAirtableMcpTool(schemaAttempt.tool, schemaAttempt.args, accessToken);
+              const schemaData = parseMcpResultJson(schemaResult);
+              const schemaTables = normalizeTablesFromUnknown(schemaData);
+              if (schemaTables.length > 0) {
+                tables = mergeTablesWithSchemaFields(tables, schemaTables);
+                break;
+              }
+            }
+          } catch {
+            // No-op: we keep the best data already retrieved.
+          }
+        }
         if (tables.length > 0) {
           return { tables, data, usedTool: attempt.tool, availableTools };
         }
@@ -376,8 +451,19 @@ export class AirtableController {
         maxRecords,
         runtime.accessToken,
       );
+      let normalizedRecords = Array.isArray(data) ? data : [];
+      try {
+        const { tables } = await this.listTablesWithToolFallback(baseId, runtime.accessToken);
+        const table = tables.find((t) => t.id === tableId);
+        const fieldMap = new Map((table?.fields ?? []).map((f) => [f.id, f.name]));
+        if (fieldMap.size > 0) {
+          normalizedRecords = mapRecordFieldsToNames(normalizedRecords, fieldMap);
+        }
+      } catch {
+        // Keep records as-is if schema resolution fails.
+      }
       return {
-        records: Array.isArray(data) ? data : [],
+        records: normalizedRecords,
       };
     } catch (err) {
       if (err instanceof HttpException) throw err;
