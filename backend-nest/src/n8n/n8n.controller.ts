@@ -9,6 +9,7 @@ import {
   HttpStatus,
 } from "@nestjs/common";
 import type { Request } from "express";
+import OpenAI from "openai";
 import { callN8nMcpTool, getN8nEditorBaseUrl, isN8nMcpConfigured } from "../mcp/n8n-client";
 import { parseMcpResultJson } from "../mcp/result";
 import { MCP_ERROR_MESSAGES } from "../config/mcp";
@@ -28,11 +29,67 @@ type N8nExecuteBody = {
   inputs?: unknown;
 };
 
+type N8nGenerateWorkflowBody = {
+  prompt?: string;
+};
+
 @Controller("n8n")
 export class N8nController {
   private ensureAuth(req: AuthRequest): void {
     if (!req.user) {
       throw new HttpException({ error: "Non authentifié" }, HttpStatus.UNAUTHORIZED);
+    }
+  }
+
+  @Post("generate-workflow-json")
+  async generateWorkflowJson(@Req() req: AuthRequest, @Body() body: N8nGenerateWorkflowBody) {
+    this.ensureAuth(req);
+    const prompt = String(body?.prompt ?? "").trim();
+    if (!prompt) {
+      throw new HttpException({ error: "Le prompt est requis." }, HttpStatus.BAD_REQUEST);
+    }
+
+    const apiKey = process.env.OPENAI_API_KEY?.trim();
+    if (!apiKey) {
+      throw new HttpException(
+        { error: "OPENAI_API_KEY manquante côté serveur." },
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
+    }
+
+    try {
+      const openai = new OpenAI({ apiKey });
+      const model = process.env.OPENAI_CHAT_MODEL || "gpt-4o-mini";
+      const completion = await openai.chat.completions.create({
+        model,
+        temperature: 0.2,
+        max_completion_tokens: 1800,
+        response_format: { type: "json_object" },
+        messages: [
+          {
+            role: "system",
+            content:
+              "Tu génères un workflow n8n importable. Réponds UNIQUEMENT avec un objet JSON valide, sans markdown. Le JSON doit inclure au minimum: name (string), nodes (array), connections (object), settings (object). Préfère des nodes standards n8n, cohérents avec la demande utilisateur.",
+          },
+          {
+            role: "user",
+            content: `Demande workflow: ${prompt}`,
+          },
+        ],
+      });
+
+      const content = completion.choices?.[0]?.message?.content?.trim() ?? "";
+      if (!content) {
+        throw new Error("Réponse vide du modèle.");
+      }
+      const parsed = JSON.parse(content) as Record<string, unknown>;
+      return {
+        json: parsed,
+        prettyJson: JSON.stringify(parsed, null, 2),
+      };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Erreur génération JSON n8n";
+      throw new HttpException({ error: message }, HttpStatus.BAD_GATEWAY);
     }
   }
 

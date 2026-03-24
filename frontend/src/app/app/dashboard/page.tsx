@@ -20,21 +20,17 @@ const integrationBubbles: Bubble[] = [
 ];
 
 const toneClasses: Record<Bubble["tone"], string> = {
-  cyan: "border-accent-cyan/50 bg-accent-cyan/10 hover:border-accent-cyan/80 hover:bg-accent-cyan/20",
-  violet:
-    "border-accent-violet/50 bg-accent-violet/10 hover:border-accent-violet/80 hover:bg-accent-violet/20",
-  fuchsia:
-    "border-accent-fuchsia/50 bg-accent-fuchsia/10 hover:border-accent-fuchsia/80 hover:bg-accent-fuchsia/20",
-  amber: "border-accent-amber/50 bg-accent-amber/10 hover:border-accent-amber/80 hover:bg-accent-amber/20",
-  emerald:
-    "border-emerald-400/50 bg-emerald-400/10 hover:border-emerald-400/80 hover:bg-emerald-400/20",
+  cyan: "dashboard-tool-bubble-cyan",
+  violet: "dashboard-tool-bubble-violet",
+  fuchsia: "dashboard-tool-bubble-fuchsia",
+  amber: "dashboard-tool-bubble-amber",
+  emerald: "dashboard-tool-bubble-emerald",
 };
 
 export default async function DashboardPage() {
   const supabase = await createClient();
-  const [{ data: profile }, { count: leadsCount }, { count: convCount }] = await Promise.all([
+  const [{ data: profile }, { count: convCount }] = await Promise.all([
     supabase.from("profiles").select("nom_affichage").maybeSingle(),
-    supabase.from("leads").select("id", { count: "exact", head: true }),
     supabase.from("ai_conversations").select("id", { count: "exact", head: true }),
   ]);
 
@@ -51,7 +47,7 @@ export default async function DashboardPage() {
 
           <div className="relative flex w-full max-w-4xl flex-col items-center gap-7">
             {/* Bulle centrale Agent IA */}
-            <div className="relative flex h-52 w-52 flex-col items-center justify-center rounded-full border border-white/10 bg-black/80 shadow-[0_24px_70px_rgba(0,0,0,0.9)] backdrop-blur-2xl">
+            <div className="dashboard-agent-bubble relative flex h-52 w-52 flex-col items-center justify-center rounded-full border border-white/10 bg-black/80 backdrop-blur-2xl">
               <span className="text-[11px] uppercase tracking-[0.22em] text-text-dim">
                 Agent IA
               </span>
@@ -72,10 +68,10 @@ export default async function DashboardPage() {
                 <Link
                   key={bubble.id}
                   href={bubble.href}
-                  className={`mx-auto flex h-20 w-20 flex-col items-center justify-center rounded-full border text-[11px] text-text-primary shadow-[0_18px_40px_rgba(0,0,0,0.75)] backdrop-blur-2xl transition-transform duration-300 hover:scale-110 ${toneClasses[bubble.tone]}`}
+                  className={`dashboard-tool-bubble mx-auto flex h-24 w-24 flex-col items-center justify-center rounded-full border text-[11px] text-text-primary backdrop-blur-2xl transition-all duration-300 hover:-translate-y-1 hover:scale-[1.08] ${toneClasses[bubble.tone]}`}
                 >
                   <span className="font-semibold">{bubble.label}</span>
-                  <span className="mt-0.5 text-[10px] text-text-muted">{bubble.subtitle}</span>
+                  <span className="mt-0.5 text-[10px] text-text-muted/90">{bubble.subtitle}</span>
                 </Link>
               ))}
             </div>
@@ -83,15 +79,7 @@ export default async function DashboardPage() {
         </div>
       </section>
 
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <div className="glass-strong rounded-xl border border-white/10 p-4 card-glow">
-          <p className="text-xs uppercase tracking-[0.18em] text-text-dim">Leads</p>
-          <p className="mt-2 text-2xl font-semibold text-text-primary">{leadsCount ?? 0}</p>
-          <p className="text-xs text-text-muted mt-1">contacts dans ton CRM</p>
-          <Link href="/app/supabase" className="inline-block mt-3 text-xs text-accent-cyan hover:underline">
-            Explorer les données
-          </Link>
-        </div>
+      <section className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div className="glass-strong rounded-xl border border-white/10 p-4 card-glow">
           <p className="text-xs uppercase tracking-[0.18em] text-text-dim">Conversations IA</p>
           <p className="mt-2 text-2xl font-semibold text-text-primary">{convCount ?? 0}</p>
@@ -101,21 +89,20 @@ export default async function DashboardPage() {
           </Link>
         </div>
         <div className="glass-strong rounded-xl border border-white/10 p-4 card-glow">
-          <p className="text-xs uppercase tracking-[0.18em] text-text-dim">Démarrage rapide</p>
+          <p className="text-xs uppercase tracking-[0.18em] text-text-dim">Commencer ici</p>
+          <p className="mt-2 text-sm text-text-primary">Que veux-tu faire maintenant ?</p>
           <div className="mt-3 flex flex-wrap gap-2">
-            <Link href="/app/airtable" className="px-2.5 py-1 rounded-full bg-white/10 text-xs text-text-primary hover:bg-white/15">
-              Airtable
+            <Link href="/app/n8n" className="px-3 py-1.5 rounded-full bg-white/10 text-xs text-text-primary hover:bg-white/15">
+              Voir mes workflows
             </Link>
-            <Link href="/app/n8n" className="px-2.5 py-1 rounded-full bg-white/10 text-xs text-text-primary hover:bg-white/15">
-              n8n
+            <Link href="/app/n8n" className="px-3 py-1.5 rounded-full bg-white/10 text-xs text-text-primary hover:bg-white/15">
+              Exécuter un workflow
             </Link>
-            <Link href="/app/notion" className="px-2.5 py-1 rounded-full bg-white/10 text-xs text-text-primary hover:bg-white/15">
-              Notion
+            <Link href="/app/n8n" className="px-3 py-1.5 rounded-full bg-accent-amber/20 border border-accent-amber/35 text-xs text-amber-200 hover:bg-accent-amber/30">
+              Générer un JSON n8n
             </Link>
           </div>
-          <p className="text-xs text-text-muted mt-3">
-            Le dashboard sert de hub : vue d'ensemble + raccourcis + guidage.
-          </p>
+          <p className="text-xs text-text-muted mt-3">Astuce : commence par n8n, puis ouvre l'assistant si tu veux être guidé pas à pas.</p>
         </div>
       </section>
 
