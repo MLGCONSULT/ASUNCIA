@@ -27,7 +27,27 @@ function refreshRecords(
     .then((r) => r.json())
     .then((data) => {
       if (data.error) throw new Error(data.error);
-      setRecords(data.records ?? []);
+      const rows = Array.isArray(data.records)
+        ? (data.records as Array<Record<string, unknown>>).map((row) => {
+            const rawFields =
+              row && typeof row === "object"
+                ? ((row.fields as unknown) ??
+                  (row.cellValuesByFieldId as unknown) ??
+                  (row.values as unknown))
+                : undefined;
+            const fields =
+              rawFields && typeof rawFields === "object" && !Array.isArray(rawFields)
+                ? (rawFields as Record<string, unknown>)
+                : {};
+            return {
+              id: typeof row?.id === "string" ? row.id : crypto.randomUUID(),
+              createdTime:
+                typeof row?.createdTime === "string" ? row.createdTime : undefined,
+              fields,
+            } as AirtableRecordRow;
+          })
+        : [];
+      setRecords(rows);
     })
     .catch((e) => setError(e instanceof Error ? e.message : "Erreur"))
     .finally(() => setRecordsLoading(false));
@@ -512,7 +532,7 @@ export default function AirtableView({ hasAirtable: initialHasAirtable }: Props)
                     <div className="min-w-0">
                       <div className="text-text-dim font-mono mb-1">{rec.id}</div>
                       <div className="text-text-primary space-y-0.5">
-                        {Object.entries(rec.fields).slice(0, 4).map(([k, v]) => (
+                        {Object.entries(rec.fields ?? {}).slice(0, 4).map(([k, v]) => (
                           <div key={k} className="truncate"><span className="text-text-muted">{k}:</span> {typeof v === "object" ? JSON.stringify(v) : String(v)}</div>
                         ))}
                       </div>

@@ -8,6 +8,15 @@ type ConversationCreateBody = {
   titre?: string | null;
 };
 
+function isRecoverableStorageError(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false;
+  return (
+    error.code === "PGRST205" ||
+    error.message?.includes("schema cache") === true ||
+    error.message?.includes("Could not find the table") === true
+  );
+}
+
 @Controller("conversations")
 export class ConversationsController {
   @Get()
@@ -24,8 +33,11 @@ export class ConversationsController {
       .order("date_mise_a_jour", { ascending: false })
       .limit(50);
     if (error) {
+      if (isRecoverableStorageError(error)) {
+        return { conversations: [] };
+      }
       throw new HttpException(
-        { error: "Impossible de charger les conversations" },
+        { error: `Impossible de charger les conversations: ${error.message}` },
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
@@ -53,8 +65,15 @@ export class ConversationsController {
       .select("id, titre, date_creation")
       .single();
     if (error || !created?.id) {
+      if (isRecoverableStorageError(error)) {
+        return {
+          conversationId: null,
+          titre: safeTitle,
+          dateCreation: null,
+        };
+      }
       throw new HttpException(
-        { error: "Impossible de créer la conversation" },
+        { error: `Impossible de créer la conversation: ${error?.message ?? "erreur inconnue"}` },
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }

@@ -8,6 +8,15 @@ type ConversationQuery = {
   conversationId?: string;
 };
 
+function isRecoverableStorageError(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false;
+  return (
+    error.code === "PGRST205" ||
+    error.message?.includes("schema cache") === true ||
+    error.message?.includes("Could not find the table") === true
+  );
+}
+
 @Controller("conversation")
 export class ConversationController {
   @Get()
@@ -19,7 +28,7 @@ export class ConversationController {
     const { conversationId: conversationIdParam } = query;
     const supabase = createUserSupabaseFromRequest(req);
 
-    let conversationId: string;
+    let conversationId: string | null = null;
 
     if (conversationIdParam) {
       const { data: conv, error: convErr } = await supabase
@@ -29,6 +38,9 @@ export class ConversationController {
         .eq("utilisateur_id", user.id)
         .maybeSingle();
       if (convErr || !conv?.id) {
+        if (isRecoverableStorageError(convErr)) {
+          return { conversationId: null, messages: [] };
+        }
         throw new HttpException(
           { error: "Conversation introuvable" },
           HttpStatus.NOT_FOUND,
@@ -52,13 +64,20 @@ export class ConversationController {
           .select("id")
           .single();
         if (insertErr || !created?.id) {
+          if (isRecoverableStorageError(insertErr)) {
+            return { conversationId: null, messages: [] };
+          }
           throw new HttpException(
-            { error: "Impossible de créer la conversation" },
+            { error: `Impossible de créer la conversation: ${insertErr?.message ?? "erreur inconnue"}` },
             HttpStatus.INTERNAL_SERVER_ERROR,
           );
         }
         conversationId = created.id;
       }
+    }
+
+    if (!conversationId) {
+      return { conversationId: null, messages: [] };
     }
 
     const { data: messages, error: msgErr } = await supabase
@@ -68,8 +87,11 @@ export class ConversationController {
       .order("date_creation", { ascending: true });
 
     if (msgErr) {
+      if (isRecoverableStorageError(msgErr)) {
+        return { conversationId, messages: [] };
+      }
       throw new HttpException(
-        { error: "Impossible de charger les messages" },
+        { error: `Impossible de charger les messages: ${msgErr.message}` },
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
