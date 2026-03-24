@@ -1,14 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, useCallback, type FormEvent } from "react";
+import { useEffect, useState, useCallback, useMemo, type FormEvent, type ReactNode } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSearchParams } from "next/navigation";
 import { fetchBackend } from "@/lib/api";
 import { buildAssistantPromptUrl } from "@/lib/assistant-intents";
 
 type Base = { id: string; name: string };
-type Table = { id: string; name: string };
+type AirtableField = { id: string; name: string; type?: string };
+type Table = { id: string; name: string; fields?: AirtableField[] };
 type AirtableRecordRow = { id: string; createdTime?: string; fields: Record<string, unknown> };
 
 type Props = {
@@ -53,6 +54,28 @@ function refreshRecords(
     .finally(() => setRecordsLoading(false));
 }
 
+function toDatetimeLocalValue(value: string): string {
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function isLikelyImageUrl(url: string): boolean {
+  return /\.(png|jpe?g|gif|webp|bmp|svg)(\?|$)/i.test(url);
+}
+
+function extractAttachmentUrls(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => {
+      if (!item || typeof item !== "object") return null;
+      const obj = item as Record<string, unknown>;
+      return typeof obj.url === "string" ? obj.url : null;
+    })
+    .filter((x): x is string => !!x);
+}
+
 export default function AirtableView({ hasAirtable: initialHasAirtable }: Props) {
   const searchParams = useSearchParams();
   const [hasAirtable, setHasAirtable] = useState(initialHasAirtable);
@@ -88,6 +111,14 @@ export default function AirtableView({ hasAirtable: initialHasAirtable }: Props)
   const [editRecord, setEditRecord] = useState<AirtableRecordRow | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [submitLoading, setSubmitLoading] = useState(false);
+
+  const selectedTableFieldMap = useMemo(() => {
+    const map = new Map<string, AirtableField>();
+    for (const f of selectedTable?.fields ?? []) {
+      map.set(f.id, f);
+    }
+    return map;
+  }, [selectedTable]);
 
   useEffect(() => {
     setHasAirtable(initialHasAirtable);
@@ -532,8 +563,13 @@ export default function AirtableView({ hasAirtable: initialHasAirtable }: Props)
                     <div className="min-w-0">
                       <div className="text-text-dim font-mono mb-1">{rec.id}</div>
                       <div className="text-text-primary space-y-0.5">
-                        {Object.entries(rec.fields ?? {}).slice(0, 4).map(([k, v]) => (
-                          <div key={k} className="truncate"><span className="text-text-muted">{k}:</span> {typeof v === "object" ? JSON.stringify(v) : String(v)}</div>
+                        {Object.entries(rec.fields ?? {}).slice(0, 6).map(([k, v]) => (
+                          <div key={k} className="truncate">
+                            <span className="text-text-muted">
+                              {selectedTableFieldMap.get(k)?.name ?? k}:
+                            </span>{" "}
+                            {renderAirtableCellValue(v)}
+                          </div>
                         ))}
                       </div>
                     </div>
@@ -558,6 +594,7 @@ export default function AirtableView({ hasAirtable: initialHasAirtable }: Props)
           <RecordFormModal
             baseId={selectedBase.id}
             tableId={selectedTable.id}
+            tableFields={selectedTable.fields ?? []}
             record={editRecord}
             onClose={() => { setCreateOpen(false); setEditRecord(null); setFormError(null); }}
             onSuccess={() => { setCreateOpen(false); setEditRecord(null); reloadRecords(); }}
@@ -572,9 +609,132 @@ export default function AirtableView({ hasAirtable: initialHasAirtable }: Props)
   );
 }
 
+function formatAirtableCellValue(value: unknown): string {
+  if (value == null) return "";
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+  if (Array.isArray(value)) {
+    if (value.length === 0) return "[]";
+    if (typeof value[0] === "object" && value[0] !== null) {
+      const names = value
+        .map((item) => {
+          if (!item || typeof item !== "object") return null;
+          const obj = item as Record<string, unknown>;
+          if (typeof obj.name === "string") return obj.name;
+          if (typeof obj.url === "string") return "Pièce jointe";
+          return null;
+        })
+        .filter((x): x is string => !!x);
+      if (names.length > 0) return names.join(", ");
+    }
+    return `${value.length} élément(s)`;
+  }
+  if (typeof value === "object") {
+    const obj = value as Record<string, unknown>;
+    if (typeof obj.name === "string") return obj.name;
+    if (typeof obj.url === "string") return "Pièce jointe";
+    return JSON.stringify(obj);
+  }
+  return String(value);
+}
+
+function renderAirtableCellValue(value: unknown): ReactNode {
+  const attachmentUrls = extractAttachmentUrls(value);
+  if (attachmentUrls.length > 0) {
+    return (
+      <div className="space-y-1">
+        <p className="text-text-primary">{attachmentUrls.length} pièce(s) jointe(s)</p>
+        <div className="flex flex-wrap gap-1.5">
+          {attachmentUrls.slice(0, 3).map((url, idx) => (
+            <a
+              key={`${url}-${idx}`}
+              href={url}
+              target="_blank"
+              rel="noreferrer"
+              className="block w-12 h-12 rounded-md overflow-hidden border border-white/10 bg-black/20"
+              title="Ouvrir la pièce jointe"
+            >
+              {isLikelyImageUrl(url) ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={url} alt="Pièce jointe" className="w-full h-full object-cover" />
+              ) : (
+                <span className="w-full h-full flex items-center justify-center text-[10px] text-text-muted">Fichier</span>
+              )}
+            </a>
+          ))}
+        </div>
+      </div>
+    );
+  }
+  return <span>{formatAirtableCellValue(value)}</span>;
+}
+
+function formatFieldValueForInput(type: string | undefined, value: unknown): string {
+  if (value == null) return "";
+  if (type === "checkbox") return Boolean(value) ? "true" : "false";
+  if (type === "dateTime" && typeof value === "string") return toDatetimeLocalValue(value);
+  if (type === "multipleAttachments") return extractAttachmentUrls(value).join("\n");
+  if (type === "multipleSelects" && Array.isArray(value)) {
+    const names = value
+      .map((v) => {
+        if (typeof v === "string") return v;
+        if (v && typeof v === "object" && typeof (v as { name?: unknown }).name === "string") {
+          return (v as { name: string }).name;
+        }
+        return null;
+      })
+      .filter((x): x is string => !!x);
+    return names.join(", ");
+  }
+  if (typeof value === "object" && value !== null && "name" in (value as Record<string, unknown>)) {
+    const name = (value as { name?: unknown }).name;
+    if (typeof name === "string") return name;
+  }
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return "";
+  }
+}
+
+function parseInputValueByType(type: string | undefined, raw: string): unknown {
+  const value = raw.trim();
+  if (value.length === 0) return undefined;
+  switch (type) {
+    case "checkbox":
+      return value === "true" || value === "1" || value.toLowerCase() === "oui";
+    case "number":
+    case "currency":
+    case "percent":
+    case "rating": {
+      const n = Number(value);
+      return Number.isFinite(n) ? n : value;
+    }
+    case "multipleSelects":
+      return value.split(",").map((x) => x.trim()).filter(Boolean);
+    case "multipleAttachments": {
+      const urls = value.split(/\r?\n|,/g).map((x) => x.trim()).filter(Boolean);
+      return urls.map((url) => ({ url }));
+    }
+    case "date":
+      return value;
+    case "dateTime": {
+      const d = new Date(value);
+      return Number.isNaN(d.getTime()) ? value : d.toISOString();
+    }
+    default:
+      return value;
+  }
+}
+
 function RecordFormModal({
   baseId,
   tableId,
+  tableFields,
   record,
   onClose,
   onSuccess,
@@ -585,6 +745,7 @@ function RecordFormModal({
 }: {
   baseId: string;
   tableId: string;
+  tableFields: AirtableField[];
   record: AirtableRecordRow | null;
   onClose: () => void;
   onSuccess: () => void;
@@ -594,21 +755,43 @@ function RecordFormModal({
   setError: (e: string | null) => void;
 }) {
   const isEdit = !!record;
-  const [fields, setFields] = useState<{ key: string; value: string }[]>(() =>
-    record ? Object.entries(record.fields).map(([k, v]) => ({ key: k, value: typeof v === "object" ? JSON.stringify(v) : String(v) })) : [{ key: "", value: "" }]
-  );
+  const [fields, setFields] = useState<{ key: string; label: string; type?: string; value: string }[]>(() => {
+    if (tableFields.length > 0) {
+      return tableFields.map((f) => {
+        const existing = record?.fields?.[f.id];
+        return {
+          key: f.id,
+          label: f.name,
+          type: f.type,
+          value: formatFieldValueForInput(f.type, existing),
+        };
+      });
+    }
+    return record
+      ? Object.entries(record.fields ?? {}).map(([k, v]) => ({
+          key: k,
+          label: k,
+          type: undefined,
+          value: typeof v === "object" ? JSON.stringify(v) : String(v),
+        }))
+      : [{ key: "", label: "", type: undefined, value: "" }];
+  });
 
-  const addRow = () => setFields((f) => [...f, { key: "", value: "" }]);
+  const addRow = () => setFields((f) => [...f, { key: "", label: "", type: undefined, value: "" }]);
   const updateRow = (i: number, key: string, value: string) => {
-    setFields((f) => f.map((r, j) => (j === i ? { key, value } : r)));
+    setFields((f) => f.map((r, j) => (j === i ? { ...r, key, label: key, value } : r)));
   };
   const removeRow = (i: number) => setFields((f) => f.filter((_, j) => j !== i));
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
-    const obj: Record<string, string> = {};
-    fields.forEach(({ key, value }) => {
-      if (key.trim()) obj[key.trim()] = value;
+    const obj: Record<string, unknown> = {};
+    fields.forEach(({ key, type, value }) => {
+      if (!key.trim()) return;
+      const parsed = parseInputValueByType(type, value);
+      if (parsed !== undefined) {
+        obj[key.trim()] = parsed;
+      }
     });
     if (Object.keys(obj).length === 0) {
       setError("Ajoutez au moins un champ.");
@@ -662,26 +845,67 @@ function RecordFormModal({
       >
         <h3 className="font-semibold text-text-primary mb-4">{isEdit ? "Modifier l'enregistrement" : "Créer un enregistrement"}</h3>
         <form onSubmit={handleSubmit} className="space-y-3">
+          {tableFields.length > 0 && (
+            <p className="text-xs text-text-muted">
+              Colonnes disponibles de la table : remplis uniquement ce dont tu as besoin.
+            </p>
+          )}
           {fields.map((row, i) => (
             <div key={i} className="flex gap-2">
-              <input
-                type="text"
-                value={row.key}
-                onChange={(e) => updateRow(i, e.target.value, row.value)}
-                placeholder="Nom du champ"
-                className="flex-1 min-w-0 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-text-primary text-sm"
-              />
-              <input
-                type="text"
-                value={row.value}
-                onChange={(e) => updateRow(i, row.key, e.target.value)}
-                placeholder="Valeur"
-                className="flex-1 min-w-0 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-text-primary text-sm"
-              />
-              <button type="button" onClick={() => removeRow(i)} className="px-2 text-text-muted hover:text-accent-rose">×</button>
+              {tableFields.length > 0 ? (
+                <div className="flex-1 min-w-0 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-text-muted text-sm truncate">
+                  {row.label || row.key}
+                </div>
+              ) : (
+                <input
+                  type="text"
+                  value={row.key}
+                  onChange={(e) => updateRow(i, e.target.value, row.value)}
+                  placeholder="Nom du champ"
+                  className="flex-1 min-w-0 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-text-primary text-sm"
+                />
+              )}
+              {row.type === "multipleAttachments" ? (
+                <textarea
+                  value={row.value}
+                  onChange={(e) => updateRow(i, row.key, e.target.value)}
+                  placeholder="https://... (une URL par ligne)"
+                  className="flex-1 min-w-0 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-text-primary text-sm min-h-[68px]"
+                />
+              ) : row.type === "checkbox" ? (
+                <label className="flex-1 min-w-0 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-text-primary text-sm flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={row.value === "true"}
+                    onChange={(e) => updateRow(i, row.key, e.target.checked ? "true" : "false")}
+                  />
+                  {row.value === "true" ? "Activé" : "Désactivé"}
+                </label>
+              ) : (
+                <input
+                  type={
+                    row.type === "date"
+                      ? "date"
+                      : row.type === "dateTime"
+                        ? "datetime-local"
+                        : row.type === "number" || row.type === "currency" || row.type === "percent" || row.type === "rating"
+                          ? "number"
+                          : "text"
+                  }
+                  value={row.value}
+                  onChange={(e) => updateRow(i, row.key, e.target.value)}
+                  placeholder={row.type === "multipleSelects" ? "Option1, Option2" : "Valeur"}
+                  className="flex-1 min-w-0 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-text-primary text-sm"
+                />
+              )}
+              {tableFields.length === 0 ? (
+                <button type="button" onClick={() => removeRow(i)} className="px-2 text-text-muted hover:text-accent-rose">×</button>
+              ) : null}
             </div>
           ))}
-          <button type="button" onClick={addRow} className="text-sm text-accent-cyan hover:underline">+ Ajouter un champ</button>
+          {tableFields.length === 0 ? (
+            <button type="button" onClick={addRow} className="text-sm text-accent-cyan hover:underline">+ Ajouter un champ</button>
+          ) : null}
           {error && <p className="text-sm text-accent-rose">{error}</p>}
           <div className="flex gap-2 pt-2">
             <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg bg-white/10 text-text-primary text-sm">Annuler</button>

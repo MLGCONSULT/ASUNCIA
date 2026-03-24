@@ -99,10 +99,41 @@ function flattenObjectArrays(data: unknown, depth = 0): unknown[] {
 }
 
 function normalizeTablesFromUnknown(data: unknown): { id: string; name: string }[] {
-  const direct = normalizeNamedItems(pickBestArray(data, ["tables", "data", "items"], true));
+  const directRows = pickBestArray(data, ["tables", "data", "items"], true);
+  const direct = directRows
+    .map((row) => {
+      if (!isObjectWithId(row)) return null;
+      const nameCandidates = [
+        (row as { name?: unknown }).name,
+        (row as { title?: unknown }).title,
+        (row as { table_name?: unknown }).table_name,
+      ];
+      const name = nameCandidates.find((x) => typeof x === "string");
+      const fieldsRaw = (row as { fields?: unknown }).fields;
+      const fields = Array.isArray(fieldsRaw)
+        ? fieldsRaw
+            .map((f) => {
+              if (!f || typeof f !== "object") return null;
+              const obj = f as Record<string, unknown>;
+              const id = typeof obj.id === "string" ? obj.id : "";
+              const fieldName = typeof obj.name === "string" ? obj.name : "";
+              const type = typeof obj.type === "string" ? obj.type : "";
+              if (!id || !fieldName) return null;
+              return { id, name: fieldName, type };
+            })
+            .filter((x): x is { id: string; name: string; type?: string } => !!x)
+        : [];
+      return {
+        id: row.id as string,
+        name: (name as string) || "Sans nom",
+        fields,
+      };
+    })
+    .filter((x): x is { id: string; name: string; fields?: { id: string; name: string; type?: string }[] } => !!x);
   if (direct.length > 0) return direct;
-  const deep = normalizeNamedItems(flattenObjectArrays(data).filter((x) => isObjectWithId(x)));
-  return deep;
+
+  const deepRows = flattenObjectArrays(data).filter((x) => isObjectWithId(x));
+  return normalizeNamedItems(deepRows);
 }
 
 @Controller("airtable")
