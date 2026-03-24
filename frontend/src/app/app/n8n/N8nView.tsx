@@ -313,7 +313,7 @@ export default function N8nView() {
       <div className="rounded-xl border border-accent-amber/35 bg-gradient-to-br from-accent-amber/10 via-white/[0.03] to-accent-violet/10 p-3 card-glow">
         <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
           <div>
-            <p className="text-sm font-semibold text-text-primary">Assistant JSON workflow</p>
+            <p className="text-sm font-semibold text-text-primary">Créer un nouveau workflow (JSON)</p>
             <p className="text-xs text-text-muted">
               Décris ton besoin en une phrase, puis génère un JSON n8n prêt à copier-coller.
             </p>
@@ -364,7 +364,7 @@ export default function N8nView() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 flex-1 min-h-0">
         <div className="glass-strong rounded-xl border border-white/10 overflow-hidden flex flex-col min-h-0">
           <div className="px-3 py-2 border-b border-white/10 text-sm text-text-muted flex items-center justify-between gap-2">
-            <span>Workflows existants ({workflows.length})</span>
+            <span>Choisir un workflow existant à exécuter ({workflows.length})</span>
             <button
               type="button"
               onClick={() => loadWorkflows(false)}

@@ -61,6 +61,7 @@ But: aider quelqu'un qui n'est pas du milieu a faire un PowerPoint clair, joli e
 - Onglets: Airtable, Notion, Supabase, n8n
 - Auth utilisateur securisee
 - Dashboard utile (actions du jour + raccourcis)
+- n8n simplifie: "demande de workflow" -> "Generer le JSON" -> "Copier"
 
 **A dire:**
 "Le coeur du produit est deja en place et fonctionne."
@@ -89,9 +90,9 @@ But: aider quelqu'un qui n'est pas du milieu a faire un PowerPoint clair, joli e
 
 **Mettre:**
 1. Ouvrir dashboard
-2. Ouvrir un onglet (ex: n8n ou Airtable)
-3. Faire une action simple
-4. Montrer le resultat
+2. Ouvrir n8n
+3. Ecrire une demande claire de workflow (langage naturel)
+4. Generer le JSON puis copier-coller dans n8n
 
 **A dire:**
 "On montre un cas reel du debut a la fin."
@@ -124,12 +125,12 @@ Tu peux copier-coller ces 3 exemples:
   - "Impact: l'onglet n8n est redevenu utilisable."
 
 **Exemple 2 - UX orientee usage (n8n)**
-- Probleme: l'utilisateur ne pouvait pas exploiter facilement les workflows.
+- Probleme: l'onglet n8n etait trop technique et peu lisible.
 - Prompt Cursor:
-  - "Transforme l'onglet n8n en interface orientee action: recherche workflow, detail, JSON copiable, lien direct vers n8n, execution."
+  - "Refais l'onglet n8n en mode utilisateur final: une zone 'demande de workflow', bouton 'Generer le JSON', resultat copiable, et labels explicites."
 - Resultat a afficher:
-  - "Nouvelle UX plus claire + JSON exploitable."
-  - "Impact: moins de clics, meilleur confort, plus de valeur produit."
+  - "Parcours simplifie: besoin -> JSON -> copie."
+  - "Impact: comprehension immediate, moins d'erreurs et de friction."
 
 **Exemple 3 - Assistant guide utilisateur**
 - Probleme: l'IA repondait sans toujours orienter vers le bon onglet.
@@ -158,7 +159,7 @@ Tu peux copier-coller ces 3 exemples:
 - tests Postman
 - deploiement
 - incidents connus + solutions
-- detail important: Notion passe par MCP (mode OAuth ou mode server-token)
+- detail important: Notion passe par MCP en 2 modes clairement documentes (OAuth officiel ou server-token auto-heberge)
 
 **A dire:**
 "La doc permet a quelqu'un d'autre de reprendre le projet."
@@ -173,7 +174,7 @@ Tu peux copier-coller ces 3 exemples:
 **Mettre:**
 - risques: connexions externes, variables d'env, erreurs API
 - solutions: health checks, messages clairs, procedures de test
-- preciser que Notion peut etre en MCP OAuth ou MCP token serveur selon le besoin
+- preciser que `mcp.notion.com/mcp` = OAuth utilisateur, et `server-token` = serveur MCP Notion auto-heberge
 
 **A dire:**
 "Les risques sont connus et traites avec une methode."
