@@ -102,8 +102,6 @@ export default function AirtableView({ hasAirtable: initialHasAirtable }: Props)
   const [selectedBase, setSelectedBase] = useState<Base | null>(null);
   const [tables, setTables] = useState<Table[]>([]);
   const [tablesLoading, setTablesLoading] = useState(false);
-  const [tablesDebugEnabled, setTablesDebugEnabled] = useState(false);
-  const [tablesDebugText, setTablesDebugText] = useState<string>("");
   const [selectedTable, setSelectedTable] = useState<Table | null>(null);
   const [records, setRecords] = useState<AirtableRecordRow[]>([]);
   const [recordsLoading, setRecordsLoading] = useState(false);
@@ -116,9 +114,26 @@ export default function AirtableView({ hasAirtable: initialHasAirtable }: Props)
     const map = new Map<string, AirtableField>();
     for (const f of selectedTable?.fields ?? []) {
       map.set(f.id, f);
+      map.set(f.name, f);
     }
     return map;
   }, [selectedTable]);
+
+  const selectedTableResolvedFields = useMemo(() => {
+    const schemaFields = selectedTable?.fields ?? [];
+    if (schemaFields.length > 0) return schemaFields;
+
+    const discovered = new Map<string, AirtableField>();
+    for (const rec of records) {
+      for (const key of Object.keys(rec.fields ?? {})) {
+        if (!discovered.has(key)) {
+          discovered.set(key, { id: key, name: key });
+        }
+      }
+      if (discovered.size >= 30) break;
+    }
+    return Array.from(discovered.values());
+  }, [selectedTable, records]);
 
   useEffect(() => {
     setHasAirtable(initialHasAirtable);
@@ -224,37 +239,21 @@ export default function AirtableView({ hasAirtable: initialHasAirtable }: Props)
   useEffect(() => {
     if (!selectedBase) {
       setTables([]);
-      setTablesDebugText("");
       setSelectedTable(null);
       return;
     }
     setTablesLoading(true);
     setRecords([]);
     setSelectedTable(null);
-    const debugQuery = tablesDebugEnabled ? "?debug=1" : "";
-    fetchBackend(`/api/airtable/bases/${selectedBase.id}/tables${debugQuery}`)
+    fetchBackend(`/api/airtable/bases/${selectedBase.id}/tables`)
       .then((r) => r.json())
       .then((data) => {
         if (data.error) throw new Error(data.error);
         setTables(data.tables ?? []);
-        if (tablesDebugEnabled) {
-          setTablesDebugText(
-            JSON.stringify(
-              {
-                debug: data?._debug ?? null,
-                tablesPreview: Array.isArray(data?.tables) ? data.tables.slice(0, 10) : [],
-              },
-              null,
-              2,
-            ),
-          );
-        } else {
-          setTablesDebugText("");
-        }
       })
       .catch((e) => setError(e instanceof Error ? e.message : "Erreur"))
       .finally(() => setTablesLoading(false));
-  }, [selectedBase, tablesDebugEnabled]);
+  }, [selectedBase]);
 
   const reloadRecords = useCallback(() => {
     if (!selectedBase || !selectedTable) return;
@@ -475,23 +474,11 @@ export default function AirtableView({ hasAirtable: initialHasAirtable }: Props)
           </ul>
         </div>
         <div className="glass-strong rounded-xl border border-white/10 overflow-hidden card-glow flex flex-col min-h-0">
-          <div className="p-3 border-b border-white/10 shrink-0 flex items-center justify-between gap-2">
+          <div className="p-3 border-b border-white/10 shrink-0">
             <div>
               <h2 className="font-semibold text-text-primary text-sm">Tables</h2>
               {selectedBase && <p className="text-xs text-text-muted mt-0.5">{selectedBase.name}</p>}
             </div>
-            <button
-              type="button"
-              onClick={() => setTablesDebugEnabled((v) => !v)}
-              className={`px-2 py-1 rounded text-[11px] border transition-colors ${
-                tablesDebugEnabled
-                  ? "border-accent-amber/45 bg-accent-amber/15 text-amber-200"
-                  : "border-white/10 bg-white/5 text-text-muted hover:bg-white/10"
-              }`}
-              title="Activer le mode debug pour diagnostiquer les tables vides"
-            >
-              Debug {tablesDebugEnabled ? "ON" : "OFF"}
-            </button>
           </div>
           {tablesLoading ? <div className="p-4 text-text-muted text-sm">Chargement…</div> : (
             <div className="flex-1 min-h-0 overflow-y-auto">
@@ -524,16 +511,6 @@ export default function AirtableView({ hasAirtable: initialHasAirtable }: Props)
               {tables.length === 0 && !tablesLoading ? (
                 <div className="p-3 text-xs text-text-muted">
                   Aucune table trouvée pour cette base.
-                </div>
-              ) : null}
-              {tablesDebugEnabled && tablesDebugText ? (
-                <div className="p-3 border-t border-white/10">
-                  <p className="text-[11px] text-text-dim mb-1">Diagnostic tables (debug)</p>
-                  <textarea
-                    readOnly
-                    value={tablesDebugText}
-                    className="w-full min-h-[140px] rounded-lg border border-accent-amber/30 bg-black/30 p-2 text-[11px] font-mono text-text-primary focus:outline-none"
-                  />
                 </div>
               ) : null}
             </div>
@@ -594,7 +571,7 @@ export default function AirtableView({ hasAirtable: initialHasAirtable }: Props)
           <RecordFormModal
             baseId={selectedBase.id}
             tableId={selectedTable.id}
-            tableFields={selectedTable.fields ?? []}
+            tableFields={selectedTableResolvedFields}
             record={editRecord}
             onClose={() => { setCreateOpen(false); setEditRecord(null); setFormError(null); }}
             onSuccess={() => { setCreateOpen(false); setEditRecord(null); reloadRecords(); }}
@@ -731,6 +708,28 @@ function parseInputValueByType(type: string | undefined, raw: string): unknown {
   }
 }
 
+function getFieldGroup(type: string | undefined): "principal" | "date" | "number" | "choice" | "media" | "other" {
+  if (!type || type === "singleLineText" || type === "multilineText" || type === "email" || type === "phoneNumber" || type === "url") {
+    return "principal";
+  }
+  if (type === "date" || type === "dateTime") return "date";
+  if (type === "number" || type === "currency" || type === "percent" || type === "rating") return "number";
+  if (type === "singleSelect" || type === "multipleSelects" || type === "checkbox") return "choice";
+  if (type === "multipleAttachments") return "media";
+  return "other";
+}
+
+function getFieldPlaceholder(type: string | undefined): string {
+  if (type === "multipleSelects") return "Option1, Option2";
+  if (type === "singleSelect") return "Une option";
+  if (type === "date") return "AAAA-MM-JJ";
+  if (type === "dateTime") return "Date et heure";
+  if (type === "email") return "contact@exemple.com";
+  if (type === "phoneNumber") return "+33...";
+  if (type === "url") return "https://...";
+  return "Valeur";
+}
+
 function RecordFormModal({
   baseId,
   tableId,
@@ -758,9 +757,9 @@ function RecordFormModal({
   const [fields, setFields] = useState<{ key: string; label: string; type?: string; value: string }[]>(() => {
     if (tableFields.length > 0) {
       return tableFields.map((f) => {
-        const existing = record?.fields?.[f.id];
+        const existing = record?.fields?.[f.name] ?? record?.fields?.[f.id];
         return {
-          key: f.id,
+          key: f.name,
           label: f.name,
           type: f.type,
           value: formatFieldValueForInput(f.type, existing),
@@ -782,6 +781,21 @@ function RecordFormModal({
     setFields((f) => f.map((r, j) => (j === i ? { ...r, key, label: key, value } : r)));
   };
   const removeRow = (i: number) => setFields((f) => f.filter((_, j) => j !== i));
+
+  const filledCount = useMemo(
+    () => fields.filter((f) => f.value.trim().length > 0 || (f.type === "checkbox" && f.value === "true")).length,
+    [fields],
+  );
+
+  const groupedIndexes = useMemo(() => {
+    const groups = new Map<string, number[]>();
+    fields.forEach((field, index) => {
+      const group = tableFields.length > 0 ? getFieldGroup(field.type) : "principal";
+      if (!groups.has(group)) groups.set(group, []);
+      groups.get(group)?.push(index);
+    });
+    return groups;
+  }, [fields, tableFields.length]);
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -846,63 +860,89 @@ function RecordFormModal({
         <h3 className="font-semibold text-text-primary mb-4">{isEdit ? "Modifier l'enregistrement" : "Créer un enregistrement"}</h3>
         <form onSubmit={handleSubmit} className="space-y-3">
           {tableFields.length > 0 && (
-            <p className="text-xs text-text-muted">
-              Colonnes disponibles de la table : remplis uniquement ce dont tu as besoin.
-            </p>
-          )}
-          {fields.map((row, i) => (
-            <div key={i} className="flex gap-2">
-              {tableFields.length > 0 ? (
-                <div className="flex-1 min-w-0 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-text-muted text-sm truncate">
-                  {row.label || row.key}
-                </div>
-              ) : (
-                <input
-                  type="text"
-                  value={row.key}
-                  onChange={(e) => updateRow(i, e.target.value, row.value)}
-                  placeholder="Nom du champ"
-                  className="flex-1 min-w-0 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-text-primary text-sm"
-                />
-              )}
-              {row.type === "multipleAttachments" ? (
-                <textarea
-                  value={row.value}
-                  onChange={(e) => updateRow(i, row.key, e.target.value)}
-                  placeholder="https://... (une URL par ligne)"
-                  className="flex-1 min-w-0 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-text-primary text-sm min-h-[68px]"
-                />
-              ) : row.type === "checkbox" ? (
-                <label className="flex-1 min-w-0 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-text-primary text-sm flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={row.value === "true"}
-                    onChange={(e) => updateRow(i, row.key, e.target.checked ? "true" : "false")}
-                  />
-                  {row.value === "true" ? "Activé" : "Désactivé"}
-                </label>
-              ) : (
-                <input
-                  type={
-                    row.type === "date"
-                      ? "date"
-                      : row.type === "dateTime"
-                        ? "datetime-local"
-                        : row.type === "number" || row.type === "currency" || row.type === "percent" || row.type === "rating"
-                          ? "number"
-                          : "text"
-                  }
-                  value={row.value}
-                  onChange={(e) => updateRow(i, row.key, e.target.value)}
-                  placeholder={row.type === "multipleSelects" ? "Option1, Option2" : "Valeur"}
-                  className="flex-1 min-w-0 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-text-primary text-sm"
-                />
-              )}
-              {tableFields.length === 0 ? (
-                <button type="button" onClick={() => removeRow(i)} className="px-2 text-text-muted hover:text-accent-rose">×</button>
-              ) : null}
+            <div className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-text-muted flex items-center justify-between gap-2">
+              <span>Colonnes detectees: remplis uniquement les champs utiles.</span>
+              <span className="text-text-dim">
+                {filledCount}/{fields.length} rempli(s)
+              </span>
             </div>
-          ))}
+          )}
+          {Array.from(groupedIndexes.entries()).map(([group, indexes]) => {
+            const title =
+              group === "principal"
+                ? "Texte et infos"
+                : group === "date"
+                  ? "Dates"
+                  : group === "number"
+                    ? "Numeriques"
+                    : group === "choice"
+                      ? "Options et statuts"
+                      : group === "media"
+                        ? "Pieces jointes"
+                        : "Autres colonnes";
+            return (
+              <div key={group} className="rounded-xl border border-white/10 bg-white/[0.02] p-3 space-y-2">
+                <p className="text-xs font-medium text-text-muted">{title}</p>
+                {indexes.map((i) => {
+                  const row = fields[i];
+                  return (
+                    <div key={i} className="space-y-1.5">
+                      <label className="block text-xs text-text-dim">
+                        {tableFields.length > 0 ? (row.label || row.key) : "Nom de champ"}
+                      </label>
+                      <div className="flex gap-2">
+                        {tableFields.length === 0 ? (
+                          <input
+                            type="text"
+                            value={row.key}
+                            onChange={(e) => updateRow(i, e.target.value, row.value)}
+                            placeholder="Nom du champ"
+                            className="flex-1 min-w-0 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-text-primary text-sm"
+                          />
+                        ) : null}
+                        {row.type === "multipleAttachments" ? (
+                          <textarea
+                            value={row.value}
+                            onChange={(e) => updateRow(i, row.key, e.target.value)}
+                            placeholder="https://... (une URL par ligne)"
+                            className="flex-1 min-w-0 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-text-primary text-sm min-h-[68px]"
+                          />
+                        ) : row.type === "checkbox" ? (
+                          <label className="flex-1 min-w-0 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-text-primary text-sm flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={row.value === "true"}
+                              onChange={(e) => updateRow(i, row.key, e.target.checked ? "true" : "false")}
+                            />
+                            {row.value === "true" ? "Active" : "Desactive"}
+                          </label>
+                        ) : (
+                          <input
+                            type={
+                              row.type === "date"
+                                ? "date"
+                                : row.type === "dateTime"
+                                  ? "datetime-local"
+                                  : row.type === "number" || row.type === "currency" || row.type === "percent" || row.type === "rating"
+                                    ? "number"
+                                    : "text"
+                            }
+                            value={row.value}
+                            onChange={(e) => updateRow(i, row.key, e.target.value)}
+                            placeholder={getFieldPlaceholder(row.type)}
+                            className="flex-1 min-w-0 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-text-primary text-sm"
+                          />
+                        )}
+                        {tableFields.length === 0 ? (
+                          <button type="button" onClick={() => removeRow(i)} className="px-2 text-text-muted hover:text-accent-rose">×</button>
+                        ) : null}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
           {tableFields.length === 0 ? (
             <button type="button" onClick={addRow} className="text-sm text-accent-cyan hover:underline">+ Ajouter un champ</button>
           ) : null}

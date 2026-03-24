@@ -32,7 +32,6 @@ type AirtableRecordParams = { baseId: string; tableId: string };
 type AirtableRecordWithIdParams = { baseId: string; tableId: string; recordId: string };
 
 type AirtableRecordsQuery = { maxRecords?: number };
-type AirtableTablesQuery = { debug?: string };
 
 type AirtableFieldsBody = Record<string, unknown>;
 
@@ -319,7 +318,6 @@ export class AirtableController {
   async listTables(
     @Req() req: AuthRequest,
     @Param() params: AirtableBaseParams,
-    @Query() query: AirtableTablesQuery,
   ) {
     if (!req.user) {
       throw new HttpException({ error: "Non authentifié" }, HttpStatus.UNAUTHORIZED);
@@ -336,27 +334,10 @@ export class AirtableController {
           HttpStatus.FORBIDDEN,
         );
       }
-      const { tables, data, usedTool, availableTools } = await this.listTablesWithToolFallback(
+      const { tables } = await this.listTablesWithToolFallback(
         baseId,
         runtime.accessToken,
       );
-      const debugEnabled = query.debug === "1" || query.debug === "true";
-      if (debugEnabled) {
-        return {
-          tables,
-          _debug: {
-            baseId,
-            usedTool,
-            availableTools,
-            parsedKeys:
-              data && typeof data === "object" && !Array.isArray(data)
-                ? Object.keys(data as Record<string, unknown>)
-                : [],
-            normalizedCount: tables.length,
-            mcpTextPreview: JSON.stringify(data).slice(0, 1200),
-          },
-        };
-      }
       return {
         tables,
       };
