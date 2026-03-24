@@ -15,7 +15,7 @@ import { SYSTEM_PROMPT } from "../ai/prompt";
 import { createUserSupabaseFromRequest } from "../services/auth-context";
 
 const FALLBACK_REPLY =
-  "Bienvenue. Dis-moi simplement ce que tu souhaites faire : ajouter un contact, voir tes derniers emails, lancer une automatisation… Je m'occupe du reste.";
+  "Bienvenue. Dis-moi simplement ce que tu souhaites faire : organiser Airtable, explorer Notion, lancer une automatisation n8n… Je m'occupe du reste.";
 const MAX_TOOL_ROUNDS = 5;
 
 type AuthRequest = Request & { user?: { id: string } };

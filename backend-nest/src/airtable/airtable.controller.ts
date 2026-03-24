@@ -12,7 +12,7 @@ import {
 } from "@nestjs/common";
 import type { Request } from "express";
 import { callAirtableMcpTool, isAirtableMcpConfigured } from "../mcp/airtable-client";
-import { parseMcpResultJson } from "../mcp/result";
+import { mcpResultToText, parseMcpResultJson } from "../mcp/result";
 import { MCP_ERROR_MESSAGES } from "../config/mcp";
 import { createUserSupabaseFromRequest } from "../services/auth-context";
 import {
@@ -28,18 +28,58 @@ type AirtableRecordParams = { baseId: string; tableId: string };
 type AirtableRecordWithIdParams = { baseId: string; tableId: string; recordId: string };
 
 type AirtableRecordsQuery = { maxRecords?: number };
+type AirtableTablesQuery = { debug?: string };
 
 type AirtableFieldsBody = Record<string, unknown>;
 
-function pickFirstArray(data: unknown, keys: string[]): unknown[] {
-  if (Array.isArray(data)) return data;
-  if (!data || typeof data !== "object") return [];
+function collectArraysByKeys(data: unknown, keys: string[], depth = 0): unknown[][] {
+  if (depth > 4 || !data || typeof data !== "object") return [];
   const obj = data as Record<string, unknown>;
+  const arrays: unknown[][] = [];
   for (const key of keys) {
     const value = obj[key];
-    if (Array.isArray(value)) return value;
+    if (Array.isArray(value)) arrays.push(value);
   }
-  return [];
+  for (const value of Object.values(obj)) {
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+      arrays.push(...collectArraysByKeys(value, keys, depth + 1));
+    }
+  }
+  return arrays;
+}
+
+function isObjectWithId(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === "object" && typeof (value as { id?: unknown }).id === "string";
+}
+
+function normalizeNamedItems(rows: unknown[]): { id: string; name: string }[] {
+  return rows
+    .map((row) => {
+      if (!isObjectWithId(row)) return null;
+      const nameCandidates = [
+        (row as { name?: unknown }).name,
+        (row as { title?: unknown }).title,
+        (row as { table_name?: unknown }).table_name,
+      ];
+      const name = nameCandidates.find((x) => typeof x === "string");
+      return {
+        id: row.id as string,
+        name: (name as string) || "Sans nom",
+      };
+    })
+    .filter((x): x is { id: string; name: string } => !!x);
+}
+
+function pickBestArray(data: unknown, keys: string[], requireId = false): unknown[] {
+  if (Array.isArray(data)) {
+    if (!requireId) return data;
+    return data.some((x) => isObjectWithId(x)) ? data : [];
+  }
+  const candidates = collectArraysByKeys(data, keys);
+  if (candidates.length === 0) return [];
+  if (!requireId) return candidates[0];
+  const withId = candidates.find((arr) => arr.some((x) => isObjectWithId(x)));
+  return withId ?? candidates[0];
 }
 
 @Controller("airtable")
@@ -90,7 +130,7 @@ export class AirtableController {
       const result = await callAirtableMcpTool("list_bases", {}, runtime.accessToken);
       const data = parseMcpResultJson(result);
       return {
-        bases: pickFirstArray(data, ["bases", "data", "items"]),
+        bases: normalizeNamedItems(pickBestArray(data, ["bases", "data", "items"], true)),
       };
     } catch (err) {
       if (err instanceof HttpException) throw err;
@@ -100,7 +140,11 @@ export class AirtableController {
   }
 
   @Get("bases/:baseId/tables")
-  async listTables(@Req() req: AuthRequest, @Param() params: AirtableBaseParams) {
+  async listTables(
+    @Req() req: AuthRequest,
+    @Param() params: AirtableBaseParams,
+    @Query() query: AirtableTablesQuery,
+  ) {
     if (!req.user) {
       throw new HttpException({ error: "Non authentifié" }, HttpStatus.UNAUTHORIZED);
     }
@@ -122,8 +166,26 @@ export class AirtableController {
         runtime.accessToken,
       );
       const data = parseMcpResultJson(result);
+      const rawTables = pickBestArray(data, ["tables", "data", "items"], true);
+      const tables = normalizeNamedItems(rawTables);
+      const debugEnabled = query.debug === "1" || query.debug === "true";
+      if (debugEnabled) {
+        return {
+          tables,
+          _debug: {
+            baseId,
+            parsedKeys:
+              data && typeof data === "object" && !Array.isArray(data)
+                ? Object.keys(data as Record<string, unknown>)
+                : [],
+            normalizedCount: tables.length,
+            rawCandidatesCount: rawTables.length,
+            mcpTextPreview: mcpResultToText(result).slice(0, 1200),
+          },
+        };
+      }
       return {
-        tables: pickFirstArray(data, ["tables", "data", "items"]),
+        tables,
       };
     } catch (err) {
       if (err instanceof HttpException) throw err;
@@ -166,7 +228,7 @@ export class AirtableController {
       );
       const data = parseMcpResultJson(result);
       return {
-        records: pickFirstArray(data, ["records", "data", "items"]),
+        records: pickBestArray(data, ["records", "data", "items"]),
       };
     } catch (err) {
       if (err instanceof HttpException) throw err;

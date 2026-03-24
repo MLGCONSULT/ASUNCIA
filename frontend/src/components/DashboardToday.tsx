@@ -8,7 +8,7 @@ type TodayState = {
   n8nActive: number | null;
   n8nTotal: number | null;
   airtableBases: number | null;
-  airtableFirstBase: string | null;
+  airtableSampleBase: string | null;
   loading: boolean;
 };
 
@@ -21,7 +21,7 @@ const initialState: TodayState = {
   n8nActive: null,
   n8nTotal: null,
   airtableBases: null,
-  airtableFirstBase: null,
+  airtableSampleBase: null,
   loading: true,
 };
 
@@ -45,13 +45,15 @@ export default function DashboardToday() {
           : [];
         const activeWorkflows = workflows.filter((w: N8nWorkflowRow) => Boolean(w.active));
         const bases = Array.isArray(airtableData?.bases) ? airtableData.bases : [];
+        const randomBase =
+          bases.length > 0 ? bases[Math.floor(Math.random() * bases.length)] : null;
 
         if (!active) return;
         setState({
           n8nActive: activeWorkflows.length,
           n8nTotal: workflows.length,
           airtableBases: bases.length,
-          airtableFirstBase: typeof bases[0]?.name === "string" ? bases[0].name : null,
+          airtableSampleBase: typeof randomBase?.name === "string" ? randomBase.name : null,
           loading: false,
         });
       } catch {
@@ -95,7 +97,7 @@ export default function DashboardToday() {
           <>
             <p className="mt-2 text-2xl font-semibold text-text-primary">{state.airtableBases ?? 0}</p>
             <p className="text-xs text-text-muted mt-1">
-              base(s) disponible(s){state.airtableFirstBase ? ` - ex: ${state.airtableFirstBase}` : ""}
+              base(s) disponible(s){state.airtableSampleBase ? ` - ex: ${state.airtableSampleBase}` : ""}
             </p>
             <div className="mt-3 flex gap-2">
               <Link href="/app/airtable" className="text-xs text-accent-cyan hover:underline">

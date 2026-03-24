@@ -59,6 +59,8 @@ export default function AirtableView({ hasAirtable: initialHasAirtable }: Props)
   const [selectedBase, setSelectedBase] = useState<Base | null>(null);
   const [tables, setTables] = useState<Table[]>([]);
   const [tablesLoading, setTablesLoading] = useState(false);
+  const [tablesDebugEnabled, setTablesDebugEnabled] = useState(false);
+  const [tablesDebugText, setTablesDebugText] = useState<string>("");
   const [selectedTable, setSelectedTable] = useState<Table | null>(null);
   const [records, setRecords] = useState<AirtableRecordRow[]>([]);
   const [recordsLoading, setRecordsLoading] = useState(false);
@@ -171,21 +173,37 @@ export default function AirtableView({ hasAirtable: initialHasAirtable }: Props)
   useEffect(() => {
     if (!selectedBase) {
       setTables([]);
+      setTablesDebugText("");
       setSelectedTable(null);
       return;
     }
     setTablesLoading(true);
     setRecords([]);
     setSelectedTable(null);
-    fetchBackend(`/api/airtable/bases/${selectedBase.id}/tables`)
+    const debugQuery = tablesDebugEnabled ? "?debug=1" : "";
+    fetchBackend(`/api/airtable/bases/${selectedBase.id}/tables${debugQuery}`)
       .then((r) => r.json())
       .then((data) => {
         if (data.error) throw new Error(data.error);
         setTables(data.tables ?? []);
+        if (tablesDebugEnabled) {
+          setTablesDebugText(
+            JSON.stringify(
+              {
+                debug: data?._debug ?? null,
+                tablesPreview: Array.isArray(data?.tables) ? data.tables.slice(0, 10) : [],
+              },
+              null,
+              2,
+            ),
+          );
+        } else {
+          setTablesDebugText("");
+        }
       })
       .catch((e) => setError(e instanceof Error ? e.message : "Erreur"))
       .finally(() => setTablesLoading(false));
-  }, [selectedBase]);
+  }, [selectedBase, tablesDebugEnabled]);
 
   const reloadRecords = useCallback(() => {
     if (!selectedBase || !selectedTable) return;
@@ -406,34 +424,68 @@ export default function AirtableView({ hasAirtable: initialHasAirtable }: Props)
           </ul>
         </div>
         <div className="glass-strong rounded-xl border border-white/10 overflow-hidden card-glow flex flex-col min-h-0">
-          <div className="p-3 border-b border-white/10 shrink-0"><h2 className="font-semibold text-text-primary text-sm">Tables</h2>{selectedBase && <p className="text-xs text-text-muted mt-0.5">{selectedBase.name}</p>}</div>
+          <div className="p-3 border-b border-white/10 shrink-0 flex items-center justify-between gap-2">
+            <div>
+              <h2 className="font-semibold text-text-primary text-sm">Tables</h2>
+              {selectedBase && <p className="text-xs text-text-muted mt-0.5">{selectedBase.name}</p>}
+            </div>
+            <button
+              type="button"
+              onClick={() => setTablesDebugEnabled((v) => !v)}
+              className={`px-2 py-1 rounded text-[11px] border transition-colors ${
+                tablesDebugEnabled
+                  ? "border-accent-amber/45 bg-accent-amber/15 text-amber-200"
+                  : "border-white/10 bg-white/5 text-text-muted hover:bg-white/10"
+              }`}
+              title="Activer le mode debug pour diagnostiquer les tables vides"
+            >
+              Debug {tablesDebugEnabled ? "ON" : "OFF"}
+            </button>
+          </div>
           {tablesLoading ? <div className="p-4 text-text-muted text-sm">Chargement…</div> : (
-            <ul className="divide-y divide-white/5 flex-1 min-h-0 overflow-y-auto">
-              {tables.map((table, i) => (
-                <motion.li key={table.id} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.03 }}>
-                  <div className={`w-full flex items-center gap-2 px-3 py-2.5 text-sm transition-colors ${selectedTable?.id === table.id ? "bg-accent-violet/15 border-l-2 border-accent-violet" : "text-text-muted hover:bg-white/5"}`}>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedTable(table)}
-                      className={`min-w-0 flex-1 text-left truncate ${selectedTable?.id === table.id ? "text-accent-violet" : "text-text-muted hover:text-text-primary"}`}
-                    >
-                      {table.name}
-                    </button>
-                    {selectedBase && (
-                      <a
-                        href={`https://airtable.com/${encodeURIComponent(selectedBase.id)}/${encodeURIComponent(table.id)}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="shrink-0 text-xs text-text-muted hover:text-accent-violet"
-                        title="Ouvrir la table dans Airtable"
+            <div className="flex-1 min-h-0 overflow-y-auto">
+              <ul className="divide-y divide-white/5">
+                {tables.map((table, i) => (
+                  <motion.li key={table.id} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.03 }}>
+                    <div className={`w-full flex items-center gap-2 px-3 py-2.5 text-sm transition-colors ${selectedTable?.id === table.id ? "bg-accent-violet/15 border-l-2 border-accent-violet" : "text-text-muted hover:bg-white/5"}`}>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedTable(table)}
+                        className={`min-w-0 flex-1 text-left truncate ${selectedTable?.id === table.id ? "text-accent-violet" : "text-text-muted hover:text-text-primary"}`}
                       >
-                        ↗
-                      </a>
-                    )}
-                  </div>
-                </motion.li>
-              ))}
-            </ul>
+                        {table.name}
+                      </button>
+                      {selectedBase && (
+                        <a
+                          href={`https://airtable.com/${encodeURIComponent(selectedBase.id)}/${encodeURIComponent(table.id)}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="shrink-0 text-xs text-text-muted hover:text-accent-violet"
+                          title="Ouvrir la table dans Airtable"
+                        >
+                          ↗
+                        </a>
+                      )}
+                    </div>
+                  </motion.li>
+                ))}
+              </ul>
+              {tables.length === 0 && !tablesLoading ? (
+                <div className="p-3 text-xs text-text-muted">
+                  Aucune table trouvée pour cette base.
+                </div>
+              ) : null}
+              {tablesDebugEnabled && tablesDebugText ? (
+                <div className="p-3 border-t border-white/10">
+                  <p className="text-[11px] text-text-dim mb-1">Diagnostic tables (debug)</p>
+                  <textarea
+                    readOnly
+                    value={tablesDebugText}
+                    className="w-full min-h-[140px] rounded-lg border border-accent-amber/30 bg-black/30 p-2 text-[11px] font-mono text-text-primary focus:outline-none"
+                  />
+                </div>
+              ) : null}
+            </div>
           )}
         </div>
         <div className="glass-strong rounded-xl border border-white/10 overflow-hidden card-glow flex flex-col min-h-0">

@@ -90,19 +90,25 @@ export default async function DashboardPage() {
         </div>
         <div className="glass-strong rounded-xl border border-white/10 p-4 card-glow">
           <p className="text-xs uppercase tracking-[0.18em] text-text-dim">Commencer ici</p>
-          <p className="mt-2 text-sm text-text-primary">Que veux-tu faire maintenant ?</p>
+          <p className="mt-2 text-sm text-text-primary">Choisis une action selon l'outil le plus adapté.</p>
           <div className="mt-3 flex flex-wrap gap-2">
-            <Link href="/app/n8n" className="px-3 py-1.5 rounded-full bg-white/10 text-xs text-text-primary hover:bg-white/15">
-              Voir mes workflows
+            <Link href="/app/airtable" className="px-3 py-1.5 rounded-full bg-white/10 text-xs text-text-primary hover:bg-white/15">
+              Explorer mes bases Airtable
+            </Link>
+            <Link href="/app/notion" className="px-3 py-1.5 rounded-full bg-white/10 text-xs text-text-primary hover:bg-white/15">
+              Rechercher dans Notion
             </Link>
             <Link href="/app/n8n" className="px-3 py-1.5 rounded-full bg-white/10 text-xs text-text-primary hover:bg-white/15">
-              Exécuter un workflow
+              Exécuter un workflow n8n
             </Link>
             <Link href="/app/n8n" className="px-3 py-1.5 rounded-full bg-accent-amber/20 border border-accent-amber/35 text-xs text-amber-200 hover:bg-accent-amber/30">
-              Générer un JSON n8n
+              Générer un JSON workflow
+            </Link>
+            <Link href="/app/supabase" className="px-3 py-1.5 rounded-full bg-white/10 text-xs text-text-primary hover:bg-white/15">
+              Interroger Supabase SQL
             </Link>
           </div>
-          <p className="text-xs text-text-muted mt-3">Astuce : commence par n8n, puis ouvre l'assistant si tu veux être guidé pas à pas.</p>
+          <p className="text-xs text-text-muted mt-3">Astuce : ouvre l'assistant si tu hésites sur l'outil à utiliser.</p>
         </div>
       </section>
 
