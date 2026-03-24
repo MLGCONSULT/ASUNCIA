@@ -53,9 +53,8 @@ const buildN8nWorkflowUrl = (base: string | null, workflowId?: string) => {
 };
 
 export default function N8nView() {
-  const [query, setQuery] = useState("");
   const [loadingList, setLoadingList] = useState(true);
-  const [runningQuery, setRunningQuery] = useState(false);
+  const [refreshingList, setRefreshingList] = useState(false);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [executing, setExecuting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -67,6 +66,7 @@ export default function N8nView() {
   const [workflowJson, setWorkflowJson] = useState<string>("");
   const [workflowObject, setWorkflowObject] = useState<Record<string, unknown> | null>(null);
   const [templateJson, setTemplateJson] = useState<string>(defaultWorkflowTemplate);
+  const [workflowRequest, setWorkflowRequest] = useState<string>("");
   const [generatingTemplate, setGeneratingTemplate] = useState(false);
   const [executeInputType, setExecuteInputType] = useState<"chat" | "form" | "webhook">("chat");
   const [chatInput, setChatInput] = useState("Execution manuelle depuis AsuncIA");
@@ -83,14 +83,13 @@ export default function N8nView() {
     [workflows, selectedId],
   );
 
-  const runSearch = useCallback(async (q: string, autoPickFirst = false) => {
+  const loadWorkflows = useCallback(async (autoPickFirst = false) => {
     setError(null);
     setNotice(null);
-    setRunningQuery(true);
+    setRefreshingList(true);
     try {
       const qs = new URLSearchParams();
       qs.set("limit", "50");
-      if (q.trim()) qs.set("query", q.trim());
       const r = await fetchBackend(`/api/n8n/workflows?${qs.toString()}`);
       const data = await r.json().catch(() => ({}));
       if (!r.ok) {
@@ -114,7 +113,7 @@ export default function N8nView() {
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erreur réseau.");
     } finally {
-      setRunningQuery(false);
+      setRefreshingList(false);
       setLoadingList(false);
     }
   }, []);
@@ -147,8 +146,8 @@ export default function N8nView() {
   }, []);
 
   useEffect(() => {
-    runSearch("", true);
-  }, [runSearch]);
+    loadWorkflows(true);
+  }, [loadWorkflows]);
 
   useEffect(() => {
     if (!selectedId) return;
@@ -242,9 +241,9 @@ export default function N8nView() {
   }, [templateJson]);
 
   const handleGenerateTemplateJson = useCallback(async () => {
-    const prompt = query.trim();
+    const prompt = workflowRequest.trim();
     if (!prompt) {
-      setError("Décris le workflow à générer dans le champ de recherche.");
+      setError("Décris clairement le workflow que tu veux générer.");
       return;
     }
     setGeneratingTemplate(true);
@@ -275,7 +274,7 @@ export default function N8nView() {
     } finally {
       setGeneratingTemplate(false);
     }
-  }, [query]);
+  }, [workflowRequest]);
 
   const nodesSummary = useMemo(() => {
     const nodes = Array.isArray(workflowObject?.nodes) ? (workflowObject?.nodes as Array<Record<string, unknown>>) : [];
@@ -332,40 +331,6 @@ export default function N8nView() {
         </div>
       </div>
 
-      <div className="glass-strong rounded-xl border border-white/10 p-3 card-glow">
-        <div className="flex items-center gap-2 mb-2">
-          <NavIcon name="workflow" className="w-5 h-5 text-accent-violet" />
-          <p className="font-semibold text-text-primary text-sm">Explorer (search_workflows)</p>
-        </div>
-        <div className="flex gap-2">
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") runSearch(query, true);
-            }}
-            placeholder="Demande un workflow (ex: generation visuels, projet asuncia, webhook...)"
-            className="flex-1 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-accent-violet/50"
-          />
-          <button
-            type="button"
-            onClick={() => runSearch(query, true)}
-            disabled={runningQuery}
-            className="px-3 py-2 rounded-lg bg-accent-violet/20 text-accent-violet text-sm font-medium hover:bg-accent-violet/30 disabled:opacity-50 transition-colors"
-          >
-            {runningQuery ? "Recherche..." : "Trouver"}
-          </button>
-          <button
-            type="button"
-            onClick={() => runSearch("", false)}
-            disabled={runningQuery}
-            className="px-3 py-2 rounded-lg bg-white/10 text-text-muted text-sm font-medium hover:bg-white/15 disabled:opacity-50 transition-colors"
-          >
-            Tout
-          </button>
-        </div>
-      </div>
-
       <div className="glass-strong rounded-xl border border-white/10 p-3">
         <p className="text-xs uppercase tracking-[0.18em] text-text-dim">Actions MCP disponibles</p>
         <div className="mt-2 flex flex-wrap gap-2 text-xs">
@@ -380,7 +345,7 @@ export default function N8nView() {
           <div>
             <p className="text-sm font-semibold text-text-primary">Assistant JSON workflow</p>
             <p className="text-xs text-text-muted">
-              Génère un JSON n8n à partir de ta demande, puis copie-colle-le dans n8n.
+              Décris ton besoin en une phrase, puis génère un JSON n8n prêt à copier-coller.
             </p>
           </div>
           <div className="flex gap-2">
@@ -390,7 +355,7 @@ export default function N8nView() {
               disabled={generatingTemplate}
               className="px-3 py-1.5 rounded-lg bg-accent-amber/20 text-amber-200 text-sm font-semibold hover:bg-accent-amber/30 disabled:opacity-50 transition-colors border border-accent-amber/40"
             >
-              {generatingTemplate ? "Génération..." : "Générer JSON"}
+              {generatingTemplate ? "Generation..." : "Generer le JSON"}
             </button>
             <button
               type="button"
@@ -401,6 +366,12 @@ export default function N8nView() {
             </button>
           </div>
         </div>
+        <textarea
+          value={workflowRequest}
+          onChange={(e) => setWorkflowRequest(e.target.value)}
+          placeholder="Ex: Cree un workflow qui lit les nouveaux emails Gmail, classe l'intention avec IA, puis envoie une reponse automatique avec validation humaine."
+          className="w-full min-h-[96px] rounded-lg border border-accent-amber/30 bg-black/30 p-3 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent-amber/40 mb-3"
+        />
         <textarea
           value={templateJson}
           onChange={(e) => setTemplateJson(e.target.value)}
@@ -422,8 +393,16 @@ export default function N8nView() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 flex-1 min-h-0">
         <div className="glass-strong rounded-xl border border-white/10 overflow-hidden flex flex-col min-h-0">
-          <div className="px-3 py-2 border-b border-white/10 text-sm text-text-muted">
-            Explorer - workflows disponibles ({workflows.length})
+          <div className="px-3 py-2 border-b border-white/10 text-sm text-text-muted flex items-center justify-between gap-2">
+            <span>Workflows existants ({workflows.length})</span>
+            <button
+              type="button"
+              onClick={() => loadWorkflows(false)}
+              disabled={refreshingList}
+              className="px-2.5 py-1 rounded-lg bg-white/10 text-text-muted text-xs font-medium hover:bg-white/15 disabled:opacity-50 transition-colors"
+            >
+              {refreshingList ? "Actualisation..." : "Actualiser"}
+            </button>
           </div>
           <div className="flex-1 min-h-0 overflow-y-auto divide-y divide-white/5">
             {loadingList ? (
