@@ -7,10 +7,10 @@ export type AssistantIntent = {
 
 export const dashboardIntents: AssistantIntent[] = [
   {
-    id: "summary-mails",
-    title: "Resumer mes mails",
-    description: "Commencer par les priorites du jour.",
-    prompt: "Resume mes derniers mails importants et dis-moi par quoi commencer aujourd'hui.",
+    id: "daily-priority",
+    title: "Prioriser ma journée",
+    description: "Identifier les actions les plus importantes.",
+    prompt: "Aide-moi a prioriser ma journee selon Airtable, Notion et n8n.",
   },
   {
     id: "airtable-check",

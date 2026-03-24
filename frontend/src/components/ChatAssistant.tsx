@@ -366,7 +366,7 @@ export default function ChatAssistant({
               <p className={`lava-text-safe text-text-muted text-sm ${compact ? "max-w-xs" : "max-w-md"} mx-auto`}>
                 {compact
                   ? "Demande une synthèse, une priorisation ou une action."
-                  : "Dis-moi simplement ce que tu veux faire : ajouter un contact, voir tes derniers mails, lancer une automatisation…"}
+                  : "Dis-moi simplement ce que tu veux faire : analyser Airtable, explorer Notion, lancer une automatisation…"}
               </p>
               <div className={`mt-5 flex flex-wrap justify-center gap-2 ${compact ? "max-w-sm" : "max-w-2xl"} mx-auto`}>
                 {dashboardIntents.map((intent) => (

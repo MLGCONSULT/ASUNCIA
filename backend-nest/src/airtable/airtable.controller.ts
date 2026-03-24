@@ -135,6 +135,7 @@ export class AirtableController {
 
   private async listTablesWithToolFallback(baseId: string, accessToken?: string) {
     const attempts: Array<{ tool: string; args: Record<string, unknown> }> = [
+      { tool: "list_tables_for_base", args: { baseId } },
       { tool: "list_tables", args: { base_id: baseId } },
       { tool: "list_tables", args: { baseId } },
       { tool: "list_tables", args: { id: baseId } },
@@ -178,6 +179,80 @@ export class AirtableController {
 
     if (lastError) throw lastError;
     return { tables: [], data: {}, usedTool: "none", availableTools };
+  }
+
+  private async listRecordsWithToolFallback(
+    baseId: string,
+    tableId: string,
+    maxRecords: number | undefined,
+    accessToken?: string,
+  ): Promise<unknown[]> {
+    const attempts: Array<{ tool: string; args: Record<string, unknown> }> = [
+      {
+        tool: "list_records_for_table",
+        args: { baseId, tableId, ...(maxRecords ? { pageSize: maxRecords } : {}) },
+      },
+      {
+        tool: "list_records",
+        args: { base_id: baseId, table_id: tableId, max_records: maxRecords },
+      },
+      { tool: "list_records", args: { baseId, tableId, maxRecords } },
+      { tool: "list_records", args: { base_id: baseId, tableId, maxRecords } },
+      {
+        tool: "list_records",
+        args: { baseId, table_id: tableId, max_records: maxRecords },
+      },
+    ];
+
+    let availableTools: string[] = [];
+    try {
+      const list = await listAirtableMcpTools(accessToken);
+      availableTools = Array.isArray((list as { tools?: unknown[] }).tools)
+        ? ((list as { tools: Array<{ name?: string }> }).tools
+            .map((t) => (typeof t?.name === "string" ? t.name : ""))
+            .filter(Boolean) as string[])
+        : [];
+    } catch {
+      // ignore
+    }
+
+    const filteredAttempts =
+      availableTools.length > 0
+        ? attempts.filter((a) => availableTools.includes(a.tool))
+        : attempts;
+    const finalAttempts = filteredAttempts.length > 0 ? filteredAttempts : attempts;
+
+    let lastError: unknown = null;
+    for (const attempt of finalAttempts) {
+      try {
+        const result = await callAirtableMcpTool(attempt.tool, attempt.args, accessToken);
+        const data = parseMcpResultJson(result);
+        const fromStandard = pickBestArray(data, ["records", "data", "items"]);
+        if (fromStandard.length > 0) return fromStandard;
+
+        const special = (data as { records?: unknown[] }).records;
+        if (Array.isArray(special) && special.length > 0) {
+          return special.map((r) => {
+            if (!r || typeof r !== "object") return r;
+            const row = r as Record<string, unknown>;
+            const fields =
+              row.cellValuesByFieldId && typeof row.cellValuesByFieldId === "object"
+                ? row.cellValuesByFieldId
+                : row.fields;
+            return {
+              id: row.id,
+              createdTime: row.createdTime,
+              fields: fields ?? {},
+            };
+          });
+        }
+      } catch (err) {
+        lastError = err;
+      }
+    }
+
+    if (lastError) throw lastError;
+    return [];
   }
 
   @Get("bases")
@@ -283,19 +358,14 @@ export class AirtableController {
           HttpStatus.FORBIDDEN,
         );
       }
-      const result = await this.callAirtableWithArgVariants(
-        "list_records",
-        [
-          { base_id: baseId, table_id: tableId, max_records: maxRecords },
-          { baseId, tableId, maxRecords },
-          { base_id: baseId, tableId, maxRecords },
-          { baseId, table_id: tableId, max_records: maxRecords },
-        ],
+      const data = await this.listRecordsWithToolFallback(
+        baseId,
+        tableId,
+        maxRecords,
         runtime.accessToken,
       );
-      const data = parseMcpResultJson(result);
       return {
-        records: pickBestArray(data, ["records", "data", "items"]),
+        records: Array.isArray(data) ? data : [],
       };
     } catch (err) {
       if (err instanceof HttpException) throw err;
