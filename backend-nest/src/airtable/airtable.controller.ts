@@ -97,6 +97,36 @@ function flattenObjectArrays(data: unknown, depth = 0): unknown[] {
   return out;
 }
 
+function extractFieldFromObject(
+  obj: Record<string, unknown>,
+  fallbackId?: string,
+): { id: string; name: string; type?: string } | null {
+  const idCandidate = typeof obj.id === "string" ? obj.id : fallbackId ?? "";
+  const nameCandidate =
+    (typeof obj.name === "string" && obj.name) ||
+    (typeof obj.field_name === "string" && obj.field_name) ||
+    (typeof obj.label === "string" && obj.label) ||
+    "";
+  const type = typeof obj.type === "string" ? obj.type : undefined;
+  if (!idCandidate || !nameCandidate) return null;
+  return { id: idCandidate, name: nameCandidate, type };
+}
+
+function normalizeFieldsFromUnknown(fieldsRaw: unknown): Array<{ id: string; name: string; type?: string }> {
+  if (Array.isArray(fieldsRaw)) {
+    return fieldsRaw
+      .map((f) => (f && typeof f === "object" ? extractFieldFromObject(f as Record<string, unknown>) : null))
+      .filter((x): x is { id: string; name: string; type?: string } => !!x);
+  }
+  if (fieldsRaw && typeof fieldsRaw === "object") {
+    const entries = Object.entries(fieldsRaw as Record<string, unknown>);
+    return entries
+      .map(([k, v]) => (v && typeof v === "object" ? extractFieldFromObject(v as Record<string, unknown>, k) : null))
+      .filter((x): x is { id: string; name: string; type?: string } => !!x);
+  }
+  return [];
+}
+
 function normalizeTablesFromUnknown(data: unknown): { id: string; name: string }[] {
   const directRows = pickBestArray(data, ["tables", "data", "items"], true);
   const direct = directRows
@@ -109,19 +139,7 @@ function normalizeTablesFromUnknown(data: unknown): { id: string; name: string }
       ];
       const name = nameCandidates.find((x) => typeof x === "string");
       const fieldsRaw = (row as { fields?: unknown }).fields;
-      const fields = Array.isArray(fieldsRaw)
-        ? fieldsRaw
-            .map((f) => {
-              if (!f || typeof f !== "object") return null;
-              const obj = f as Record<string, unknown>;
-              const id = typeof obj.id === "string" ? obj.id : "";
-              const fieldName = typeof obj.name === "string" ? obj.name : "";
-              const type = typeof obj.type === "string" ? obj.type : "";
-              if (!id || !fieldName) return null;
-              return { id, name: fieldName, type };
-            })
-            .filter((x): x is { id: string; name: string; type?: string } => !!x)
-        : [];
+      const fields = normalizeFieldsFromUnknown(fieldsRaw);
       return {
         id: row.id as string,
         name: (name as string) || "Sans nom",
@@ -341,9 +359,19 @@ export class AirtableController {
             if (!r || typeof r !== "object") return r;
             const row = r as Record<string, unknown>;
             const fields =
-              row.cellValuesByFieldId && typeof row.cellValuesByFieldId === "object"
-                ? row.cellValuesByFieldId
-                : row.fields;
+              row.cellValuesByFieldName && typeof row.cellValuesByFieldName === "object"
+                ? row.cellValuesByFieldName
+                : row.fields && typeof row.fields === "object"
+                  ? row.fields
+                  : row.valuesByFieldName && typeof row.valuesByFieldName === "object"
+                    ? row.valuesByFieldName
+                    : row.cellValuesByFieldId && typeof row.cellValuesByFieldId === "object"
+                      ? row.cellValuesByFieldId
+                      : row.valuesByFieldId && typeof row.valuesByFieldId === "object"
+                        ? row.valuesByFieldId
+                        : row.values && typeof row.values === "object"
+                          ? row.values
+                          : {}
             return {
               id: row.id,
               createdTime: row.createdTime,

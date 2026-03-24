@@ -32,8 +32,11 @@ function refreshRecords(
         ? (data.records as Array<Record<string, unknown>>).map((row) => {
             const rawFields =
               row && typeof row === "object"
-                ? ((row.fields as unknown) ??
+                ? ((row.cellValuesByFieldName as unknown) ??
+                  (row.valuesByFieldName as unknown) ??
+                  (row.fields as unknown) ??
                   (row.cellValuesByFieldId as unknown) ??
+                  (row.valuesByFieldId as unknown) ??
                   (row.values as unknown))
                 : undefined;
             const fields =
