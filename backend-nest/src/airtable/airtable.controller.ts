@@ -16,7 +16,7 @@ import {
   isAirtableMcpConfigured,
   listAirtableMcpTools,
 } from "../mcp/airtable-client";
-import { mcpResultToText, parseMcpResultJson } from "../mcp/result";
+import { parseMcpResultJson } from "../mcp/result";
 import { MCP_ERROR_MESSAGES } from "../config/mcp";
 import { createUserSupabaseFromRequest } from "../services/auth-context";
 import {
@@ -34,6 +34,8 @@ type AirtableRecordWithIdParams = { baseId: string; tableId: string; recordId: s
 type AirtableRecordsQuery = { maxRecords?: number };
 
 type AirtableFieldsBody = Record<string, unknown>;
+type AirtableField = { id: string; name: string; type?: string };
+type AirtableTable = { id: string; name: string; fields?: AirtableField[] };
 
 function collectArraysByKeys(data: unknown, keys: string[], depth = 0): unknown[][] {
   if (depth > 4 || !data || typeof data !== "object") return [];
@@ -127,11 +129,11 @@ function normalizeFieldsFromUnknown(fieldsRaw: unknown): Array<{ id: string; nam
   return [];
 }
 
-function normalizeTablesFromUnknown(data: unknown): { id: string; name: string }[] {
+function normalizeTablesFromUnknown(data: unknown): AirtableTable[] {
   const directRows = pickBestArray(data, ["tables", "data", "items"], true);
-  const direct = directRows
-    .map((row) => {
-      if (!isObjectWithId(row)) return null;
+  const direct: AirtableTable[] = [];
+  for (const row of directRows) {
+      if (!isObjectWithId(row)) continue;
       const nameCandidates = [
         (row as { name?: unknown }).name,
         (row as { title?: unknown }).title,
@@ -140,13 +142,12 @@ function normalizeTablesFromUnknown(data: unknown): { id: string; name: string }
       const name = nameCandidates.find((x) => typeof x === "string");
       const fieldsRaw = (row as { fields?: unknown }).fields;
       const fields = normalizeFieldsFromUnknown(fieldsRaw);
-      return {
+      direct.push({
         id: row.id as string,
         name: (name as string) || "Sans nom",
         fields,
-      };
-    })
-    .filter((x): x is { id: string; name: string; fields?: { id: string; name: string; type?: string }[] } => !!x);
+      });
+  }
   if (direct.length > 0) return direct;
 
   const deepRows = flattenObjectArrays(data).filter((x) => isObjectWithId(x));
@@ -158,7 +159,7 @@ function looksLikeAirtableId(value: string): boolean {
 }
 
 function needsFieldNameEnrichment(
-  tables: Array<{ id: string; name: string; fields?: Array<{ id: string; name: string; type?: string }> }>,
+  tables: AirtableTable[],
 ): boolean {
   return tables.some((table) => {
     const fields = table.fields ?? [];
@@ -168,9 +169,9 @@ function needsFieldNameEnrichment(
 }
 
 function mergeTablesWithSchemaFields(
-  baseTables: Array<{ id: string; name: string; fields?: Array<{ id: string; name: string; type?: string }> }>,
-  schemaTables: Array<{ id: string; name: string; fields?: Array<{ id: string; name: string; type?: string }> }>,
-) {
+  baseTables: AirtableTable[],
+  schemaTables: AirtableTable[],
+): AirtableTable[] {
   const schemaById = new Map(schemaTables.map((table) => [table.id, table]));
   return baseTables.map((table) => {
     const schemaTable = schemaById.get(table.id);
