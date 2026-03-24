@@ -64,7 +64,6 @@ export class N8nController {
       try {
         const completion = await openai.chat.completions.create({
           model,
-          temperature: 0.2,
           max_tokens: 1800,
           messages: [
             {
