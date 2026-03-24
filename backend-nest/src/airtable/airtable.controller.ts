@@ -11,7 +11,11 @@ import {
   HttpStatus,
 } from "@nestjs/common";
 import type { Request } from "express";
-import { callAirtableMcpTool, isAirtableMcpConfigured } from "../mcp/airtable-client";
+import {
+  callAirtableMcpTool,
+  isAirtableMcpConfigured,
+  listAirtableMcpTools,
+} from "../mcp/airtable-client";
 import { mcpResultToText, parseMcpResultJson } from "../mcp/result";
 import { MCP_ERROR_MESSAGES } from "../config/mcp";
 import { createUserSupabaseFromRequest } from "../services/auth-context";
@@ -82,6 +86,25 @@ function pickBestArray(data: unknown, keys: string[], requireId = false): unknow
   return withId ?? candidates[0];
 }
 
+function flattenObjectArrays(data: unknown, depth = 0): unknown[] {
+  if (depth > 5 || !data || typeof data !== "object") return [];
+  const out: unknown[] = [];
+  if (Array.isArray(data)) return data;
+  const obj = data as Record<string, unknown>;
+  for (const value of Object.values(obj)) {
+    if (Array.isArray(value)) out.push(...value);
+    else if (value && typeof value === "object") out.push(...flattenObjectArrays(value, depth + 1));
+  }
+  return out;
+}
+
+function normalizeTablesFromUnknown(data: unknown): { id: string; name: string }[] {
+  const direct = normalizeNamedItems(pickBestArray(data, ["tables", "data", "items"], true));
+  if (direct.length > 0) return direct;
+  const deep = normalizeNamedItems(flattenObjectArrays(data).filter((x) => isObjectWithId(x)));
+  return deep;
+}
+
 @Controller("airtable")
 export class AirtableController {
   private async callAirtableWithArgVariants(
@@ -108,6 +131,53 @@ export class AirtableController {
       supabase: createUserSupabaseFromRequest(req),
       userId: req.user.id,
     };
+  }
+
+  private async listTablesWithToolFallback(baseId: string, accessToken?: string) {
+    const attempts: Array<{ tool: string; args: Record<string, unknown> }> = [
+      { tool: "list_tables", args: { base_id: baseId } },
+      { tool: "list_tables", args: { baseId } },
+      { tool: "list_tables", args: { id: baseId } },
+      { tool: "get_base_schema", args: { base_id: baseId } },
+      { tool: "get_base_schema", args: { baseId } },
+      { tool: "describe_base", args: { base_id: baseId } },
+      { tool: "describe_base", args: { baseId } },
+    ];
+
+    let availableTools: string[] = [];
+    try {
+      const list = await listAirtableMcpTools(accessToken);
+      availableTools = Array.isArray((list as { tools?: unknown[] }).tools)
+        ? ((list as { tools: Array<{ name?: string }> }).tools
+            .map((t) => (typeof t?.name === "string" ? t.name : ""))
+            .filter(Boolean) as string[])
+        : [];
+    } catch {
+      // ignore listTools failures, we'll still try defaults
+    }
+
+    const filteredAttempts =
+      availableTools.length > 0
+        ? attempts.filter((a) => availableTools.includes(a.tool))
+        : attempts;
+    const finalAttempts = filteredAttempts.length > 0 ? filteredAttempts : attempts;
+
+    let lastError: unknown = null;
+    for (const attempt of finalAttempts) {
+      try {
+        const result = await callAirtableMcpTool(attempt.tool, attempt.args, accessToken);
+        const data = parseMcpResultJson(result);
+        const tables = normalizeTablesFromUnknown(data);
+        if (tables.length > 0) {
+          return { tables, data, usedTool: attempt.tool, availableTools };
+        }
+      } catch (err) {
+        lastError = err;
+      }
+    }
+
+    if (lastError) throw lastError;
+    return { tables: [], data: {}, usedTool: "none", availableTools };
   }
 
   @Get("bases")
@@ -160,27 +230,24 @@ export class AirtableController {
           HttpStatus.FORBIDDEN,
         );
       }
-      const result = await this.callAirtableWithArgVariants(
-        "list_tables",
-        [{ base_id: baseId }, { baseId }, { id: baseId }],
+      const { tables, data, usedTool, availableTools } = await this.listTablesWithToolFallback(
+        baseId,
         runtime.accessToken,
       );
-      const data = parseMcpResultJson(result);
-      const rawTables = pickBestArray(data, ["tables", "data", "items"], true);
-      const tables = normalizeNamedItems(rawTables);
       const debugEnabled = query.debug === "1" || query.debug === "true";
       if (debugEnabled) {
         return {
           tables,
           _debug: {
             baseId,
+            usedTool,
+            availableTools,
             parsedKeys:
               data && typeof data === "object" && !Array.isArray(data)
                 ? Object.keys(data as Record<string, unknown>)
                 : [],
             normalizedCount: tables.length,
-            rawCandidatesCount: rawTables.length,
-            mcpTextPreview: mcpResultToText(result).slice(0, 1200),
+            mcpTextPreview: JSON.stringify(data).slice(0, 1200),
           },
         };
       }
