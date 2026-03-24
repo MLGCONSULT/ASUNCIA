@@ -237,28 +237,18 @@ export default function N8nView() {
     setError(null);
     setNotice(null);
     try {
-      const endpoints = ["/api/n8n/generate-workflow-json", "/api/n8n/generate-mock-json"];
-      let data: Record<string, unknown> = {};
-      let success = false;
-      let lastStatus = 0;
-      let lastError = "";
-      for (const endpoint of endpoints) {
-        const r = await fetchBackend(endpoint, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ prompt }),
-        });
-        const body = (await r.json().catch(() => ({}))) as Record<string, unknown>;
-        if (r.ok) {
-          data = body;
-          success = true;
-          break;
-        }
-        lastStatus = r.status;
-        lastError = typeof body?.error === "string" ? body.error : "";
-      }
-      if (!success) {
-        throw new Error(lastError || `Impossible de générer le JSON du workflow (HTTP ${lastStatus || 500}).`);
+      const r = await fetchBackend("/api/n8n/generate-workflow-json", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt }),
+      });
+      const data = (await r.json().catch(() => ({}))) as Record<string, unknown>;
+      if (!r.ok) {
+        throw new Error(
+          typeof data?.error === "string"
+            ? data.error
+            : `Impossible de générer le JSON du workflow (HTTP ${r.status}).`,
+        );
       }
       const pretty =
         typeof data?.prettyJson === "string"
@@ -615,13 +605,16 @@ export default function N8nView() {
                     </p>
                   ) : null}
                 </div>
-                <textarea
-                  value={workflowJson}
-                  readOnly
-                  spellCheck={false}
-                  placeholder="Le JSON du workflow apparaît ici (copiable)."
-                  className="w-full min-h-[360px] rounded-lg border border-accent-cyan/30 bg-black/30 p-3 text-xs font-mono text-text-primary focus:outline-none"
-                />
+                <div className="rounded-lg border border-accent-cyan/30 bg-accent-cyan/10 p-3">
+                  <p className="text-xs text-text-muted mb-2">Détail JSON du workflow sélectionné</p>
+                  <textarea
+                    value={workflowJson}
+                    readOnly
+                    spellCheck={false}
+                    placeholder="Le détail du workflow apparaît ici."
+                    className="w-full min-h-[320px] rounded-lg border border-accent-cyan/30 bg-black/30 p-3 text-xs font-mono text-text-primary focus:outline-none"
+                  />
+                </div>
               </>
             )}
           </div>

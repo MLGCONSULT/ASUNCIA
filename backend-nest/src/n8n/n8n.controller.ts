@@ -54,40 +54,46 @@ export class N8nController {
         HttpStatus.SERVICE_UNAVAILABLE,
       );
     }
-    try {
-      const openai = new OpenAI({ apiKey });
-      const model = process.env.OPENAI_CHAT_MODEL || "gpt-4o-mini";
-      const completion = await openai.chat.completions.create({
-        model,
-        temperature: 0.2,
-        max_tokens: 1800,
-        messages: [
-          {
-            role: "system",
-            content:
-              "Tu génères un workflow n8n importable. Réponds avec un objet JSON valide, sans explication. Le JSON doit inclure au minimum: name (string), nodes (array), connections (object), settings (object). Préfère des nodes standards n8n cohérents avec la demande.",
-          },
-          {
-            role: "user",
-            content: `Demande workflow: ${prompt}`,
-          },
-        ],
-      });
+    const openai = new OpenAI({ apiKey });
+    const configuredModel = process.env.OPENAI_CHAT_MODEL?.trim();
+    const modelCandidates = [configuredModel, "gpt-4o-mini", "gpt-4.1-mini"].filter(
+      (m): m is string => !!m,
+    );
+    let lastErrorMessage = "Erreur génération JSON n8n";
+    for (const model of modelCandidates) {
+      try {
+        const completion = await openai.chat.completions.create({
+          model,
+          temperature: 0.2,
+          max_tokens: 1800,
+          messages: [
+            {
+              role: "system",
+              content:
+                "Tu génères un workflow n8n importable. Réponds avec un objet JSON valide, sans explication. Le JSON doit inclure au minimum: name (string), nodes (array), connections (object), settings (object). Préfère des nodes standards n8n cohérents avec la demande.",
+            },
+            {
+              role: "user",
+              content: `Demande workflow: ${prompt}`,
+            },
+          ],
+        });
 
-      const content = completion.choices?.[0]?.message?.content?.trim() ?? "";
-      if (!content) {
-        throw new Error("Réponse vide du modèle.");
+        const content = completion.choices?.[0]?.message?.content?.trim() ?? "";
+        if (!content) {
+          throw new Error("Réponse vide du modèle.");
+        }
+        const jsonText = this.extractFirstJsonObject(content);
+        const parsed = JSON.parse(jsonText) as Record<string, unknown>;
+        return {
+          json: parsed,
+          prettyJson: JSON.stringify(parsed, null, 2),
+        };
+      } catch (err) {
+        lastErrorMessage = err instanceof Error ? err.message : "Erreur génération JSON n8n";
       }
-      const jsonText = this.extractFirstJsonObject(content);
-      const parsed = JSON.parse(jsonText) as Record<string, unknown>;
-      return {
-        json: parsed,
-        prettyJson: JSON.stringify(parsed, null, 2),
-      };
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Erreur génération JSON n8n";
-      throw new HttpException({ error: message }, HttpStatus.BAD_GATEWAY);
     }
+    throw new HttpException({ error: lastErrorMessage }, HttpStatus.BAD_GATEWAY);
   }
 
   private ensureAuth(req: AuthRequest): void {
