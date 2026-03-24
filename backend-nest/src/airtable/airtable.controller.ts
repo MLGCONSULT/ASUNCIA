@@ -559,17 +559,59 @@ export class AirtableController {
           HttpStatus.FORBIDDEN,
         );
       }
-      const result = await this.callAirtableWithArgVariants(
-        "create_record",
-        [
-          { base_id: baseId, table_id: tableId, fields },
-          { baseId, tableId, fields },
-          { base_id: baseId, tableId, fields },
-          { baseId, table_id: tableId, fields },
-        ],
-        runtime.accessToken,
-      );
-      return parseMcpResultJson(result);
+      let availableTools: string[] = [];
+      try {
+        const list = await listAirtableMcpTools(runtime.accessToken);
+        availableTools = Array.isArray((list as { tools?: unknown[] }).tools)
+          ? ((list as { tools: Array<{ name?: string }> }).tools
+              .map((t) => (typeof t?.name === "string" ? t.name : ""))
+              .filter(Boolean) as string[])
+          : [];
+      } catch {
+        // Ignore list tools failure and try defaults.
+      }
+
+      const attempts: Array<{ tool: string; args: Record<string, unknown>[] }> = [
+        {
+          tool: "create_record",
+          args: [
+            { base_id: baseId, table_id: tableId, fields },
+            { baseId, tableId, fields },
+            { base_id: baseId, tableId, fields },
+            { baseId, table_id: tableId, fields },
+          ],
+        },
+        {
+          tool: "create_records",
+          args: [
+            { base_id: baseId, table_id: tableId, records: [{ fields }] },
+            { baseId, tableId, records: [{ fields }] },
+            { base_id: baseId, tableId, records: [{ fields }] },
+            { baseId, table_id: tableId, records: [{ fields }] },
+          ],
+        },
+      ];
+      const filteredAttempts =
+        availableTools.length > 0
+          ? attempts.filter((a) => availableTools.includes(a.tool))
+          : attempts;
+      const finalAttempts = filteredAttempts.length > 0 ? filteredAttempts : attempts;
+
+      let lastError: unknown = null;
+      for (const attempt of finalAttempts) {
+        try {
+          const result = await this.callAirtableWithArgVariants(
+            attempt.tool,
+            attempt.args,
+            runtime.accessToken,
+          );
+          return parseMcpResultJson(result);
+        } catch (err) {
+          lastError = err;
+        }
+      }
+
+      throw lastError ?? new Error("Aucun tool de création d'enregistrement compatible trouvé.");
     } catch (err) {
       if (err instanceof HttpException) throw err;
       const message = err instanceof Error ? err.message : "Erreur Airtable";
