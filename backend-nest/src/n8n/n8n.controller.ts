@@ -53,6 +53,130 @@ type N8nWorkflowJson = {
 
 @Controller("n8n")
 export class N8nController {
+  private isRecentEmailsIntent(prompt: string): boolean {
+    const p = prompt.toLowerCase();
+    const mentionsMail = p.includes("mail") || p.includes("email") || p.includes("gmail");
+    const mentionsRecent =
+      p.includes("récent") ||
+      p.includes("recent") ||
+      p.includes("dernier") ||
+      p.includes("latest");
+    const mentionsTen = p.includes("10") || p.includes("dix");
+    return mentionsMail && (mentionsRecent || mentionsTen);
+  }
+
+  private buildRecentEmailsWorkflowTemplate(prompt: string): N8nWorkflowJson {
+    return {
+      name: "Lister les 10 emails les plus récents",
+      nodes: [
+        {
+          id: "manual_trigger_1",
+          name: "Déclenchement manuel",
+          type: "n8n-nodes-base.manualTrigger",
+          typeVersion: 1,
+          position: [260, 280],
+          parameters: {},
+        },
+        {
+          id: "gmail_1",
+          name: "Récupérer emails Gmail",
+          type: "n8n-nodes-base.gmail",
+          typeVersion: 2,
+          position: [520, 280],
+          parameters: {
+            resource: "message",
+            operation: "getAll",
+            returnAll: false,
+            limit: 10,
+            simple: true,
+          },
+        },
+        {
+          id: "set_1",
+          name: "Formater la sortie",
+          type: "n8n-nodes-base.set",
+          typeVersion: 3.4,
+          position: [780, 280],
+          parameters: {
+            keepOnlySet: false,
+            values: {
+              string: [
+                { name: "demande", value: prompt },
+                {
+                  name: "note",
+                  value:
+                    "Ce workflow liste 10 emails récents. Configure les credentials Gmail dans n8n avant exécution.",
+                },
+              ],
+            },
+          },
+        },
+      ],
+      connections: {
+        "Déclenchement manuel": {
+          main: [[{ node: "Récupérer emails Gmail", type: "main", index: 0 }]],
+        },
+        "Récupérer emails Gmail": {
+          main: [[{ node: "Formater la sortie", type: "main", index: 0 }]],
+        },
+      },
+      settings: {},
+    };
+  }
+
+  private sanitizeWorkflowForCompatibility(
+    workflow: N8nWorkflowJson,
+    knownNodeTypes: string[],
+  ): N8nWorkflowJson {
+    const known = new Set(knownNodeTypes);
+    const safeNodes = workflow.nodes.map((node) => {
+      const type = typeof node.type === "string" ? node.type : "";
+      const isKnownCustom = type && known.has(type);
+      const isCore = type.startsWith("n8n-nodes-base.");
+      if (isCore || isKnownCustom) return node;
+      return {
+        ...node,
+        type: "n8n-nodes-base.httpRequest",
+        typeVersion: 4.2,
+        parameters: {
+          method: "GET",
+          url: "https://api.example.com",
+          options: {},
+        },
+        name: `${node.name ?? "Action"} (à configurer)`,
+      };
+    });
+
+    const nodeNames = new Set(
+      safeNodes
+        .map((n) => (typeof n.name === "string" ? n.name : ""))
+        .filter((n) => n.length > 0),
+    );
+
+    const safeConnections: Record<string, unknown> = {};
+    for (const [sourceName, sourceConn] of Object.entries(workflow.connections ?? {})) {
+      if (!nodeNames.has(sourceName)) continue;
+      if (!sourceConn || typeof sourceConn !== "object") continue;
+      const src = sourceConn as Record<string, unknown>;
+      const mains = Array.isArray(src.main) ? src.main : [];
+      const filteredMain = mains.map((branch) => {
+        if (!Array.isArray(branch)) return [];
+        return branch.filter((edge) => {
+          if (!edge || typeof edge !== "object") return false;
+          const target = (edge as { node?: unknown }).node;
+          return typeof target === "string" && nodeNames.has(target);
+        });
+      });
+      safeConnections[sourceName] = { ...src, main: filteredMain };
+    }
+
+    return {
+      ...workflow,
+      nodes: safeNodes,
+      connections: safeConnections,
+    };
+  }
+
   private extractFirstJsonObject(text: string): string {
     const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
     const candidate = fenced?.[1]?.trim() || text.trim();
@@ -65,6 +189,14 @@ export class N8nController {
   }
 
   private async generateWorkflowJsonInternal(prompt: string) {
+    if (this.isRecentEmailsIntent(prompt)) {
+      const template = this.buildRecentEmailsWorkflowTemplate(prompt);
+      return {
+        json: template,
+        prettyJson: JSON.stringify(template, null, 2),
+      };
+    }
+
     const apiKey = process.env.OPENAI_API_KEY?.trim();
     if (!apiKey) {
       const fallback = this.buildSafeImportableFallbackWorkflow(prompt);
@@ -96,6 +228,7 @@ export class N8nController {
                 `Tu génères un workflow n8n importable (n8n 2026). Réponds uniquement avec un objet JSON valide, sans explication.
 Le JSON doit contenir: name (string), nodes (array), connections (object), settings (object).
 Chaque noeud doit avoir au minimum: name, type, typeVersion, position, parameters.
+Si un service externe n'est pas certain, utilise un noeud core n8n compatible (notamment n8n-nodes-base.httpRequest) avec un nom explicite "(à configurer)".
 ${typeGuidance}`,
             },
             {
@@ -140,9 +273,10 @@ ${typeGuidance}`,
           }
           finalWorkflow = secondPass.workflow;
         }
+        const sanitized = this.sanitizeWorkflowForCompatibility(finalWorkflow, knownNodeTypes);
         return {
-          json: finalWorkflow,
-          prettyJson: JSON.stringify(finalWorkflow, null, 2),
+          json: sanitized,
+          prettyJson: JSON.stringify(sanitized, null, 2),
         };
       } catch (err) {
         lastErrorMessage = err instanceof Error ? err.message : "Erreur génération JSON n8n";
