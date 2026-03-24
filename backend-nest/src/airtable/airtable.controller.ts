@@ -207,6 +207,32 @@ function mapRecordFieldsToNames(
   });
 }
 
+function extractFieldMapFromUnknown(data: unknown, depth = 0, out = new Map<string, string>()): Map<string, string> {
+  if (depth > 5 || !data || typeof data !== "object") return out;
+  if (Array.isArray(data)) {
+    for (const item of data) extractFieldMapFromUnknown(item, depth + 1, out);
+    return out;
+  }
+  const obj = data as Record<string, unknown>;
+  for (const [key, value] of Object.entries(obj)) {
+    if (looksLikeAirtableId(key) && typeof value === "string" && value.trim().length > 0) {
+      out.set(key, value.trim());
+    }
+    if (value && typeof value === "object") {
+      const rec = value as Record<string, unknown>;
+      const id = typeof rec.id === "string" ? rec.id : "";
+      const name =
+        (typeof rec.name === "string" && rec.name) ||
+        (typeof rec.field_name === "string" && rec.field_name) ||
+        (typeof rec.label === "string" && rec.label) ||
+        "";
+      if (id && name) out.set(id, name);
+      extractFieldMapFromUnknown(value, depth + 1, out);
+    }
+  }
+  return out;
+}
+
 @Controller("airtable")
 export class AirtableController {
   private async callAirtableWithArgVariants(
@@ -309,7 +335,7 @@ export class AirtableController {
     tableId: string,
     maxRecords: number | undefined,
     accessToken?: string,
-  ): Promise<unknown[]> {
+  ): Promise<{ records: unknown[]; raw: unknown }> {
     const attempts: Array<{ tool: string; args: Record<string, unknown> }> = [
       {
         tool: "list_records_for_table",
@@ -351,11 +377,13 @@ export class AirtableController {
         const result = await callAirtableMcpTool(attempt.tool, attempt.args, accessToken);
         const data = parseMcpResultJson(result);
         const fromStandard = pickBestArray(data, ["records", "data", "items"]);
-        if (fromStandard.length > 0) return fromStandard;
+        if (fromStandard.length > 0) return { records: fromStandard, raw: data };
 
         const special = (data as { records?: unknown[] }).records;
         if (Array.isArray(special) && special.length > 0) {
-          return special.map((r) => {
+          return {
+            raw: data,
+            records: special.map((r) => {
             if (!r || typeof r !== "object") return r;
             const row = r as Record<string, unknown>;
             const fields =
@@ -377,7 +405,8 @@ export class AirtableController {
               createdTime: row.createdTime,
               fields: fields ?? {},
             };
-          });
+            }),
+          };
         }
       } catch (err) {
         lastError = err;
@@ -385,7 +414,7 @@ export class AirtableController {
     }
 
     if (lastError) throw lastError;
-    return [];
+    return { records: [], raw: null };
   }
 
   @Get("bases")
@@ -473,25 +502,33 @@ export class AirtableController {
           HttpStatus.FORBIDDEN,
         );
       }
-      const data = await this.listRecordsWithToolFallback(
+      const recordsResult = await this.listRecordsWithToolFallback(
         baseId,
         tableId,
         maxRecords,
         runtime.accessToken,
       );
-      let normalizedRecords = Array.isArray(data) ? data : [];
+      let normalizedRecords = Array.isArray(recordsResult.records) ? recordsResult.records : [];
+      let fieldMap = new Map<string, string>();
       try {
         const { tables } = await this.listTablesWithToolFallback(baseId, runtime.accessToken);
         const table = tables.find((t) => t.id === tableId);
-        const fieldMap = new Map((table?.fields ?? []).map((f) => [f.id, f.name]));
+        fieldMap = new Map((table?.fields ?? []).map((f) => [f.id, f.name]));
+        if (fieldMap.size === 0) {
+          fieldMap = extractFieldMapFromUnknown(recordsResult.raw);
+        }
         if (fieldMap.size > 0) {
           normalizedRecords = mapRecordFieldsToNames(normalizedRecords, fieldMap);
         }
       } catch {
-        // Keep records as-is if schema resolution fails.
+        fieldMap = extractFieldMapFromUnknown(recordsResult.raw);
+        if (fieldMap.size > 0) {
+          normalizedRecords = mapRecordFieldsToNames(normalizedRecords, fieldMap);
+        }
       }
       return {
         records: normalizedRecords,
+        fieldMap: Object.fromEntries(fieldMap),
       };
     } catch (err) {
       if (err instanceof HttpException) throw err;

@@ -20,6 +20,7 @@ function refreshRecords(
   baseId: string,
   tableId: string,
   setRecords: (r: AirtableRecordRow[]) => void,
+  setRecordFieldNameMap: (m: Record<string, string>) => void,
   setRecordsLoading: (b: boolean) => void,
   setError: (e: string | null) => void
 ) {
@@ -51,6 +52,11 @@ function refreshRecords(
             } as AirtableRecordRow;
           })
         : [];
+      const incomingMap =
+        data?.fieldMap && typeof data.fieldMap === "object" && !Array.isArray(data.fieldMap)
+          ? (data.fieldMap as Record<string, string>)
+          : {};
+      setRecordFieldNameMap(incomingMap);
       setRecords(rows);
     })
     .catch((e) => setError(e instanceof Error ? e.message : "Erreur"))
@@ -107,6 +113,7 @@ export default function AirtableView({ hasAirtable: initialHasAirtable }: Props)
   const [tablesLoading, setTablesLoading] = useState(false);
   const [selectedTable, setSelectedTable] = useState<Table | null>(null);
   const [records, setRecords] = useState<AirtableRecordRow[]>([]);
+  const [recordFieldNameMap, setRecordFieldNameMap] = useState<Record<string, string>>({});
   const [recordsLoading, setRecordsLoading] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [editRecord, setEditRecord] = useState<AirtableRecordRow | null>(null);
@@ -119,8 +126,13 @@ export default function AirtableView({ hasAirtable: initialHasAirtable }: Props)
       map.set(f.id, f);
       map.set(f.name, f);
     }
+    for (const [id, name] of Object.entries(recordFieldNameMap)) {
+      if (typeof name === "string" && name.trim()) {
+        map.set(id, { id, name });
+      }
+    }
     return map;
-  }, [selectedTable]);
+  }, [selectedTable, recordFieldNameMap]);
 
   const selectedTableResolvedFields = useMemo(() => {
     const schemaFields = selectedTable?.fields ?? [];
@@ -260,7 +272,14 @@ export default function AirtableView({ hasAirtable: initialHasAirtable }: Props)
 
   const reloadRecords = useCallback(() => {
     if (!selectedBase || !selectedTable) return;
-    refreshRecords(selectedBase.id, selectedTable.id, setRecords, setRecordsLoading, setError);
+    refreshRecords(
+      selectedBase.id,
+      selectedTable.id,
+      setRecords,
+      setRecordFieldNameMap,
+      setRecordsLoading,
+      setError,
+    );
   }, [selectedBase, selectedTable]);
 
   async function handleConnect() {
@@ -311,9 +330,17 @@ export default function AirtableView({ hasAirtable: initialHasAirtable }: Props)
   useEffect(() => {
     if (!selectedBase || !selectedTable) {
       setRecords([]);
+      setRecordFieldNameMap({});
       return;
     }
-    refreshRecords(selectedBase.id, selectedTable.id, setRecords, setRecordsLoading, setError);
+    refreshRecords(
+      selectedBase.id,
+      selectedTable.id,
+      setRecords,
+      setRecordFieldNameMap,
+      setRecordsLoading,
+      setError,
+    );
   }, [selectedBase, selectedTable]);
 
   if (!hasAirtable) {

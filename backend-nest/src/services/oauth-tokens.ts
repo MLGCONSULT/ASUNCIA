@@ -24,12 +24,15 @@ export async function getOAuthTokenRecord(
   userId: string,
   provider: OAuthProvider,
 ): Promise<OAuthTokenRecord | null> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("oauth_tokens")
     .select("access_token, refresh_token, expires_at")
     .eq("utilisateur_id", userId)
     .eq("provider", provider)
     .maybeSingle();
+  if (error) {
+    throw new Error(`Impossible de lire oauth_tokens (${provider}): ${error.message}`);
+  }
 
   return data
     ? {
@@ -46,7 +49,7 @@ export async function updateOAuthToken(
   provider: OAuthProvider,
   input: UpdateTokenInput,
 ): Promise<void> {
-  await supabase
+  const { error } = await supabase
     .from("oauth_tokens")
     .update({
       access_token: input.accessToken,
@@ -55,6 +58,9 @@ export async function updateOAuthToken(
     })
     .eq("utilisateur_id", userId)
     .eq("provider", provider);
+  if (error) {
+    throw new Error(`Impossible de mettre à jour oauth_tokens (${provider}): ${error.message}`);
+  }
 }
 
 export async function upsertOAuthToken(
@@ -63,7 +69,7 @@ export async function upsertOAuthToken(
   provider: OAuthProvider,
   input: UpsertTokenInput,
 ): Promise<void> {
-  await supabase.from("oauth_tokens").upsert(
+  const { error } = await supabase.from("oauth_tokens").upsert(
     {
       utilisateur_id: userId,
       provider,
@@ -74,6 +80,9 @@ export async function upsertOAuthToken(
     },
     { onConflict: "utilisateur_id,provider" },
   );
+  if (error) {
+    throw new Error(`Impossible d'enregistrer oauth_tokens (${provider}): ${error.message}`);
+  }
 }
 
 export async function deleteOAuthToken(
@@ -81,10 +90,13 @@ export async function deleteOAuthToken(
   userId: string,
   provider: OAuthProvider,
 ): Promise<void> {
-  await supabase
+  const { error } = await supabase
     .from("oauth_tokens")
     .delete()
     .eq("utilisateur_id", userId)
     .eq("provider", provider);
+  if (error) {
+    throw new Error(`Impossible de supprimer oauth_tokens (${provider}): ${error.message}`);
+  }
 }
 
