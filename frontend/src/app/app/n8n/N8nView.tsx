@@ -58,12 +58,6 @@ export default function N8nView() {
   const [templateJson, setTemplateJson] = useState<string>(defaultWorkflowTemplate);
   const [workflowRequest, setWorkflowRequest] = useState<string>("");
   const [generatingTemplate, setGeneratingTemplate] = useState(false);
-  const [executeInputType, setExecuteInputType] = useState<"chat" | "form" | "webhook">("chat");
-  const [chatInput, setChatInput] = useState("Execution manuelle depuis AsuncIA");
-  const [formDataJson, setFormDataJson] = useState("{}");
-  const [webhookMethod, setWebhookMethod] = useState("POST");
-  const [webhookBodyJson, setWebhookBodyJson] = useState("{}");
-  const [webhookQueryJson, setWebhookQueryJson] = useState("{}");
   const [executionResult, setExecutionResult] = useState<unknown>(null);
   const [executionResultJson, setExecutionResultJson] = useState("");
   const [executionViewMode, setExecutionViewMode] = useState<"summary" | "raw">("summary");
@@ -147,44 +141,10 @@ export default function N8nView() {
     setError(null);
     setNotice(null);
     try {
-      let inputs: Record<string, unknown>;
-      if (executeInputType === "chat") {
-        inputs = { type: "chat", chatInput: chatInput.trim() || "Execution manuelle depuis AsuncIA" };
-      } else if (executeInputType === "form") {
-        let formData: Record<string, unknown> = {};
-        try {
-          formData = JSON.parse(formDataJson || "{}") as Record<string, unknown>;
-        } catch {
-          throw new Error("Le JSON de formData est invalide.");
-        }
-        inputs = { type: "form", formData };
-      } else {
-        let bodyObj: Record<string, unknown> = {};
-        let queryObj: Record<string, string> = {};
-        try {
-          bodyObj = JSON.parse(webhookBodyJson || "{}") as Record<string, unknown>;
-        } catch {
-          throw new Error("Le JSON de webhook body est invalide.");
-        }
-        try {
-          queryObj = JSON.parse(webhookQueryJson || "{}") as Record<string, string>;
-        } catch {
-          throw new Error("Le JSON de webhook query est invalide.");
-        }
-        inputs = {
-          type: "webhook",
-          webhookData: {
-            method: webhookMethod,
-            query: queryObj,
-            body: bodyObj,
-          },
-        };
-      }
-
       const r = await fetchBackend("/api/n8n/workflows/" + encodeURIComponent(selectedId) + "/execute", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ inputs }),
+        body: JSON.stringify({}),
       });
       const data = await r.json().catch(() => ({}));
       if (!r.ok) {
@@ -202,7 +162,7 @@ export default function N8nView() {
     } finally {
       setExecuting(false);
     }
-  }, [selectedId, executeInputType, chatInput, formDataJson, webhookBodyJson, webhookMethod, webhookQueryJson]);
+  }, [selectedId]);
 
   const handleCopyJson = useCallback(async () => {
     if (!workflowJson) return;
@@ -315,7 +275,8 @@ export default function N8nView() {
           <div>
             <p className="text-sm font-semibold text-text-primary">Créer un nouveau workflow (JSON)</p>
             <p className="text-xs text-text-muted">
-              Décris ton besoin en une phrase, puis génère un JSON n8n prêt à copier-coller.
+              Décris ton besoin en une phrase, puis génère un JSON n8n prêt à copier-coller. Avec le MCP n8n
+              configuré, la génération s’appuie sur des workflows réels de ton instance.
             </p>
           </div>
           <div className="flex gap-2">
@@ -448,66 +409,10 @@ export default function N8nView() {
             ) : (
               <>
                 <div className="rounded-lg border border-accent-violet/30 bg-accent-violet/10 p-3">
-                  <p className="text-xs text-text-muted mb-2">Choisis le type d'entrée</p>
-                  <div className="flex flex-wrap gap-2 mb-2">
-                    {(["chat", "form", "webhook"] as const).map((mode) => (
-                      <button
-                        key={mode}
-                        type="button"
-                        onClick={() => setExecuteInputType(mode)}
-                        className={`px-2.5 py-1 rounded-full text-xs border transition-colors ${
-                          executeInputType === mode
-                            ? "bg-accent-violet/20 border-accent-violet/40 text-accent-violet"
-                            : "bg-white/5 border-white/10 text-text-muted hover:bg-white/10"
-                        }`}
-                      >
-                        {mode === "chat" ? "Texte" : mode === "form" ? "JSON simple" : "Webhook"}
-                      </button>
-                    ))}
-                  </div>
-                  {executeInputType === "chat" ? (
-                    <input
-                      value={chatInput}
-                      onChange={(e) => setChatInput(e.target.value)}
-                      placeholder="Texte envoyé au workflow chat"
-                      className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-text-primary text-xs focus:outline-none"
-                    />
-                  ) : null}
-                  {executeInputType === "form" ? (
-                    <textarea
-                      value={formDataJson}
-                      onChange={(e) => setFormDataJson(e.target.value)}
-                      spellCheck={false}
-                      className="w-full min-h-[90px] rounded-lg border border-white/10 bg-black/30 p-2 text-xs font-mono text-text-primary focus:outline-none"
-                    />
-                  ) : null}
-                  {executeInputType === "webhook" ? (
-                    <div className="space-y-2">
-                      <select
-                        value={webhookMethod}
-                        onChange={(e) => setWebhookMethod(e.target.value)}
-                        className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-text-primary text-xs focus:outline-none"
-                      >
-                        {["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"].map((m) => (
-                          <option key={m} value={m}>{m}</option>
-                        ))}
-                      </select>
-                      <textarea
-                        value={webhookQueryJson}
-                        onChange={(e) => setWebhookQueryJson(e.target.value)}
-                        spellCheck={false}
-                        placeholder='Query JSON, ex: {"source":"asuncia"}'
-                        className="w-full min-h-[70px] rounded-lg border border-white/10 bg-black/30 p-2 text-xs font-mono text-text-primary focus:outline-none"
-                      />
-                      <textarea
-                        value={webhookBodyJson}
-                        onChange={(e) => setWebhookBodyJson(e.target.value)}
-                        spellCheck={false}
-                        placeholder='Body JSON, ex: {"email":"x@y.com"}'
-                        className="w-full min-h-[90px] rounded-lg border border-white/10 bg-black/30 p-2 text-xs font-mono text-text-primary focus:outline-none"
-                      />
-                    </div>
-                  ) : null}
+                  <p className="text-xs text-text-muted">
+                    L’exécution suit le déclencheur et les paramètres définis dans ton workflow n8n (pas d’entrée
+                    supplémentaire depuis l’app).
+                  </p>
                 </div>
 
                 {selectedWorkflow && (

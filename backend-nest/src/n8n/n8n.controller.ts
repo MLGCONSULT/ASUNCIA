@@ -189,17 +189,13 @@ export class N8nController {
   }
 
   private async generateWorkflowJsonInternal(prompt: string) {
-    if (this.isRecentEmailsIntent(prompt)) {
-      const template = this.buildRecentEmailsWorkflowTemplate(prompt);
-      return {
-        json: template,
-        prettyJson: JSON.stringify(template, null, 2),
-      };
-    }
+    const mcpRef = await this.buildMcpReferenceForPrompt(prompt);
 
     const apiKey = process.env.OPENAI_API_KEY?.trim();
     if (!apiKey) {
-      const fallback = this.buildSafeImportableFallbackWorkflow(prompt);
+      const fallback = this.isRecentEmailsIntent(prompt)
+        ? this.buildRecentEmailsWorkflowTemplate(prompt)
+        : this.buildSafeImportableFallbackWorkflow(prompt);
       return {
         json: fallback,
         prettyJson: JSON.stringify(fallback, null, 2),
@@ -210,11 +206,14 @@ export class N8nController {
     const modelCandidates = [configuredModel, "gpt-4o-mini", "gpt-4.1-mini"].filter(
       (m): m is string => !!m,
     );
-    const knownNodeTypes = await this.collectKnownNodeTypes();
+    const knownNodeTypes = mcpRef.knownNodeTypes;
     const typeGuidance =
       knownNodeTypes.length > 0
-        ? `Types de noeuds autorisés en priorité (issus de l'instance): ${knownNodeTypes.join(", ")}.`
-        : "Utilise uniquement des types core n8n commençant par n8n-nodes-base.";
+        ? `Types de noeuds observés sur ton instance n8n (MCP): ${knownNodeTypes.join(", ")}.`
+        : "Utilise des types n8n standards (n8n-nodes-base.*).";
+    const mcpExamplesBlock = mcpRef.referenceSnippet
+      ? `\n\nExemples réels issus de ton instance (via MCP n8n) — inspire-toi de la structure, des types et des versions:\n${mcpRef.referenceSnippet}`
+      : "";
     let lastErrorMessage = "Erreur génération JSON n8n";
     for (const model of modelCandidates) {
       try {
@@ -229,11 +228,12 @@ export class N8nController {
 Le JSON doit contenir: name (string), nodes (array), connections (object), settings (object).
 Chaque noeud doit avoir au minimum: name, type, typeVersion, position, parameters.
 Si un service externe n'est pas certain, utilise un noeud core n8n compatible (notamment n8n-nodes-base.httpRequest) avec un nom explicite "(à configurer)".
+Quand des exemples MCP sont fournis, réutilise les mêmes types de nœuds et une structure proche quand c'est pertinent.
 ${typeGuidance}`,
             },
             {
               role: "user",
-              content: `Demande workflow: ${prompt}`,
+              content: `Demande workflow: ${prompt}${mcpExamplesBlock}`,
             },
           ],
         });
@@ -282,7 +282,9 @@ ${typeGuidance}`,
         lastErrorMessage = err instanceof Error ? err.message : "Erreur génération JSON n8n";
       }
     }
-    const fallback = this.buildSafeImportableFallbackWorkflow(prompt, lastErrorMessage);
+    const fallback = this.isRecentEmailsIntent(prompt)
+      ? this.buildRecentEmailsWorkflowTemplate(prompt)
+      : this.buildSafeImportableFallbackWorkflow(prompt, lastErrorMessage);
     return {
       json: fallback,
       prettyJson: JSON.stringify(fallback, null, 2),
@@ -399,17 +401,61 @@ ${typeGuidance}`,
     return { workflow, errors };
   }
 
-  private async collectKnownNodeTypes(): Promise<string[]> {
-    if (!isN8nMcpConfigured()) return [];
+  private truncateParamsForMcpExample(params: unknown, maxLen = 400): unknown {
+    if (params == null) return params;
+    const s = JSON.stringify(params);
+    if (s.length <= maxLen) return params;
+    return { _truncated: true, _preview: s.slice(0, maxLen) + "..." };
+  }
+
+  private slimWorkflowForMcpContext(workflow: Record<string, unknown>): string {
+    const name = typeof workflow.name === "string" ? workflow.name : "Workflow";
+    const nodes = Array.isArray(workflow.nodes) ? workflow.nodes : [];
+    const slimNodes = nodes.slice(0, 18).map((n) => {
+      if (!n || typeof n !== "object") return {};
+      const node = n as Record<string, unknown>;
+      return {
+        name: node.name,
+        type: node.type,
+        typeVersion: node.typeVersion,
+        position: node.position,
+        parameters: this.truncateParamsForMcpExample(node.parameters),
+      };
+    });
+    const connections =
+      workflow.connections && typeof workflow.connections === "object" && !Array.isArray(workflow.connections)
+        ? workflow.connections
+        : {};
+    const slim = { name, nodes: slimNodes, connections };
+    const str = JSON.stringify(slim);
+    if (str.length > 2800) {
+      return str.slice(0, 2800) + "\n... [tronqué]";
+    }
+    return str;
+  }
+
+  /** Contexte MCP : workflows réels (search + détails) pour guider la génération JSON. */
+  private async buildMcpReferenceForPrompt(prompt: string): Promise<{
+    knownNodeTypes: string[];
+    referenceSnippet: string | null;
+  }> {
+    if (!isN8nMcpConfigured()) {
+      return { knownNodeTypes: [], referenceSnippet: null };
+    }
+    const types = new Set<string>();
+    const snippets: string[] = [];
     try {
-      const result = await callN8nMcpTool("search_workflows", { limit: 8 });
-      const data = parseMcpResultJson<{ data?: unknown[] } | unknown[]>(result);
+      const q = prompt.trim().slice(0, 200);
+      const searchResult = await callN8nMcpTool("search_workflows", {
+        ...(q ? { query: q } : {}),
+        limit: 8,
+      });
+      const data = parseMcpResultJson<{ data?: unknown[] } | unknown[]>(searchResult);
       const workflows = Array.isArray(data) ? data : ((data as { data?: unknown[] }).data ?? []);
       const ids = workflows
         .map((w) => (w && typeof w === "object" ? (w as { id?: unknown }).id : null))
         .filter((id): id is string => typeof id === "string")
-        .slice(0, 6);
-      const types = new Set<string>();
+        .slice(0, 3);
       for (const id of ids) {
         try {
           const detailResult = await callN8nMcpTool("get_workflow_details", { workflowId: id });
@@ -418,22 +464,27 @@ ${typeGuidance}`,
             detail && typeof detail === "object" && detail.workflow && typeof detail.workflow === "object"
               ? (detail.workflow as Record<string, unknown>)
               : detail;
-          const nodes = Array.isArray(workflowObj?.nodes) ? workflowObj.nodes : [];
+          if (!workflowObj || typeof workflowObj !== "object") continue;
+          const nodes = Array.isArray(workflowObj.nodes) ? workflowObj.nodes : [];
           for (const node of nodes) {
             if (!node || typeof node !== "object") continue;
             const type = (node as { type?: unknown }).type;
-            if (typeof type === "string" && type.trim()) {
-              types.add(type.trim());
-            }
+            if (typeof type === "string" && type.trim()) types.add(type.trim());
           }
+          snippets.push(this.slimWorkflowForMcpContext(workflowObj));
         } catch {
-          // ignore workflow-specific failures
+          // ignore per-workflow failures
         }
       }
-      return Array.from(types);
     } catch {
-      return [];
+      return { knownNodeTypes: [], referenceSnippet: null };
     }
+    const referenceSnippet =
+      snippets.length > 0 ? snippets.join("\n\n--- exemple suivant ---\n\n") : null;
+    return {
+      knownNodeTypes: Array.from(types),
+      referenceSnippet,
+    };
   }
 
   private ensureAuth(req: AuthRequest): void {

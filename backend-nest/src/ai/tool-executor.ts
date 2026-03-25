@@ -109,13 +109,13 @@ export async function executeTool(
         if (!isAirtableMcpConfigured()) return MCP_ERROR_MESSAGES.airtable;
         const baseId = String(args.baseId ?? "").trim();
         const tableId = String(args.tableId ?? "").trim();
-        const maxRecords = Math.min(Number(args.maxRecords) || 20, 50);
+        const pageSize = Math.min(Number(args.maxRecords) || 20, 100);
         if (!baseId || !tableId) return "baseId et tableId requis.";
         const runtime = await getAirtableRuntimeAccess({ supabase, userId });
         if (!runtime.available) return "Airtable n'est pas connecté.";
         const result = await callAirtableMcpTool(
-          "list_records",
-          { base_id: baseId, table_id: tableId, max_records: maxRecords },
+          "list_records_for_table",
+          { baseId, tableId, pageSize },
           runtime.accessToken,
         );
         return mcpResultToText(result);

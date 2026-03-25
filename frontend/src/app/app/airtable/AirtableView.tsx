@@ -1,31 +1,60 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, useCallback, useMemo, type FormEvent, type ReactNode } from "react";
+import {
+  useEffect,
+  useState,
+  useCallback,
+  useMemo,
+  type FormEvent,
+  type ReactNode,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSearchParams } from "next/navigation";
 import { fetchBackend } from "@/lib/api";
 import { buildAssistantPromptUrl } from "@/lib/assistant-intents";
 
-type Base = { id: string; name: string };
+type Base = { id: string; name: string; permissionLevel?: string; isFavorite?: boolean };
 type AirtableField = { id: string; name: string; type?: string };
-type Table = { id: string; name: string; fields?: AirtableField[] };
+type Table = { id: string; name: string; description?: string; fields?: AirtableField[] };
 type AirtableRecordRow = { id: string; createdTime?: string; fields: Record<string, unknown> };
 
 type Props = {
   hasAirtable: boolean;
 };
 
+type RefreshRecordsOpts = {
+  cursor?: string | null;
+  append?: boolean;
+  setNextCursor?: (c: string | null) => void;
+  sortFieldId?: string | null;
+  sortDirection?: "asc" | "desc";
+  setTotalRecordCount?: (n: number | null) => void;
+};
+
+const FIELD_ID_RE = /^fld[A-Za-z0-9]{14}$/;
+
 function refreshRecords(
   baseId: string,
   tableId: string,
-  setRecords: (r: AirtableRecordRow[]) => void,
-  setRecordFieldNameMap: (m: Record<string, string>) => void,
+  setRecords: Dispatch<SetStateAction<AirtableRecordRow[]>>,
+  setRecordFieldNameMap: Dispatch<SetStateAction<Record<string, string>>>,
   setRecordsLoading: (b: boolean) => void,
-  setError: (e: string | null) => void
+  setError: (e: string | null) => void,
+  opts?: RefreshRecordsOpts,
 ) {
   setRecordsLoading(true);
-  fetchBackend(`/api/airtable/bases/${baseId}/tables/${tableId}/records`)
+  const qs = new URLSearchParams();
+  qs.set("pageSize", "100");
+  if (opts?.cursor) qs.set("cursor", opts.cursor);
+  if (opts?.sortFieldId && FIELD_ID_RE.test(opts.sortFieldId)) {
+    qs.set("sortFieldId", opts.sortFieldId);
+    qs.set("sortDirection", opts.sortDirection === "desc" ? "desc" : "asc");
+  }
+  const url = `/api/airtable/bases/${baseId}/tables/${tableId}/records?${qs.toString()}`;
+  fetchBackend(url)
     .then((r) => r.json())
     .then((data) => {
       if (data.error) throw new Error(data.error);
@@ -56,8 +85,25 @@ function refreshRecords(
         data?.fieldMap && typeof data.fieldMap === "object" && !Array.isArray(data.fieldMap)
           ? (data.fieldMap as Record<string, string>)
           : {};
-      setRecordFieldNameMap(incomingMap);
-      setRecords(rows);
+      if (!opts?.append) {
+        setRecordFieldNameMap(incomingMap);
+      } else {
+        setRecordFieldNameMap((prev) => ({ ...prev, ...incomingMap }));
+      }
+      if (opts?.setNextCursor) {
+        opts.setNextCursor(
+          typeof data.nextCursor === "string" && data.nextCursor.length > 0 ? data.nextCursor : null,
+        );
+      }
+      if (opts?.setTotalRecordCount && !opts?.append) {
+        const tc = (data as { totalRecordCount?: unknown }).totalRecordCount;
+        opts.setTotalRecordCount(typeof tc === "number" && Number.isFinite(tc) ? tc : null);
+      }
+      if (opts?.append) {
+        setRecords((prev) => [...prev, ...rows]);
+      } else {
+        setRecords(rows);
+      }
     })
     .catch((e) => setError(e instanceof Error ? e.message : "Erreur"))
     .finally(() => setRecordsLoading(false));
@@ -113,8 +159,20 @@ export default function AirtableView({ hasAirtable: initialHasAirtable }: Props)
   const [tablesLoading, setTablesLoading] = useState(false);
   const [selectedTable, setSelectedTable] = useState<Table | null>(null);
   const [records, setRecords] = useState<AirtableRecordRow[]>([]);
+  const [recordsNextCursor, setRecordsNextCursor] = useState<string | null>(null);
   const [recordFieldNameMap, setRecordFieldNameMap] = useState<Record<string, string>>({});
   const [recordsLoading, setRecordsLoading] = useState(false);
+  const [baseSearchInput, setBaseSearchInput] = useState("");
+  const [baseSearchHint, setBaseSearchHint] = useState<string | null>(null);
+  const [baseSearchOpen, setBaseSearchOpen] = useState(false);
+  const [recommendedBaseId, setRecommendedBaseId] = useState<string | null>(null);
+  const [searchingBases, setSearchingBases] = useState(false);
+  const [recordsTotalCount, setRecordsTotalCount] = useState<number | null>(null);
+  const [sortFieldId, setSortFieldId] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  const [detailRecord, setDetailRecord] = useState<AirtableRecordRow | null>(null);
+  const [schemaPreview, setSchemaPreview] = useState<string | null>(null);
+  const [schemaLoading, setSchemaLoading] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [editRecord, setEditRecord] = useState<AirtableRecordRow | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
@@ -279,8 +337,33 @@ export default function AirtableView({ hasAirtable: initialHasAirtable }: Props)
       setRecordFieldNameMap,
       setRecordsLoading,
       setError,
+      {
+        setNextCursor: setRecordsNextCursor,
+        sortFieldId,
+        sortDirection,
+        setTotalRecordCount: setRecordsTotalCount,
+      },
     );
-  }, [selectedBase, selectedTable]);
+  }, [selectedBase, selectedTable, sortFieldId, sortDirection]);
+
+  const loadMoreRecords = useCallback(() => {
+    if (!selectedBase || !selectedTable || !recordsNextCursor) return;
+    refreshRecords(
+      selectedBase.id,
+      selectedTable.id,
+      setRecords,
+      setRecordFieldNameMap,
+      setRecordsLoading,
+      setError,
+      {
+        cursor: recordsNextCursor,
+        append: true,
+        setNextCursor: setRecordsNextCursor,
+        sortFieldId,
+        sortDirection,
+      },
+    );
+  }, [selectedBase, selectedTable, recordsNextCursor, sortFieldId, sortDirection]);
 
   async function handleConnect() {
     setConnecting(true);
@@ -298,6 +381,51 @@ export default function AirtableView({ hasAirtable: initialHasAirtable }: Props)
       setConnecting(false);
     }
   }
+
+  const handleSearchBases = useCallback(() => {
+    const q = baseSearchInput.trim();
+    if (!q || !hasAirtable) return;
+    setSearchingBases(true);
+    setError(null);
+    setBaseSearchHint(null);
+    fetchBackend(`/api/airtable/bases/search?q=${encodeURIComponent(q)}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.error) throw new Error(data.error);
+        const list = Array.isArray(data.bases) ? data.bases : [];
+        setBases(
+          list.map((b: Record<string, unknown>) => ({
+            id: typeof b.id === "string" ? b.id : "",
+            name: typeof b.name === "string" ? b.name : "Sans nom",
+            ...(typeof b.permissionLevel === "string" ? { permissionLevel: b.permissionLevel } : {}),
+            ...(typeof b.isFavorite === "boolean" ? { isFavorite: b.isFavorite } : {}),
+          })),
+        );
+        setBaseSearchHint(typeof data.hint === "string" ? data.hint : null);
+        setRecommendedBaseId(typeof data.recommendedBaseId === "string" ? data.recommendedBaseId : null);
+        setSelectedBase(null);
+        setSelectedTable(null);
+      })
+      .catch((e) => setError(e instanceof Error ? e.message : "Erreur"))
+      .finally(() => setSearchingBases(false));
+  }, [baseSearchInput, hasAirtable]);
+
+  const reloadAllBases = useCallback(() => {
+    if (!hasAirtable) return;
+    setLoading(true);
+    setError(null);
+    setBaseSearchHint(null);
+    setRecommendedBaseId(null);
+    setBaseSearchInput("");
+    fetchBackend("/api/airtable/bases")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.error) throw new Error(data.error);
+        setBases(data.bases ?? []);
+      })
+      .catch((e) => setError(e instanceof Error ? e.message : "Erreur"))
+      .finally(() => setLoading(false));
+  }, [hasAirtable]);
 
   async function handleDisconnect() {
     setLoading(true);
@@ -328,11 +456,52 @@ export default function AirtableView({ hasAirtable: initialHasAirtable }: Props)
   }
 
   useEffect(() => {
+    setSortFieldId(null);
+    setSortDirection("asc");
+  }, [selectedBase?.id]);
+
+  useEffect(() => {
+    if (baseSearchHint) setBaseSearchOpen(true);
+  }, [baseSearchHint]);
+
+  useEffect(() => {
+    setSchemaPreview(null);
+  }, [selectedTable?.id]);
+
+  const loadSchemaPreview = useCallback(async () => {
+    if (!selectedBase || !selectedTable) return;
+    const ids = (selectedTable.fields ?? []).map((f) => f.id).filter((id) => FIELD_ID_RE.test(id));
+    if (ids.length === 0) {
+      setError("Impossible de charger le schéma : aucun identifiant de champ connu.");
+      return;
+    }
+    setSchemaLoading(true);
+    setError(null);
+    try {
+      const r = await fetchBackend(`/api/airtable/bases/${selectedBase.id}/table-schema`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tables: [{ tableId: selectedTable.id, fieldIds: ids }] }),
+      });
+      const data = await r.json();
+      if (data.error) throw new Error(data.error);
+      setSchemaPreview(JSON.stringify(data, null, 2));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Erreur");
+    } finally {
+      setSchemaLoading(false);
+    }
+  }, [selectedBase, selectedTable]);
+
+  useEffect(() => {
     if (!selectedBase || !selectedTable) {
       setRecords([]);
       setRecordFieldNameMap({});
+      setRecordsNextCursor(null);
+      setRecordsTotalCount(null);
       return;
     }
+    setRecordsNextCursor(null);
     refreshRecords(
       selectedBase.id,
       selectedTable.id,
@@ -340,8 +509,14 @@ export default function AirtableView({ hasAirtable: initialHasAirtable }: Props)
       setRecordFieldNameMap,
       setRecordsLoading,
       setError,
+      {
+        setNextCursor: setRecordsNextCursor,
+        sortFieldId,
+        sortDirection,
+        setTotalRecordCount: setRecordsTotalCount,
+      },
     );
-  }, [selectedBase, selectedTable]);
+  }, [selectedBase, selectedTable, sortFieldId, sortDirection]);
 
   if (!hasAirtable) {
     if (!status.statusChecked) {
@@ -460,22 +635,73 @@ export default function AirtableView({ hasAirtable: initialHasAirtable }: Props)
       )}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 flex-1 min-h-0">
         <div className="glass-strong rounded-xl border border-white/10 overflow-hidden card-glow flex flex-col min-h-0">
-          <div className="p-3 border-b border-white/10 shrink-0 flex items-center justify-between">
-            <h2 className="font-semibold text-text-primary text-sm">
-              Bases
-              {connectionSource === "server-token" ? (
-                <span className="ml-2 text-[10px] uppercase tracking-wide text-accent-cyan">Token serveur</span>
+          <div className="p-3 border-b border-white/10 shrink-0 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="font-semibold text-text-primary text-sm">
+                Bases
+                {connectionSource === "server-token" ? (
+                  <span className="ml-2 text-[10px] uppercase tracking-wide text-accent-cyan">Token serveur</span>
+                ) : null}
+              </h2>
+              {canDisconnect ? (
+                <button
+                  type="button"
+                  onClick={handleDisconnect}
+                  className="px-2 py-1 rounded text-xs text-text-muted hover:text-accent-rose hover:bg-white/5 transition-colors"
+                  title="Déconnecter Airtable"
+                >
+                  Déconnecter
+                </button>
               ) : null}
-            </h2>
-            {canDisconnect ? (
+            </div>
+            <button
+              type="button"
+              onClick={() => setBaseSearchOpen((o) => !o)}
+              className="text-[11px] text-text-muted hover:text-text-primary w-full text-left"
+            >
+              {baseSearchOpen ? "Replier la recherche" : "Rechercher une base…"}
+            </button>
+            {baseSearchOpen ? (
+              <div className="flex gap-1.5">
+                <input
+                  type="search"
+                  value={baseSearchInput}
+                  onChange={(e) => setBaseSearchInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleSearchBases()}
+                  placeholder="Nom de la base…"
+                  className="flex-1 min-w-0 px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-text-primary text-xs placeholder:text-text-dim"
+                />
+                <button
+                  type="button"
+                  onClick={handleSearchBases}
+                  disabled={searchingBases || !baseSearchInput.trim()}
+                  className="px-2 py-1.5 rounded-lg bg-accent-cyan/15 text-accent-cyan text-xs font-medium disabled:opacity-50"
+                >
+                  {searchingBases ? "…" : "Rechercher"}
+                </button>
+              </div>
+            ) : null}
+            <button
+              type="button"
+              onClick={reloadAllBases}
+              className="text-[11px] text-text-muted hover:text-text-primary"
+            >
+              Afficher toutes les bases
+            </button>
+            {recommendedBaseId && bases.some((b) => b.id === recommendedBaseId) ? (
               <button
                 type="button"
-                onClick={handleDisconnect}
-                className="px-2 py-1 rounded text-xs text-text-muted hover:text-accent-rose hover:bg-white/5 transition-colors"
-                title="Déconnecter Airtable"
+                onClick={() => {
+                  const b = bases.find((x) => x.id === recommendedBaseId);
+                  if (b) setSelectedBase(b);
+                }}
+                className="text-[11px] text-accent-cyan hover:underline w-full text-left"
               >
-                Déconnecter
+                Ouvrir la base suggérée
               </button>
+            ) : null}
+            {baseSearchHint ? (
+              <p className="text-[11px] text-text-dim leading-snug">{baseSearchHint}</p>
             ) : null}
           </div>
           <ul className="divide-y divide-white/5 flex-1 min-h-0 overflow-y-auto">
@@ -487,8 +713,14 @@ export default function AirtableView({ hasAirtable: initialHasAirtable }: Props)
                     onClick={() => setSelectedBase(base)}
                     className={`min-w-0 flex-1 text-left truncate ${selectedBase?.id === base.id ? "text-accent-cyan" : "text-text-muted hover:text-text-primary"}`}
                   >
+                    {base.isFavorite ? <span className="mr-1 text-amber-400/90" title="Favori">★</span> : null}
                     {base.name}
                   </button>
+                  {base.permissionLevel === "read" || base.permissionLevel === "none" ? (
+                    <span className="shrink-0 text-[9px] uppercase tracking-wide px-1 rounded bg-white/10 text-text-dim" title="Accès en lecture seule">
+                      Lecture seule
+                    </span>
+                  ) : null}
                   <a
                     href={`https://airtable.com/${encodeURIComponent(base.id)}`}
                     target="_blank"
@@ -518,8 +750,13 @@ export default function AirtableView({ hasAirtable: initialHasAirtable }: Props)
                     <div className={`w-full flex items-center gap-2 px-3 py-2.5 text-sm transition-colors ${selectedTable?.id === table.id ? "bg-accent-violet/15 border-l-2 border-accent-violet" : "text-text-muted hover:bg-white/5"}`}>
                       <button
                         type="button"
-                        onClick={() => setSelectedTable(table)}
+                        onClick={() => {
+                          setSortFieldId(null);
+                          setSortDirection("asc");
+                          setSelectedTable(table);
+                        }}
                         className={`min-w-0 flex-1 text-left truncate ${selectedTable?.id === table.id ? "text-accent-violet" : "text-text-muted hover:text-text-primary"}`}
+                        title={table.description ? table.description : undefined}
                       >
                         {table.name}
                       </button>
@@ -547,25 +784,96 @@ export default function AirtableView({ hasAirtable: initialHasAirtable }: Props)
           )}
         </div>
         <div className="glass-strong rounded-xl border border-white/10 overflow-hidden card-glow flex flex-col min-h-0">
-          <div className="p-3 border-b border-white/10 flex items-center justify-between gap-2 flex-wrap shrink-0">
-            <div>
-              <h2 className="font-semibold text-text-primary text-sm">Enregistrements</h2>
-              {selectedTable && <p className="text-xs text-text-muted mt-0.5">{selectedTable.name}</p>}
+          <div className="p-3 border-b border-white/10 flex flex-col gap-2 shrink-0">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div>
+                <h2 className="font-semibold text-text-primary text-sm">
+                  Enregistrements
+                  {selectedTable && recordsTotalCount != null ? (
+                    <span className="ml-2 font-normal text-text-muted">
+                      ({records.length} affiché{records.length > 1 ? "s" : ""} sur {recordsTotalCount})
+                    </span>
+                  ) : selectedTable ? (
+                    <span className="ml-2 font-normal text-text-muted">({records.length})</span>
+                  ) : null}
+                </h2>
+                {selectedTable && <p className="text-xs text-text-muted mt-0.5">{selectedTable.name}</p>}
+              </div>
+              {selectedBase && selectedTable && (
+                <button
+                  type="button"
+                  onClick={() => { setCreateOpen(true); setFormError(null); setEditRecord(null); }}
+                  className="px-3 py-1.5 rounded-lg bg-accent-cyan/20 text-accent-cyan text-sm font-medium hover:bg-accent-cyan/30"
+                >
+                  Créer un enregistrement
+                </button>
+              )}
             </div>
-            {selectedBase && selectedTable && (
-              <button
-                type="button"
-                onClick={() => { setCreateOpen(true); setFormError(null); setEditRecord(null); }}
-                className="px-3 py-1.5 rounded-lg bg-accent-cyan/20 text-accent-cyan text-sm font-medium hover:bg-accent-cyan/30"
-              >
-                Créer un enregistrement
-              </button>
-            )}
+            {selectedBase && selectedTable ? (
+              <p className="text-[11px] text-text-dim leading-snug">
+                La suppression des enregistrements n&apos;est pas proposée dans cette application. Pour supprimer des lignes, utilisez{" "}
+                <a href={`https://airtable.com/${encodeURIComponent(selectedBase.id)}/${encodeURIComponent(selectedTable.id)}`} target="_blank" rel="noreferrer" className="text-accent-cyan hover:underline">
+                  l&apos;interface Airtable
+                </a>
+                .
+              </p>
+            ) : null}
+            {selectedBase && selectedTable && selectedTableResolvedFields.length > 0 ? (
+              <div className="flex flex-wrap items-center gap-2 text-xs">
+                <label className="text-text-muted flex items-center gap-1.5">
+                  <span className="text-text-dim">Trier par</span>
+                  <select
+                    value={sortFieldId ?? ""}
+                    onChange={(e) => setSortFieldId(e.target.value.length > 0 ? e.target.value : null)}
+                    className="rounded-lg bg-white/5 border border-white/10 text-text-primary px-2 py-1 max-w-[10rem]"
+                  >
+                    <option value="">Ordre par défaut</option>
+                    {selectedTableResolvedFields.map((f) => (
+                      <option key={f.id} value={f.id}>
+                        {f.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="text-text-muted flex items-center gap-1.5">
+                  <span className="text-text-dim">Sens</span>
+                  <select
+                    value={sortDirection}
+                    onChange={(e) => setSortDirection(e.target.value === "desc" ? "desc" : "asc")}
+                    className="rounded-lg bg-white/5 border border-white/10 text-text-primary px-2 py-1"
+                    disabled={!sortFieldId}
+                  >
+                    <option value="asc">Croissant</option>
+                    <option value="desc">Décroissant</option>
+                  </select>
+                </label>
+              </div>
+            ) : null}
+            <details className="rounded-lg border border-white/5 bg-white/[0.02] px-2 py-1.5 text-[11px] text-text-muted">
+              <summary className="cursor-pointer select-none text-text-dim">Avancé — schéma des champs</summary>
+              <div className="mt-2 space-y-2">
+                <button
+                  type="button"
+                  onClick={loadSchemaPreview}
+                  disabled={schemaLoading || !selectedTable}
+                  className="px-2 py-1 rounded bg-white/10 text-text-primary hover:bg-white/15 disabled:opacity-50"
+                >
+                  {schemaLoading ? "Chargement…" : "Charger le JSON du schéma"}
+                </button>
+                {schemaPreview ? (
+                  <pre className="text-[10px] leading-relaxed overflow-auto max-h-40 rounded border border-white/10 bg-black/20 p-2 font-mono text-text-muted">
+                    {schemaPreview}
+                  </pre>
+                ) : (
+                  <p className="text-text-dim">Utile pour vérifier les types et options (select, etc.).</p>
+                )}
+              </div>
+            </details>
           </div>
           {recordsLoading ? <div className="p-4 text-text-muted text-sm">Chargement…</div> : records.length === 0 ? <div className="p-4 text-text-muted text-sm">{selectedTable ? "Aucun enregistrement." : "Sélectionnez une base et une table."}</div> : (
             <div className="flex-1 min-h-0 overflow-y-auto p-2">
               <AnimatePresence mode="popLayout">
-                {records.slice(0, 15).map((rec: AirtableRecordRow, i) => (
+                {records.map((rec: AirtableRecordRow, i) => (
                   <motion.div key={rec.id} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ delay: i * 0.02 }} className="p-3 rounded-xl bg-white/[0.03] border border-white/5 mb-2 text-xs flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <div className="text-text-dim font-mono mb-1">{rec.id}</div>
@@ -580,20 +888,47 @@ export default function AirtableView({ hasAirtable: initialHasAirtable }: Props)
                         ))}
                       </div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => { setEditRecord(rec); setCreateOpen(false); setFormError(null); }}
-                      className="shrink-0 px-2 py-1 rounded bg-white/10 text-text-muted hover:text-accent-violet text-xs"
-                    >
-                      Modifier
-                    </button>
+                    <div className="shrink-0 flex flex-col gap-1">
+                      <button
+                        type="button"
+                        onClick={() => { setDetailRecord(rec); setFormError(null); }}
+                        className="px-2 py-1 rounded bg-white/10 text-text-muted hover:text-accent-cyan text-xs"
+                      >
+                        Détail
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setEditRecord(rec); setCreateOpen(false); setFormError(null); }}
+                        className="px-2 py-1 rounded bg-white/10 text-text-muted hover:text-accent-violet text-xs"
+                      >
+                        Modifier
+                      </button>
+                    </div>
                   </motion.div>
                 ))}
               </AnimatePresence>
+              {recordsNextCursor ? (
+                <div className="p-2 border-t border-white/5">
+                  <button
+                    type="button"
+                    onClick={loadMoreRecords}
+                    disabled={recordsLoading}
+                    className="w-full py-2 rounded-lg bg-white/5 text-text-muted text-xs hover:bg-white/10 disabled:opacity-50"
+                  >
+                    {recordsLoading ? "Chargement…" : "Charger la suite"}
+                  </button>
+                </div>
+              ) : null}
             </div>
           )}
         </div>
       </div>
+
+      <AnimatePresence>
+        {detailRecord ? (
+          <RecordDetailModal record={detailRecord} onClose={() => setDetailRecord(null)} />
+        ) : null}
+      </AnimatePresence>
 
       {/* Modal Créer / Modifier enregistrement */}
       <AnimatePresence>
@@ -612,6 +947,45 @@ export default function AirtableView({ hasAirtable: initialHasAirtable }: Props)
           />
         )}
       </AnimatePresence>
+    </motion.div>
+  );
+}
+
+function RecordDetailModal({
+  record,
+  onClose,
+}: {
+  record: AirtableRecordRow;
+  onClose: () => void;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ scale: 0.95, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.95, opacity: 0 }}
+        className="w-full max-w-lg glass-strong rounded-2xl border border-white/10 p-6 shadow-xl max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h3 className="font-semibold text-text-primary mb-2">Détail de l&apos;enregistrement</h3>
+        <p className="font-mono text-[11px] text-text-dim break-all mb-3">{record.id}</p>
+        <pre className="text-xs overflow-auto max-h-[60vh] rounded-lg border border-white/10 bg-black/20 p-3 font-mono text-text-muted whitespace-pre-wrap">
+          {JSON.stringify(record.fields ?? {}, null, 2)}
+        </pre>
+        <button
+          type="button"
+          onClick={onClose}
+          className="mt-4 px-4 py-2 rounded-lg bg-white/10 text-text-primary text-sm"
+        >
+          Fermer
+        </button>
+      </motion.div>
     </motion.div>
   );
 }
@@ -805,6 +1179,8 @@ function RecordFormModal({
         }))
       : [{ key: "", label: "", type: undefined, value: "" }];
   });
+  const [typecast, setTypecast] = useState(false);
+  const [upsertMergeFieldIds, setUpsertMergeFieldIds] = useState("");
 
   const addRow = () => setFields((f) => [...f, { key: "", label: "", type: undefined, value: "" }]);
   const updateRow = (i: number, key: string, value: string) => {
@@ -843,11 +1219,23 @@ function RecordFormModal({
     }
     setLoading(true);
     setError(null);
+    const buildPayload = () => {
+      const payload: Record<string, unknown> = { fields: obj };
+      if (typecast) payload.typecast = true;
+      if (isEdit && upsertMergeFieldIds.trim()) {
+        const ids = upsertMergeFieldIds
+          .split(/[\s,]+/)
+          .map((s) => s.trim())
+          .filter((id) => FIELD_ID_RE.test(id));
+        if (ids.length > 0) payload.performUpsert = { fieldIdsToMergeOn: ids };
+      }
+      return payload;
+    };
     if (isEdit) {
       fetchBackend(`/api/airtable/bases/${baseId}/tables/${tableId}/records/${record.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fields: obj }),
+        body: JSON.stringify(buildPayload()),
       })
         .then((r) => r.json())
         .then((data) => {
@@ -857,10 +1245,12 @@ function RecordFormModal({
         .catch((e) => setError(e instanceof Error ? e.message : "Erreur"))
         .finally(() => setLoading(false));
     } else {
+      const createPayload: Record<string, unknown> = { fields: obj };
+      if (typecast) createPayload.typecast = true;
       fetchBackend(`/api/airtable/bases/${baseId}/tables/${tableId}/records`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fields: obj }),
+        body: JSON.stringify(createPayload),
       })
         .then((r) => r.json())
         .then((data) => {
@@ -976,6 +1366,34 @@ function RecordFormModal({
           {tableFields.length === 0 ? (
             <button type="button" onClick={addRow} className="text-sm text-accent-cyan hover:underline">+ Ajouter un champ</button>
           ) : null}
+          <details className="rounded-xl border border-white/10 bg-white/[0.02] p-3 text-xs">
+            <summary className="cursor-pointer text-text-muted select-none">Options avancées</summary>
+            <div className="mt-2 space-y-2 text-text-muted">
+              <label className="flex items-start gap-2">
+                <input
+                  type="checkbox"
+                  checked={typecast}
+                  onChange={(e) => setTypecast(e.target.checked)}
+                  className="mt-0.5"
+                />
+                <span>
+                  <span className="text-text-primary font-medium">Typecast</span> — accepter des libellés (choix, liens…) comme dans l&apos;interface Airtable.
+                </span>
+              </label>
+              {isEdit ? (
+                <label className="block space-y-1">
+                  <span className="text-text-dim">Fusion (upsert) : identifiants de champs <code className="text-[10px]">fld…</code>, séparés par des virgules</span>
+                  <input
+                    type="text"
+                    value={upsertMergeFieldIds}
+                    onChange={(e) => setUpsertMergeFieldIds(e.target.value)}
+                    placeholder="fldXXXXXXXXXXXXXX, fldYYYYYYYYYYYYYY"
+                    className="w-full px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-text-primary text-sm font-mono"
+                  />
+                </label>
+              ) : null}
+            </div>
+          </details>
           {error && <p className="text-sm text-accent-rose">{error}</p>}
           <div className="flex gap-2 pt-2">
             <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg bg-white/10 text-text-primary text-sm">Annuler</button>
