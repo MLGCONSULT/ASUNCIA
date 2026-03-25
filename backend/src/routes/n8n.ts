@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { callN8nMcpTool, isN8nMcpConfigured } from "../mcp/n8n-client.js";
+import { callN8nMcpTool, isN8nMcpConfigured, normalizeExecuteWorkflowInputs } from "../mcp/n8n-client.js";
 import { parseMcpResultJson } from "../mcp/result.js";
 import { MCP_ERROR_MESSAGES } from "../config/mcp.js";
 import { callFirstAvailableTool } from "../services/integrations/n8n.js";
@@ -72,10 +72,11 @@ export function n8nRouter(): Router {
       const { id } = parseParams(n8nWorkflowIdParamsSchema, req);
       const body = parseBody(n8nExecuteBodySchema, req);
       const inputs = body.inputs ?? (typeof req.body === "object" && req.body !== null ? req.body : undefined);
-      const inputsObj = typeof inputs === "object" && inputs !== null ? inputs : undefined;
+      const inputsObj =
+        typeof inputs === "object" && inputs !== null && !Array.isArray(inputs) ? inputs : undefined;
       const result = await callN8nMcpTool("execute_workflow", {
         workflowId: id,
-        ...(inputsObj ? { inputs: inputsObj } : {}),
+        inputs: normalizeExecuteWorkflowInputs(inputsObj),
       });
       const data = parseMcpResultJson(result);
       res.json(data);

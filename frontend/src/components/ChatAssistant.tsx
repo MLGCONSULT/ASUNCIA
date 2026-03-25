@@ -85,9 +85,14 @@ export default function ChatAssistant({
   }, [loading]);
 
   useEffect(() => {
+    let cancelled = false;
+    const ac = new AbortController();
+    const timeoutId = setTimeout(() => ac.abort(), 12_000);
+
     (async () => {
       try {
-        const res = await fetchBackend("/api/conversation");
+        const res = await fetchBackend("/api/conversation", { signal: ac.signal });
+        if (cancelled) return;
         if (!res.ok) {
           setHistoryLoadError(true);
           return;
@@ -103,17 +108,28 @@ export default function ChatAssistant({
             data.messages.map((m) => ({
               id: m.id,
               role: m.role,
-              content: m.content,
+              content: m.content ?? "",
               date: new Date(m.date || Date.now()),
             })),
           );
         }
-      } catch {
+      } catch (e) {
+        if (cancelled) return;
+        const aborted = e instanceof Error && e.name === "AbortError";
         setHistoryLoadError(true);
+        if (aborted) {
+          console.warn("[ChatAssistant] Chargement historique : délai dépassé ou annulé");
+        }
       } finally {
-        setHistoryLoaded(true);
+        clearTimeout(timeoutId);
+        if (!cancelled) setHistoryLoaded(true);
       }
     })();
+
+    return () => {
+      cancelled = true;
+      ac.abort();
+    };
   }, []);
 
   useEffect(() => {
@@ -302,22 +318,37 @@ export default function ChatAssistant({
       <div className="flex flex-col flex-1 min-w-0 min-h-0">
         {sessionHeader}
         <div className={`flex-1 overflow-y-auto ${compact ? "p-3" : "p-4"} space-y-3`}>
-          <AnimatePresence initial={false}>
+          <AnimatePresence mode="wait" initial={false}>
             {!historyLoaded && (
               <motion.div
-                className="text-center py-12 text-text-muted text-sm"
+                key="loading"
+                className="flex flex-col items-center justify-center gap-3 py-10"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
               >
-                Chargement de l’historique…
+                <div className="flex w-full max-w-[14rem] flex-col gap-2">
+                  <div className="h-2.5 w-full rounded-full bg-white/[0.06] overflow-hidden">
+                    <motion.div
+                      className="h-full w-1/3 rounded-full bg-accent-cyan/35"
+                      animate={{ x: ["-100%", "280%"] }}
+                      transition={{ duration: 1.1, repeat: Infinity, ease: "easeInOut" }}
+                    />
+                  </div>
+                  <div className="h-2 w-4/5 rounded-full bg-white/[0.05] mx-auto" />
+                  <div className="h-2 w-3/5 rounded-full bg-white/[0.04] mx-auto" />
+                </div>
+                <p className="text-text-muted text-xs">Synchronisation de l’historique…</p>
               </motion.div>
             )}
             {historyLoaded && messages.length === 0 && (
               <motion.div
+                key="empty"
                 className={`text-center ${compact ? "py-8" : "py-16"}`}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.2 }}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
               >
                 <div className="mb-4 flex justify-center">
                   <div
@@ -355,25 +386,17 @@ export default function ChatAssistant({
                     </div>
                   ))}
                 </div>
-                <div className="mt-6 flex justify-center gap-1">
-                  {[0, 1, 2].map((i) => (
-                    <motion.span
-                      key={i}
-                      className="w-2 h-2 rounded-full bg-accent-cyan/60"
-                      animate={{ opacity: [0.4, 1, 0.4] }}
-                      transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.2 }}
-                    />
-                  ))}
-                </div>
+                <p className="mt-6 text-[11px] text-text-dim/90">Écris en bas pour lancer le guide.</p>
               </motion.div>
             )}
-            {messages.map((m, i) => (
+            {historyLoaded &&
+              messages.map((m, i) => (
               <motion.div
                 key={m.id}
                 className={`flex gap-3 ${m.role === "user" ? "justify-end flex-row-reverse" : "justify-start"}`}
-                initial={{ opacity: 0, y: 12, scale: 0.98 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                transition={{ duration: 0.3, delay: i === messages.length - 1 ? 0.1 : 0 }}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1], delay: i === messages.length - 1 ? 0.04 : 0 }}
               >
                 {m.role === "assistant" ? (
                   <div className="w-10 h-10 rounded-full border border-accent-cyan/30 overflow-hidden bg-surface2 flex items-center justify-center shrink-0">

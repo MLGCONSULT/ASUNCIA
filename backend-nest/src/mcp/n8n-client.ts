@@ -22,6 +22,47 @@ export function isN8nMcpConfigured(): boolean {
 }
 
 /**
+ * Le MCP n8n (instance) attend `inputs` avec un discriminateur `type` parmi
+ * `webhook` | `form` | `chat`. Sans cela, l’appel échoue (ex. Zod invalid_union_discriminator).
+ * @see https://docs.n8n.io/advanced-ai/accessing-n8n-mcp-server/
+ */
+export function normalizeExecuteWorkflowInputs(inputs: unknown): Record<string, unknown> {
+  const defaultWebhook = (): Record<string, unknown> => ({ type: "webhook", body: {} as Record<string, unknown> });
+
+  if (inputs === null || inputs === undefined) {
+    return defaultWebhook();
+  }
+  if (typeof inputs !== "object" || Array.isArray(inputs)) {
+    return defaultWebhook();
+  }
+  const obj = inputs as Record<string, unknown>;
+  const t = obj.type;
+
+  if (t === "webhook") {
+    const out = { ...obj };
+    if (out.body === undefined) {
+      out.body = {};
+    }
+    return out;
+  }
+  if (t === "chat") {
+    const out = { ...obj };
+    if (out.chatInput === undefined && typeof out.message === "string") {
+      out.chatInput = out.message;
+    }
+    if (out.chatInput === undefined) {
+      out.chatInput = "";
+    }
+    return out;
+  }
+  if (t === "form") {
+    return { ...obj };
+  }
+
+  return { type: "webhook", body: { ...obj } };
+}
+
+/**
  * URL de base de l’UI n8n (ex. https://n8n.example.com), dérivée de {@link N8N_MCP_URL}
  * ou de {@link N8N_BASE_URL} — sans variable d’environnement supplémentaire côté front.
  */

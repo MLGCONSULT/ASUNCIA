@@ -108,7 +108,8 @@ export const CHAT_TOOLS: ChatCompletionTool[] = [
     type: "function",
     function: {
       name: "n8n_execute_workflow",
-      description: "Exécute un workflow n8n par son ID.",
+      description:
+        "Exécute un workflow n8n par son ID. inputs doit suivre le MCP n8n : discriminant type parmi webhook, form, chat (ex. { type: \"webhook\", body: {} } ou { type: \"chat\", chatInput: \"...\" }). Si omis, le serveur envoie un webhook vide.",
       parameters: {
         type: "object",
         properties: {

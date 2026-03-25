@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { callMcpTool } from "../mcp/supabase-client";
-import { callN8nMcpTool, isN8nMcpConfigured } from "../mcp/n8n-client";
+import { callN8nMcpTool, isN8nMcpConfigured, normalizeExecuteWorkflowInputs } from "../mcp/n8n-client";
 import { callAirtableMcpTool, isAirtableMcpConfigured } from "../mcp/airtable-client";
 import { mcpResultToText } from "../mcp/result";
 import { MCP_ERROR_MESSAGES } from "../config/mcp";
@@ -28,7 +28,11 @@ export async function executeTool(
         const toolArgs = (args.arguments as Record<string, unknown>) ?? {};
         if (!toolName) return "toolName requis.";
         if (!isN8nMcpConfigured()) return MCP_ERROR_MESSAGES.n8n;
-        const result = await callN8nMcpTool(toolName, toolArgs);
+        const finalArgs =
+          toolName === "execute_workflow"
+            ? { ...toolArgs, inputs: normalizeExecuteWorkflowInputs(toolArgs.inputs) }
+            : toolArgs;
+        const result = await callN8nMcpTool(toolName, finalArgs);
         return mcpResultToText(result);
       }
       case "mcp_airtable": {
@@ -85,7 +89,7 @@ export async function executeTool(
         if (!workflowId) return "workflowId requis.";
         const result = await callN8nMcpTool("execute_workflow", {
           workflowId,
-          ...(inputs ? { inputs } : {}),
+          inputs: normalizeExecuteWorkflowInputs(inputs),
         });
         return mcpResultToText(result);
       }

@@ -15,6 +15,7 @@ import {
   getN8nEditorBaseUrl,
   isN8nMcpConfigured,
   listN8nMcpTools,
+  normalizeExecuteWorkflowInputs,
 } from "../mcp/n8n-client";
 import { collectWorkflowValidationErrors } from "./workflow-validate";
 import { parseMcpResultJson } from "../mcp/result";
@@ -811,10 +812,10 @@ ${typeGuidance}`;
     try {
       const { id } = params;
       const inputs = body.inputs ?? (typeof req.body === "object" && req.body !== null ? req.body : undefined);
-      const inputsObj = typeof inputs === "object" && inputs !== null ? inputs : undefined;
+      const inputsObj = typeof inputs === "object" && inputs !== null && !Array.isArray(inputs) ? inputs : undefined;
       const result = await callN8nMcpTool("execute_workflow", {
         workflowId: id,
-        ...(inputsObj ? { inputs: inputsObj } : {}),
+        inputs: normalizeExecuteWorkflowInputs(inputsObj),
       });
       const data = parseMcpResultJson(result);
       return data;

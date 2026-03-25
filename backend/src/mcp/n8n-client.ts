@@ -21,6 +21,46 @@ export function isN8nMcpConfigured(): boolean {
   return getN8nMcpConfig() !== null;
 }
 
+/**
+ * Le MCP n8n (instance) attend `inputs` avec un discriminateur `type` parmi
+ * `webhook` | `form` | `chat`. Sans cela, l’appel échoue (ex. Zod invalid_union_discriminator).
+ */
+export function normalizeExecuteWorkflowInputs(inputs: unknown): Record<string, unknown> {
+  const defaultWebhook = (): Record<string, unknown> => ({ type: "webhook", body: {} as Record<string, unknown> });
+
+  if (inputs === null || inputs === undefined) {
+    return defaultWebhook();
+  }
+  if (typeof inputs !== "object" || Array.isArray(inputs)) {
+    return defaultWebhook();
+  }
+  const obj = inputs as Record<string, unknown>;
+  const t = obj.type;
+
+  if (t === "webhook") {
+    const out = { ...obj };
+    if (out.body === undefined) {
+      out.body = {};
+    }
+    return out;
+  }
+  if (t === "chat") {
+    const out = { ...obj };
+    if (out.chatInput === undefined && typeof out.message === "string") {
+      out.chatInput = out.message;
+    }
+    if (out.chatInput === undefined) {
+      out.chatInput = "";
+    }
+    return out;
+  }
+  if (t === "form") {
+    return { ...obj };
+  }
+
+  return { type: "webhook", body: { ...obj } };
+}
+
 export async function withN8nMcpClient<T>(fn: (client: Client) => Promise<T>): Promise<T> {
   const config = getN8nMcpConfig();
   if (!config) throw new Error("MCP n8n non configuré : N8N_MCP_URL et N8N_MCP_ACCESS_TOKEN requis.");

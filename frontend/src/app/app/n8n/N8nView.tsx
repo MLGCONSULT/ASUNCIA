@@ -449,8 +449,9 @@ export default function N8nView() {
               <>
                 <div className="rounded-lg border border-accent-violet/30 bg-accent-violet/10 p-3">
                   <p className="text-xs text-text-muted">
-                    L’exécution suit le déclencheur et les paramètres définis dans ton workflow n8n (pas d’entrée
-                    supplémentaire depuis l’app).
+                    L’exécution suit le déclencheur du workflow. Le bouton « Exécuter » envoie un appel MCP avec un
+                    déclencheur webhook et un corps vide par défaut ; pour un chat ou un formulaire, le workflow doit
+                    correspondre ou il faut passer des entrées typées via l’API.
                   </p>
                 </div>
 
@@ -476,7 +477,7 @@ export default function N8nView() {
                         Copier l&apos;erreur
                       </button>
                     </div>
-                    <pre className="max-h-[min(40vh,16rem)] overflow-auto rounded-lg border border-accent-rose/25 bg-black/40 p-3 text-[11px] font-mono text-text-primary whitespace-pre-wrap break-words [scrollbar-width:thin]">
+                    <pre className="max-h-[min(70vh,28rem)] overflow-x-auto overflow-y-auto rounded-lg border border-accent-rose/25 bg-black/40 p-3 text-[11px] font-mono text-text-primary whitespace-pre-wrap break-words [scrollbar-width:thin]">
                       {executionError}
                     </pre>
                   </div>

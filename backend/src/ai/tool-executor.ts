@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { callMcpTool } from "../mcp/supabase-client.js";
-import { callN8nMcpTool, isN8nMcpConfigured } from "../mcp/n8n-client.js";
+import { callN8nMcpTool, isN8nMcpConfigured, normalizeExecuteWorkflowInputs } from "../mcp/n8n-client.js";
 import { callGmailMcpTool, isGmailMcpConfigured } from "../mcp/gmail-client.js";
 import { callAirtableMcpTool, isAirtableMcpConfigured } from "../mcp/airtable-client.js";
 import { callNotionMcpTool, getNotionMcpToolNames, isNotionMcpConfigured } from "../mcp/notion-client.js";
@@ -28,7 +28,11 @@ export async function executeTool(name: string, args: Record<string, unknown>, c
         const toolArgs = (args.arguments as Record<string, unknown>) ?? {};
         if (!toolName) return "toolName requis.";
         if (!isN8nMcpConfigured()) return MCP_ERROR_MESSAGES.n8n;
-        const result = await callN8nMcpTool(toolName, toolArgs);
+        const finalArgs =
+          toolName === "execute_workflow"
+            ? { ...toolArgs, inputs: normalizeExecuteWorkflowInputs(toolArgs.inputs) }
+            : toolArgs;
+        const result = await callN8nMcpTool(toolName, finalArgs);
         return mcpResultToText(result);
       }
       case "mcp_gmail": {
@@ -141,7 +145,10 @@ export async function executeTool(name: string, args: Record<string, unknown>, c
         const workflowId = String(args.workflowId ?? "").trim();
         const inputs = args.inputs as Record<string, unknown> | undefined;
         if (!workflowId) return "workflowId requis.";
-        const result = await callN8nMcpTool("execute_workflow", { workflowId, ...(inputs ? { inputs } : {}) });
+        const result = await callN8nMcpTool("execute_workflow", {
+          workflowId,
+          inputs: normalizeExecuteWorkflowInputs(inputs),
+        });
         return mcpResultToText(result);
       }
       default:
