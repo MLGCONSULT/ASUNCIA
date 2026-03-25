@@ -22,7 +22,7 @@ export default function FloatingAssistant() {
         {open ? (
           <motion.div
             key="assistant-panel"
-            className="pointer-events-auto mb-3 h-[min(40rem,calc(100dvh-7rem))] w-[min(27rem,calc(100vw-1.25rem))] assistant-panel-shell overflow-hidden"
+            className="pointer-events-auto mb-3 h-[min(34rem,calc(100dvh-14rem))] max-h-[calc(100dvh-14rem)] w-[min(27rem,calc(100vw-1.25rem))] assistant-panel-shell overflow-hidden"
             initial={{ opacity: 0, y: 18, scale: 0.96 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 16, scale: 0.97 }}

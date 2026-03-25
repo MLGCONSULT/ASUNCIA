@@ -16,6 +16,8 @@ type NavItem = {
   accentText: string;
   accentGlow: string;
   accentBg: string;
+  /** Classes hover pour l’état inactif (couleur par outil) */
+  inactiveHover: string;
 };
 
 const item = (
@@ -25,7 +27,8 @@ const item = (
   accentText: string,
   accentGlow: string,
   accentBg: string,
-): NavItem => ({ href, label, icon, accentText, accentGlow, accentBg });
+  inactiveHover: string,
+): NavItem => ({ href, label, icon, accentText, accentGlow, accentBg, inactiveHover });
 
 /** 2 outils | Dashboard central | 2 outils */
 const NAV_LEFT: NavItem[] = [
@@ -36,6 +39,7 @@ const NAV_LEFT: NavItem[] = [
     "text-emerald-300",
     "shadow-[0_0_20px_-6px_rgba(110,231,183,0.8)]",
     "from-emerald-300/20 to-emerald-300/5",
+    "hover:border-emerald-400/45 hover:bg-gradient-to-b hover:from-emerald-400/15 hover:to-emerald-500/5 hover:text-emerald-100",
   ),
   item(
     "/app/notion",
@@ -44,6 +48,7 @@ const NAV_LEFT: NavItem[] = [
     "text-fuchsia-300",
     "shadow-[0_0_20px_-6px_rgba(240,171,252,0.8)]",
     "from-fuchsia-300/20 to-fuchsia-300/5",
+    "hover:border-fuchsia-400/45 hover:bg-gradient-to-b hover:from-fuchsia-400/15 hover:to-fuchsia-500/5 hover:text-fuchsia-100",
   ),
 ];
 
@@ -54,6 +59,7 @@ const NAV_CENTER: NavItem = item(
   "text-accent-cyan",
   "shadow-[0_0_28px_-4px_rgba(34,211,238,0.95)]",
   "from-cyan-400/35 to-cyan-400/10",
+  "hover:border-cyan-400/50 hover:bg-gradient-to-b hover:from-cyan-400/20 hover:to-cyan-600/10 hover:text-cyan-50",
 );
 
 const NAV_RIGHT: NavItem[] = [
@@ -64,6 +70,7 @@ const NAV_RIGHT: NavItem[] = [
     "text-amber-300",
     "shadow-[0_0_20px_-6px_rgba(252,211,77,0.8)]",
     "from-amber-300/20 to-amber-300/5",
+    "hover:border-amber-400/45 hover:bg-gradient-to-b hover:from-amber-400/15 hover:to-amber-600/5 hover:text-amber-50",
   ),
   item(
     "/app/n8n",
@@ -72,6 +79,7 @@ const NAV_RIGHT: NavItem[] = [
     "text-violet-300",
     "shadow-[0_0_20px_-6px_rgba(196,181,253,0.8)]",
     "from-violet-300/20 to-violet-300/5",
+    "hover:border-violet-400/45 hover:bg-gradient-to-b hover:from-violet-400/15 hover:to-violet-600/5 hover:text-violet-100",
   ),
 ];
 
@@ -95,7 +103,7 @@ function NavPill({ item: nav, pathname }: { item: NavItem; pathname: string }) {
         className={`relative overflow-hidden flex w-full flex-col items-center justify-center rounded-2xl py-2.5 px-1.5 transition-all duration-300 border ${
           active
             ? `bg-gradient-to-b ${nav.accentBg} border-white/25 ${nav.accentGlow} ${nav.accentText}`
-            : "bg-white/[0.03] border-white/5 text-text-muted hover:bg-white/[0.07] hover:text-text-primary hover:border-white/20"
+            : `bg-white/[0.03] border-white/5 text-text-muted ${nav.inactiveHover}`
         }`}
       >
         {active && (
@@ -145,7 +153,7 @@ function NavCenterPill({ item: nav, pathname }: { item: NavItem; pathname: strin
         className={`relative flex min-w-[92px] flex-col items-center justify-center rounded-2xl border-2 py-3 px-3 shadow-lg transition-all duration-300 ${
           active
             ? `bg-gradient-to-b ${nav.accentBg} border-accent-cyan/50 ${nav.accentGlow} ${nav.accentText} scale-[1.06]`
-            : "bg-gradient-to-b from-white/[0.08] to-white/[0.02] border-white/15 text-text-muted hover:border-accent-cyan/35 hover:text-text-primary"
+            : `bg-gradient-to-b from-white/[0.08] to-white/[0.02] border-white/15 text-text-muted ${nav.inactiveHover}`
         }`}
       >
         {active && (
@@ -198,7 +206,7 @@ export default function NavWheel() {
           aria-hidden
         />
         <nav
-          className="relative flex items-end justify-center gap-1 sm:gap-2 max-w-lg mx-auto px-1"
+          className="relative flex items-end justify-center gap-1 sm:gap-2 max-w-lg mx-auto px-1 py-1 rounded-[2.15rem] bg-gradient-to-r from-emerald-500/12 via-cyan-500/10 to-violet-500/12 ring-1 ring-white/10 shadow-[0_8px_32px_-8px_rgba(34,211,238,0.25),inset_0_1px_0_0_rgba(255,255,255,0.06)]"
           aria-label="Navigation principale"
         >
           <div className="flex flex-1 items-end justify-end gap-1 sm:gap-1.5 min-w-0">

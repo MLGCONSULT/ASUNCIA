@@ -36,6 +36,26 @@ type RefreshRecordsOpts = {
 
 const FIELD_ID_RE = /^fld[A-Za-z0-9]{14}$/;
 
+/** Libellé affichable pour une clé de champ (id fld… ou nom). */
+function resolveFieldDisplayName(
+  key: string,
+  fieldMap: Map<string, AirtableField>,
+  recordFieldNameMap: Record<string, string>,
+): string {
+  const hit = fieldMap.get(key);
+  if (hit?.name?.trim()) return hit.name.trim();
+  const mapped = recordFieldNameMap[key];
+  if (typeof mapped === "string" && mapped.trim()) return mapped.trim();
+  return key;
+}
+
+function getRecordFieldRaw(rec: AirtableRecordRow, f: AirtableField): unknown {
+  const fld = rec.fields ?? {};
+  if (fld[f.name] !== undefined) return fld[f.name];
+  if (fld[f.id] !== undefined) return fld[f.id];
+  return undefined;
+}
+
 function refreshRecords(
   baseId: string,
   tableId: string,
@@ -186,7 +206,9 @@ export default function AirtableView({ hasAirtable: initialHasAirtable }: Props)
     }
     for (const [id, name] of Object.entries(recordFieldNameMap)) {
       if (typeof name === "string" && name.trim()) {
-        map.set(id, { id, name });
+        const n = name.trim();
+        map.set(id, { id, name: n });
+        map.set(n, { id, name: n });
       }
     }
     return map;
@@ -200,13 +222,21 @@ export default function AirtableView({ hasAirtable: initialHasAirtable }: Props)
     for (const rec of records) {
       for (const key of Object.keys(rec.fields ?? {})) {
         if (!discovered.has(key)) {
-          discovered.set(key, { id: key, name: key });
+          const mapped = recordFieldNameMap[key];
+          const label =
+            typeof mapped === "string" && mapped.trim() ? mapped.trim() : key;
+          discovered.set(key, { id: key, name: label });
         }
       }
-      if (discovered.size >= 30) break;
+      if (discovered.size >= 40) break;
     }
     return Array.from(discovered.values());
-  }, [selectedTable, records]);
+  }, [selectedTable, records, recordFieldNameMap]);
+
+  const resolveFieldLabel = useCallback(
+    (key: string) => resolveFieldDisplayName(key, selectedTableFieldMap, recordFieldNameMap),
+    [selectedTableFieldMap, recordFieldNameMap],
+  );
 
   useEffect(() => {
     setHasAirtable(initialHasAirtable);
@@ -657,7 +687,7 @@ export default function AirtableView({ hasAirtable: initialHasAirtable }: Props)
             <button
               type="button"
               onClick={() => setBaseSearchOpen((o) => !o)}
-              className="text-[11px] text-text-muted hover:text-text-primary w-full text-left"
+              className="text-[11px] w-full rounded-lg px-2 py-1.5 text-left text-slate-200/95 transition-colors hover:bg-white/10 hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent-cyan active:bg-white/[0.14]"
             >
               {baseSearchOpen ? "Replier la recherche" : "Rechercher une base…"}
             </button>
@@ -669,7 +699,7 @@ export default function AirtableView({ hasAirtable: initialHasAirtable }: Props)
                   onChange={(e) => setBaseSearchInput(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleSearchBases()}
                   placeholder="Nom de la base…"
-                  className="flex-1 min-w-0 px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-text-primary text-xs placeholder:text-text-dim"
+                  className="flex-1 min-w-0 px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-text-primary text-xs placeholder:text-slate-400 focus:border-accent-cyan/40 focus:ring-1 focus:ring-accent-cyan/30"
                 />
                 <button
                   type="button"
@@ -684,7 +714,7 @@ export default function AirtableView({ hasAirtable: initialHasAirtable }: Props)
             <button
               type="button"
               onClick={reloadAllBases}
-              className="text-[11px] text-text-muted hover:text-text-primary"
+              className="text-[11px] rounded-lg px-2 py-1.5 text-left text-slate-200/95 transition-colors hover:bg-white/10 hover:text-accent-cyan focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent-cyan active:bg-white/[0.14]"
             >
               Afficher toutes les bases
             </button>
@@ -701,17 +731,25 @@ export default function AirtableView({ hasAirtable: initialHasAirtable }: Props)
               </button>
             ) : null}
             {baseSearchHint ? (
-              <p className="text-[11px] text-text-dim leading-snug">{baseSearchHint}</p>
+              <p className="text-[11px] text-slate-300/90 leading-snug">{baseSearchHint}</p>
             ) : null}
           </div>
           <ul className="divide-y divide-white/5 flex-1 min-h-0 overflow-y-auto">
             {bases.map((base, i) => (
               <motion.li key={base.id} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.03 }}>
-                <div className={`w-full flex items-center gap-2 px-3 py-2.5 text-sm transition-colors ${selectedBase?.id === base.id ? "bg-accent-cyan/15 border-l-2 border-accent-cyan" : "text-text-muted hover:bg-white/5"}`}>
+                <div
+                  className={`w-full flex items-center gap-2 px-3 py-2.5 text-sm transition-colors ${
+                    selectedBase?.id === base.id
+                      ? "bg-accent-cyan/15 border-l-2 border-accent-cyan"
+                      : "text-slate-200/90 hover:bg-white/10 active:bg-white/[0.12]"
+                  }`}
+                >
                   <button
                     type="button"
                     onClick={() => setSelectedBase(base)}
-                    className={`min-w-0 flex-1 text-left truncate ${selectedBase?.id === base.id ? "text-accent-cyan" : "text-text-muted hover:text-text-primary"}`}
+                    className={`min-w-0 flex-1 text-left truncate rounded-md px-1 -mx-1 py-0.5 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent-cyan ${
+                      selectedBase?.id === base.id ? "text-accent-cyan" : "text-slate-200/95 hover:text-text-primary"
+                    }`}
                   >
                     {base.isFavorite ? <span className="mr-1 text-amber-400/90" title="Favori">★</span> : null}
                     {base.name}
@@ -725,7 +763,7 @@ export default function AirtableView({ hasAirtable: initialHasAirtable }: Props)
                     href={`https://airtable.com/${encodeURIComponent(base.id)}`}
                     target="_blank"
                     rel="noreferrer"
-                    className="shrink-0 text-xs text-text-muted hover:text-accent-cyan"
+                    className="shrink-0 rounded px-1 py-0.5 text-xs text-slate-300 hover:bg-white/10 hover:text-accent-cyan active:text-accent-cyan"
                     title="Ouvrir la base dans Airtable"
                   >
                     ↗
@@ -747,7 +785,13 @@ export default function AirtableView({ hasAirtable: initialHasAirtable }: Props)
               <ul className="divide-y divide-white/5">
                 {tables.map((table, i) => (
                   <motion.li key={table.id} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.03 }}>
-                    <div className={`w-full flex items-center gap-2 px-3 py-2.5 text-sm transition-colors ${selectedTable?.id === table.id ? "bg-accent-violet/15 border-l-2 border-accent-violet" : "text-text-muted hover:bg-white/5"}`}>
+                    <div
+                      className={`w-full flex items-center gap-2 px-3 py-2.5 text-sm transition-colors ${
+                        selectedTable?.id === table.id
+                          ? "bg-accent-violet/15 border-l-2 border-accent-violet"
+                          : "text-slate-200/90 hover:bg-white/10 active:bg-white/[0.12]"
+                      }`}
+                    >
                       <button
                         type="button"
                         onClick={() => {
@@ -755,7 +799,9 @@ export default function AirtableView({ hasAirtable: initialHasAirtable }: Props)
                           setSortDirection("asc");
                           setSelectedTable(table);
                         }}
-                        className={`min-w-0 flex-1 text-left truncate ${selectedTable?.id === table.id ? "text-accent-violet" : "text-text-muted hover:text-text-primary"}`}
+                        className={`min-w-0 flex-1 text-left truncate rounded-md px-1 -mx-1 py-0.5 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent-violet ${
+                          selectedTable?.id === table.id ? "text-accent-violet" : "text-slate-200/95 hover:text-text-primary"
+                        }`}
                         title={table.description ? table.description : undefined}
                       >
                         {table.name}
@@ -765,7 +811,7 @@ export default function AirtableView({ hasAirtable: initialHasAirtable }: Props)
                           href={`https://airtable.com/${encodeURIComponent(selectedBase.id)}/${encodeURIComponent(table.id)}`}
                           target="_blank"
                           rel="noreferrer"
-                          className="shrink-0 text-xs text-text-muted hover:text-accent-violet"
+                          className="shrink-0 rounded px-1 py-0.5 text-xs text-slate-300 hover:bg-white/10 hover:text-accent-violet active:text-accent-violet"
                           title="Ouvrir la table dans Airtable"
                         >
                           ↗
@@ -870,50 +916,94 @@ export default function AirtableView({ hasAirtable: initialHasAirtable }: Props)
               </div>
             </details>
           </div>
-          {recordsLoading ? <div className="p-4 text-text-muted text-sm">Chargement…</div> : records.length === 0 ? <div className="p-4 text-text-muted text-sm">{selectedTable ? "Aucun enregistrement." : "Sélectionnez une base et une table."}</div> : (
-            <div className="flex-1 min-h-0 overflow-y-auto p-2">
-              <AnimatePresence mode="popLayout">
-                {records.map((rec: AirtableRecordRow, i) => (
-                  <motion.div key={rec.id} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ delay: i * 0.02 }} className="p-3 rounded-xl bg-white/[0.03] border border-white/5 mb-2 text-xs flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <div className="text-text-dim font-mono mb-1">{rec.id}</div>
-                      <div className="text-text-primary space-y-0.5">
-                        {Object.entries(rec.fields ?? {}).slice(0, 6).map(([k, v]) => (
-                          <div key={k} className="truncate">
-                            <span className="text-text-muted">
-                              {selectedTableFieldMap.get(k)?.name ?? k}:
-                            </span>{" "}
-                            {renderAirtableCellValue(v)}
-                          </div>
+          {recordsLoading ? (
+            <div className="p-4 text-text-muted text-sm">Chargement…</div>
+          ) : records.length === 0 ? (
+            <div className="p-4 text-text-muted text-sm">
+              {selectedTable ? "Aucun enregistrement." : "Sélectionnez une base et une table."}
+            </div>
+          ) : (
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+              <div className="min-h-0 min-w-0 flex-1 overflow-hidden rounded-lg border border-white/10 bg-black/20">
+                <div className="max-h-[min(65vh,32rem)] overflow-auto overscroll-contain">
+                  <table className="min-w-max w-full border-collapse text-left text-xs">
+                    <thead className="sticky top-0 z-[1] border-b border-white/10 bg-surface/95 backdrop-blur-md">
+                      <tr>
+                        <th className="sticky left-0 z-[2] whitespace-nowrap border-r border-white/10 bg-surface/95 px-3 py-2.5 text-[10px] font-semibold uppercase tracking-wide text-text-dim">
+                          Actions
+                        </th>
+                        <th className="whitespace-nowrap border-r border-white/5 px-3 py-2.5 text-[10px] font-semibold uppercase tracking-wide text-text-dim">
+                          ID
+                        </th>
+                        {selectedTableResolvedFields.map((f) => (
+                          <th
+                            key={`${f.id}-${f.name}`}
+                            className="max-w-[12rem] min-w-[8rem] whitespace-normal border-r border-white/5 px-3 py-2.5 text-[11px] font-medium text-text-primary last:border-r-0"
+                            title={f.name}
+                          >
+                            {f.name}
+                          </th>
                         ))}
-                      </div>
-                    </div>
-                    <div className="shrink-0 flex flex-col gap-1">
-                      <button
-                        type="button"
-                        onClick={() => { setDetailRecord(rec); setFormError(null); }}
-                        className="px-2 py-1 rounded bg-white/10 text-text-muted hover:text-accent-cyan text-xs"
-                      >
-                        Détail
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => { setEditRecord(rec); setCreateOpen(false); setFormError(null); }}
-                        className="px-2 py-1 rounded bg-white/10 text-text-muted hover:text-accent-violet text-xs"
-                      >
-                        Modifier
-                      </button>
-                    </div>
-                  </motion.div>
-                ))}
-              </AnimatePresence>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {records.map((rec: AirtableRecordRow) => (
+                        <tr
+                          key={rec.id}
+                          className="border-b border-white/5 transition-colors hover:bg-white/[0.04]"
+                        >
+                          <td className="sticky left-0 z-[1] whitespace-nowrap border-r border-white/10 bg-void/90 px-2 py-2 align-top backdrop-blur-sm">
+                            <div className="flex flex-col gap-1">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setDetailRecord(rec);
+                                  setFormError(null);
+                                }}
+                                className="rounded-md bg-white/10 px-2 py-1 text-[10px] text-text-muted hover:text-accent-cyan"
+                              >
+                                Détail
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditRecord(rec);
+                                  setCreateOpen(false);
+                                  setFormError(null);
+                                }}
+                                className="rounded-md bg-white/10 px-2 py-1 text-[10px] text-text-muted hover:text-accent-violet"
+                              >
+                                Modifier
+                              </button>
+                            </div>
+                          </td>
+                          <td className="max-w-[8rem] whitespace-normal break-all border-r border-white/5 px-2 py-2 align-top font-mono text-[10px] text-text-dim">
+                            {rec.id}
+                          </td>
+                          {selectedTableResolvedFields.map((f) => {
+                            const v = getRecordFieldRaw(rec, f);
+                            return (
+                              <td
+                                key={`${rec.id}-${f.id}`}
+                                className="max-w-[12rem] min-w-[8rem] border-r border-white/5 px-2 py-2 align-top text-text-primary last:border-r-0"
+                              >
+                                <div className="line-clamp-4 break-words">{renderAirtableCellValue(v)}</div>
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
               {recordsNextCursor ? (
-                <div className="p-2 border-t border-white/5">
+                <div className="shrink-0 border-t border-white/5 p-2">
                   <button
                     type="button"
                     onClick={loadMoreRecords}
                     disabled={recordsLoading}
-                    className="w-full py-2 rounded-lg bg-white/5 text-text-muted text-xs hover:bg-white/10 disabled:opacity-50"
+                    className="w-full rounded-lg bg-white/5 py-2 text-xs text-text-muted hover:bg-white/10 disabled:opacity-50"
                   >
                     {recordsLoading ? "Chargement…" : "Charger la suite"}
                   </button>
@@ -926,7 +1016,11 @@ export default function AirtableView({ hasAirtable: initialHasAirtable }: Props)
 
       <AnimatePresence>
         {detailRecord ? (
-          <RecordDetailModal record={detailRecord} onClose={() => setDetailRecord(null)} />
+          <RecordDetailModal
+            record={detailRecord}
+            onClose={() => setDetailRecord(null)}
+            resolveFieldLabel={resolveFieldLabel}
+          />
         ) : null}
       </AnimatePresence>
 
@@ -954,37 +1048,68 @@ export default function AirtableView({ hasAirtable: initialHasAirtable }: Props)
 function RecordDetailModal({
   record,
   onClose,
+  resolveFieldLabel,
 }: {
   record: AirtableRecordRow;
   onClose: () => void;
+  resolveFieldLabel: (key: string) => string;
 }) {
+  const entries = Object.entries(record.fields ?? {}).sort(([a], [b]) =>
+    resolveFieldLabel(a).localeCompare(resolveFieldLabel(b), "fr", { sensitivity: "base" }),
+  );
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-      onClick={onClose}
+      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto py-10 px-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="record-detail-title"
     >
+      <button
+        type="button"
+        className="fixed inset-0 bg-black/65 backdrop-blur-[2px]"
+        aria-label="Fermer"
+        onClick={onClose}
+      />
       <motion.div
-        initial={{ scale: 0.95, opacity: 0 }}
+        initial={{ scale: 0.96, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.95, opacity: 0 }}
-        className="w-full max-w-lg glass-strong rounded-2xl border border-white/10 p-6 shadow-xl max-h-[90vh] overflow-y-auto"
+        exit={{ scale: 0.96, opacity: 0 }}
+        transition={{ type: "spring", damping: 26, stiffness: 320 }}
+        className="relative z-10 my-auto w-full max-w-lg"
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 className="font-semibold text-text-primary mb-2">Détail de l&apos;enregistrement</h3>
-        <p className="font-mono text-[11px] text-text-dim break-all mb-3">{record.id}</p>
-        <pre className="text-xs overflow-auto max-h-[60vh] rounded-lg border border-white/10 bg-black/20 p-3 font-mono text-text-muted whitespace-pre-wrap">
-          {JSON.stringify(record.fields ?? {}, null, 2)}
-        </pre>
-        <button
-          type="button"
-          onClick={onClose}
-          className="mt-4 px-4 py-2 rounded-lg bg-white/10 text-text-primary text-sm"
-        >
-          Fermer
-        </button>
+        <div className="glass-strong flex max-h-[min(88vh,40rem)] flex-col rounded-2xl border border-white/10 shadow-xl">
+          <div className="shrink-0 border-b border-white/10 p-5 pb-3">
+            <h3 id="record-detail-title" className="font-semibold text-text-primary">
+              Détail de l&apos;enregistrement
+            </h3>
+            <p className="mt-1 font-mono text-[11px] text-text-dim break-all">{record.id}</p>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
+            <div className="space-y-2">
+              {entries.map(([k, v]) => (
+                <div key={k} className="rounded-xl border border-white/10 bg-black/25 px-3 py-2.5">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-accent-cyan/90">
+                    {resolveFieldLabel(k)}
+                  </p>
+                  <div className="mt-1.5 text-sm text-text-primary">{renderAirtableCellValue(v)}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="shrink-0 border-t border-white/10 p-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-full rounded-lg bg-white/10 px-4 py-2.5 text-sm text-text-primary hover:bg-white/15"
+            >
+              Fermer
+            </button>
+          </div>
+        </div>
       </motion.div>
     </motion.div>
   );
@@ -1164,7 +1289,7 @@ function RecordFormModal({
         const existing = record?.fields?.[f.name] ?? record?.fields?.[f.id];
         return {
           key: f.name,
-          label: f.name,
+          label: f.name.trim() || f.id,
           type: f.type,
           value: formatFieldValueForInput(f.type, existing),
         };
@@ -1267,21 +1392,31 @@ function RecordFormModal({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-      onClick={onClose}
+      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto py-10 px-4"
+      role="dialog"
+      aria-modal="true"
     >
+      <button type="button" className="fixed inset-0 bg-black/65 backdrop-blur-[2px]" aria-label="Fermer" onClick={onClose} />
       <motion.div
-        initial={{ scale: 0.95, opacity: 0 }}
+        initial={{ scale: 0.96, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.95, opacity: 0 }}
-        className="w-full max-w-lg glass-strong rounded-2xl border border-white/10 p-6 shadow-xl max-h-[90vh] overflow-y-auto"
+        exit={{ scale: 0.96, opacity: 0 }}
+        transition={{ type: "spring", damping: 26, stiffness: 320 }}
+        className="relative z-10 my-auto w-full max-w-lg"
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 className="font-semibold text-text-primary mb-4">{isEdit ? "Modifier l'enregistrement" : "Créer un enregistrement"}</h3>
-        <form onSubmit={handleSubmit} className="space-y-3">
+        <div className="glass-strong flex max-h-[min(92vh,44rem)] flex-col rounded-2xl border border-white/10 shadow-xl">
+          <div className="shrink-0 border-b border-white/10 px-5 pt-5 pb-3">
+            <h3 className="font-semibold text-text-primary">
+              {isEdit ? "Modifier l'enregistrement" : "Créer un enregistrement"}
+            </h3>
+          </div>
+          <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4">
+        <div className="space-y-3">
           {tableFields.length > 0 && (
             <div className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-text-muted flex items-center justify-between gap-2">
-              <span>Colonnes detectees: remplis uniquement les champs utiles.</span>
+              <span>Colonnes détectées : remplis uniquement les champs utiles.</span>
               <span className="text-text-dim">
                 {filledCount}/{fields.length} rempli(s)
               </span>
@@ -1294,11 +1429,11 @@ function RecordFormModal({
                 : group === "date"
                   ? "Dates"
                   : group === "number"
-                    ? "Numeriques"
+                    ? "Numériques"
                     : group === "choice"
                       ? "Options et statuts"
                       : group === "media"
-                        ? "Pieces jointes"
+                        ? "Pièces jointes"
                         : "Autres colonnes";
             return (
               <div key={group} className="rounded-xl border border-white/10 bg-white/[0.02] p-3 space-y-2">
@@ -1394,12 +1529,25 @@ function RecordFormModal({
               ) : null}
             </div>
           </details>
-          {error && <p className="text-sm text-accent-rose">{error}</p>}
-          <div className="flex gap-2 pt-2">
-            <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg bg-white/10 text-text-primary text-sm">Annuler</button>
-            <button type="submit" disabled={loading} className="px-4 py-2 rounded-lg bg-accent-cyan/20 text-accent-cyan text-sm font-medium disabled:opacity-50">{loading ? "Envoi…" : isEdit ? "Enregistrer" : "Créer"}</button>
-          </div>
-        </form>
+        </div>
+            </div>
+            <div className="shrink-0 space-y-3 border-t border-white/10 px-5 py-4">
+              {error ? <p className="text-sm text-accent-rose">{error}</p> : null}
+              <div className="flex flex-wrap gap-2">
+                <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg bg-white/10 text-text-primary text-sm">
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="px-4 py-2 rounded-lg bg-accent-cyan/20 text-accent-cyan text-sm font-medium disabled:opacity-50"
+                >
+                  {loading ? "Envoi…" : isEdit ? "Enregistrer" : "Créer"}
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
       </motion.div>
     </motion.div>
   );

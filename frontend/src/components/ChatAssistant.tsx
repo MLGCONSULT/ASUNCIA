@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -92,6 +93,8 @@ export default function ChatAssistant({
   const [loading, setLoading] = useState(false);
   const [historyLoaded, setHistoryLoaded] = useState(false);
   const [conversationsError, setConversationsError] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const historyToolbarRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const processedPromptRef = useRef<string | null>(null);
   const messagesRef = useRef<Message[]>([]);
@@ -192,6 +195,23 @@ export default function ChatAssistant({
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  useEffect(() => {
+    if (!compact || !historyOpen) return;
+    function handlePointerDown(e: PointerEvent) {
+      const el = historyToolbarRef.current;
+      if (el && !el.contains(e.target as Node)) setHistoryOpen(false);
+    }
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setHistoryOpen(false);
+    }
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKey);
+    };
+  }, [compact, historyOpen]);
 
   const submitPrompt = useCallback(
     async (texte: string) => {
@@ -360,7 +380,110 @@ export default function ChatAssistant({
 
   const showConversationToolbar = compact ? "flex" : "flex sm:hidden";
 
-  const conversationToolbar = (
+  const activeConversationTitle =
+    conversations.find((c) => c.id === conversationId)?.titre?.trim() || "Sans titre";
+
+  const conversationToolbar = compact ? (
+    <div
+      ref={historyToolbarRef}
+      className="relative z-[80] shrink-0 border-b border-white/10 bg-gradient-to-r from-surface/90 via-surface/60 to-surface/90 px-2 py-2.5 sm:px-3"
+    >
+      {typeof document !== "undefined" &&
+        historyOpen &&
+        createPortal(
+          <button
+            type="button"
+            aria-label="Fermer l’historique"
+            className="fixed inset-0 z-40 bg-black/35 backdrop-blur-[1px]"
+            onClick={() => setHistoryOpen(false)}
+          />,
+          document.body,
+        )}
+      <div className="flex items-stretch gap-2">
+        <div className="relative min-w-0 flex-1">
+          <button
+            type="button"
+            aria-expanded={historyOpen}
+            aria-haspopup="listbox"
+            onClick={() => setHistoryOpen((o) => !o)}
+            className="flex w-full items-center gap-2 rounded-xl border border-white/15 bg-black/30 py-2 pl-3 pr-2 text-left shadow-inner shadow-black/25 transition-colors hover:border-accent-cyan/35 hover:bg-black/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-cyan"
+          >
+            <span className="text-text-dim shrink-0" aria-hidden>
+              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-text-dim">Historique</span>
+              <span className="block truncate text-xs font-medium text-text-primary">{activeConversationTitle}</span>
+            </span>
+            <span className={`shrink-0 transition-transform ${historyOpen ? "rotate-180" : ""}`} aria-hidden>
+              <svg className="h-3.5 w-3.5 text-accent-cyan/90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </span>
+          </button>
+          <AnimatePresence>
+            {historyOpen && (
+              <motion.div
+                role="listbox"
+                aria-label="Conversations enregistrées"
+                initial={{ opacity: 0, y: -6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.18 }}
+                className="absolute left-0 right-0 top-full z-[90] mt-2 max-h-[min(18rem,42vh)] overflow-y-auto rounded-xl border border-white/15 bg-[#0a0a12]/95 p-2 shadow-[0_20px_50px_-12px_rgba(0,0,0,0.85)] ring-1 ring-accent-cyan/20 backdrop-blur-xl [scrollbar-width:thin]"
+              >
+                <p className="px-2 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-text-dim">Choisir une conversation</p>
+                {conversationsError && (
+                  <p className="rounded-lg border border-accent-rose/25 bg-accent-rose/10 px-2 py-2 text-[11px] text-accent-rose/95">
+                    Liste indisponible pour le moment.
+                  </p>
+                )}
+                {conversations.map((c) => {
+                  const active = conversationId === c.id;
+                  const sub = formatConversationDate(c.dateMiseAJour || c.dateCreation);
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      role="option"
+                      aria-selected={active}
+                      onClick={() => {
+                        setHistoryOpen(false);
+                        void loadConversation(c.id);
+                      }}
+                      className={`mb-1 w-full rounded-lg border px-2.5 py-2 text-left transition-colors last:mb-0 ${
+                        active
+                          ? "border-accent-cyan/45 bg-accent-cyan/15 text-accent-cyan shadow-[0_0_20px_-10px_rgba(34,211,238,0.5)]"
+                          : "border-transparent bg-white/[0.04] text-text-primary hover:border-white/15 hover:bg-white/[0.09] active:bg-white/[0.12]"
+                      }`}
+                    >
+                      <span className="line-clamp-2 text-xs font-medium leading-snug">{c.titre || "Sans titre"}</span>
+                      {sub ? <span className="mt-0.5 block text-[10px] text-text-muted">{sub}</span> : null}
+                    </button>
+                  );
+                })}
+                {conversations.length === 0 && !conversationsError ? (
+                  <p className="px-2 py-3 text-center text-[11px] text-text-muted">Aucune conversation pour l’instant.</p>
+                ) : null}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            setHistoryOpen(false);
+            void startNewConversation();
+          }}
+          className="shrink-0 rounded-xl border border-accent-cyan/40 bg-accent-cyan/15 px-3 py-2 text-xs font-semibold text-accent-cyan shadow-[0_0_20px_-8px_rgba(34,211,238,0.5)] hover:bg-accent-cyan/25 active:scale-[0.98] transition-all"
+        >
+          + Nouveau
+        </button>
+      </div>
+    </div>
+  ) : (
     <div
       className={`${showConversationToolbar} shrink-0 items-stretch gap-2 border-b border-white/10 bg-gradient-to-r from-surface/80 via-surface/50 to-surface/80 px-2 py-2.5 sm:px-3`}
     >
