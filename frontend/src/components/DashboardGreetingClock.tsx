@@ -1,24 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-
-function firstNameFromDisplay(nomAffichage: string | null | undefined): string | null {
-  const t = nomAffichage?.trim();
-  if (!t) return null;
-  const word = t.split(/\s+/)[0];
-  if (!word) return null;
-  return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
-}
-
-function greetingForHour(h: number): "Bonjour" | "Bonsoir" {
-  return h < 18 ? "Bonjour" : "Bonsoir";
-}
+import { frenchTimeGreeting, profileDisplayName } from "@/lib/french-greeting";
 
 type Props = {
   nomAffichage?: string | null;
+  email?: string | null;
 };
 
-export default function DashboardGreetingClock({ nomAffichage }: Props) {
+export default function DashboardGreetingClock({ nomAffichage, email }: Props) {
   const [now, setNow] = useState<Date | null>(null);
 
   useEffect(() => {
@@ -27,7 +17,7 @@ export default function DashboardGreetingClock({ nomAffichage }: Props) {
     return () => window.clearInterval(id);
   }, []);
 
-  const prenom = useMemo(() => firstNameFromDisplay(nomAffichage), [nomAffichage]);
+  const who = useMemo(() => profileDisplayName(nomAffichage, email), [nomAffichage, email]);
 
   const timeStr =
     now?.toLocaleTimeString("fr-FR", {
@@ -44,15 +34,15 @@ export default function DashboardGreetingClock({ nomAffichage }: Props) {
       month: "long",
     }) ?? "…";
 
-  const greeting = now ? greetingForHour(now.getHours()) : "Bonjour";
+  const greeting = now ? frenchTimeGreeting(now) : null;
 
   const salutation =
-    prenom != null ? `${greeting}, ${prenom}` : `${greeting}`;
+    greeting && who != null ? `${greeting}, ${who}` : greeting != null ? greeting : "…";
 
   return (
     <div className="glass-strong flex min-h-[8.5rem] flex-col justify-between gap-4 rounded-xl border border-white/10 p-4 card-glow transition-all duration-[420ms] ease-[cubic-bezier(0.22,1,0.36,1)] hover:border-white/[0.14] hover:shadow-[0_20px_50px_-28px_rgba(34,211,238,0.15)] sm:min-h-0 sm:flex-row sm:items-end sm:justify-between">
       <div className="min-w-0 flex-1">
-        <p className="text-xs font-medium uppercase tracking-[0.18em] text-text-dim">Heure locale</p>
+        <p className="text-xs uppercase tracking-[0.18em] text-text-dim">Heure locale</p>
         <p className="mt-3 text-base font-medium leading-snug text-accent-cyan/95">{salutation}</p>
         <p className="mt-2 text-sm capitalize leading-snug text-text-muted">{dateStr}</p>
       </div>

@@ -3,14 +3,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { buildAssistantPromptUrl } from "@/lib/assistant-intents";
-
-const supabaseSqlAssistantPrompt =
-  "Je veux un assistant SQL Supabase strictement en lecture. Quand je décris ce que je veux voir dans mes données, tu me proposes uniquement une requête SQL READ-ONLY (SELECT / WITH / SHOW / EXPLAIN, sans INSERT/UPDATE/DELETE/ALTER/DROP/TRUNCATE/CREATE). Réponds toujours en JSON avec deux clés: { \"sql\": \"...\", \"explication\": \"...\" }.";
 
 export default function HomePage() {
-  const supabaseChatUrl = buildAssistantPromptUrl(supabaseSqlAssistantPrompt);
-
   return (
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-void px-4 py-8 sm:px-6 lg:px-8">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_0%,rgba(56,189,248,0.18),transparent_55%),radial-gradient(circle_at_80%_100%,rgba(147,51,234,0.18),transparent_55%)]" />
@@ -62,23 +56,42 @@ export default function HomePage() {
           </motion.div>
         </div>
 
-        {/* Bulles d’accès rapide */}
-        <div className="relative flex w-full max-w-4xl flex-wrap items-center justify-center gap-7">
+        {/* Bulles d’accès rapide — même périmètre que le dock (Airtable, Chatbot, Dashboard, n8n, Supabase) */}
+        <div className="relative flex w-full max-w-5xl flex-wrap items-center justify-center gap-6 sm:gap-7">
           <BubbleLink
-            label="Tableau de bord"
-            subtitle="Assistant"
-            href="/connexion?redirect=/app/dashboard"
-            tone="cyan"
+            label="Airtable"
+            subtitle="Bases"
+            href="/connexion?redirect=/app/airtable"
+            tone="fuchsia"
             delay={0}
           />
-          <BubbleLink label="Airtable" subtitle="Bases" href="/connexion?redirect=/app/airtable" tone="fuchsia" delay={0.12} />
-          <BubbleLink label="n8n" subtitle="Flows" href="/connexion?redirect=/app/n8n" tone="amber" delay={0.24} />
+          <BubbleLink
+            label="Chatbot"
+            subtitle="Stacky"
+            href="/connexion?redirect=/app/chatbot"
+            tone="stacky"
+            delay={0.1}
+          />
+          <BubbleLink
+            label="Tableau de bord"
+            subtitle="Dashboard"
+            href="/connexion?redirect=/app/dashboard"
+            tone="cyan"
+            delay={0.2}
+          />
+          <BubbleLink
+            label="Workflows"
+            subtitle="n8n"
+            href="/connexion?redirect=/app/n8n"
+            tone="amber"
+            delay={0.3}
+          />
           <BubbleLink
             label="Supabase"
             subtitle="Données"
-            href={`/connexion?redirect=${encodeURIComponent(supabaseChatUrl)}`}
+            href="/connexion?redirect=/app/supabase"
             tone="emerald"
-            delay={0.36}
+            delay={0.4}
           />
         </div>
       </motion.div>
@@ -86,7 +99,7 @@ export default function HomePage() {
   );
 }
 
-type BubbleTone = "cyan" | "violet" | "fuchsia" | "amber" | "emerald";
+type BubbleTone = "cyan" | "violet" | "fuchsia" | "amber" | "emerald" | "stacky";
 
 const toneClasses: Record<BubbleTone, string> = {
   cyan: "border-accent-cyan/50 bg-accent-cyan/10 hover:border-accent-cyan/80 hover:bg-accent-cyan/20",
@@ -94,6 +107,8 @@ const toneClasses: Record<BubbleTone, string> = {
   fuchsia: "border-accent-fuchsia/50 bg-accent-fuchsia/10 hover:border-accent-fuchsia/80 hover:bg-accent-fuchsia/20",
   amber: "border-accent-amber/50 bg-accent-amber/10 hover:border-accent-amber/80 hover:bg-accent-amber/20",
   emerald: "border-emerald-400/50 bg-emerald-400/10 hover:border-emerald-400/80 hover:bg-emerald-400/20",
+  stacky:
+    "border-[#5c7cff]/55 bg-[#0047FF]/12 hover:border-[#7c9cff]/85 hover:bg-[#0047FF]/24",
 };
 
 function BubbleLink({

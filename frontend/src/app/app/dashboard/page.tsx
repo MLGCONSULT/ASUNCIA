@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { profileDisplayName } from "@/lib/french-greeting";
 import PageMotion from "@/components/PageMotion";
+import DashboardAgentWelcomeLine from "@/components/DashboardAgentWelcomeLine";
 import ToolCards from "@/components/ToolCards";
 import DashboardToday from "@/components/DashboardToday";
 import DashboardGreetingClock from "@/components/DashboardGreetingClock";
@@ -39,7 +41,8 @@ const orbitBubbles = [
 
 export default async function DashboardPage() {
   const supabase = await createClient();
-  const { data: profile } = await supabase.from("profiles").select("nom_affichage").maybeSingle();
+  const { data: profile } = await supabase.from("profiles").select("nom_affichage, email").maybeSingle();
+  const headerIdentity = profileDisplayName(profile?.nom_affichage, profile?.email);
 
   return (
     <PageMotion className="dashboard-scene relative isolate flex h-full min-h-0 flex-col gap-5 overflow-visible">
@@ -49,7 +52,7 @@ export default async function DashboardPage() {
         <div className="relative z-10 mx-auto flex w-full max-w-5xl flex-col items-center gap-7">
           <div className="flex w-full items-center justify-between text-xs text-text-dim transition-opacity duration-500">
             <span className="uppercase tracking-[0.2em]">Tableau de bord</span>
-            {profile?.nom_affichage ? <span>{profile.nom_affichage}</span> : null}
+            {headerIdentity ? <span>{headerIdentity}</span> : null}
           </div>
 
           <div className="relative flex w-full max-w-4xl flex-col items-center gap-8">
@@ -66,11 +69,7 @@ export default async function DashboardPage() {
                 <span className="text-[11px] uppercase tracking-[0.28em] text-accent-cyan/90">
                   Assistant IA
                 </span>
-                {profile?.nom_affichage ? (
-                  <p className="mt-1 px-3 text-center text-[10px] text-text-muted leading-snug">
-                    Bonjour, {profile.nom_affichage}
-                  </p>
-                ) : null}
+                <DashboardAgentWelcomeLine nomAffichage={profile?.nom_affichage} email={profile?.email} />
                 <p className="mt-1.5 px-3 text-center text-base font-display font-semibold text-text-primary leading-tight sm:text-lg">
                   L’assistant te guide
                 </p>
@@ -92,7 +91,7 @@ export default async function DashboardPage() {
       </section>
 
       <section className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-4">
-        <DashboardGreetingClock nomAffichage={profile?.nom_affichage ?? null} />
+        <DashboardGreetingClock nomAffichage={profile?.nom_affichage ?? null} email={profile?.email ?? null} />
         <div className="glass-strong rounded-xl border border-white/10 p-4 card-glow transition-all duration-[420ms] ease-[cubic-bezier(0.22,1,0.36,1)] hover:border-white/[0.14] hover:shadow-[0_20px_50px_-28px_rgba(147,51,234,0.12)]">
           <p className="text-xs uppercase tracking-[0.18em] text-text-dim">Commencer ici</p>
           <p className="mt-2 text-sm text-text-primary">Choisis une action selon l&apos;outil le plus adapté.</p>
