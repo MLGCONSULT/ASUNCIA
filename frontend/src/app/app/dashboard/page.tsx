@@ -66,19 +66,24 @@ export default async function DashboardPage() {
               />
               <div className="dashboard-agent-bubble relative z-[1] flex h-52 w-52 flex-col items-center justify-center rounded-full border border-white/15 bg-black/85 backdrop-blur-2xl transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] hover:scale-[1.02]">
                 <span className="text-[11px] uppercase tracking-[0.28em] text-accent-cyan/90">
-                  Agent
+                  Assistant IA
                 </span>
-                <p className="mt-1.5 px-3 text-center text-lg font-display font-semibold text-text-primary leading-tight">
-                  {profile?.nom_affichage ?? "Ton espace"}
+                {profile?.nom_affichage ? (
+                  <p className="mt-1 px-3 text-center text-[10px] text-text-muted leading-snug">
+                    Bonjour, {profile.nom_affichage}
+                  </p>
+                ) : null}
+                <p className="mt-1.5 px-3 text-center text-base font-display font-semibold text-text-primary leading-tight sm:text-lg">
+                  L’assistant te guide
                 </p>
-                <p className="mt-1 max-w-[10rem] text-center text-[10px] text-text-muted leading-snug">
-                  Guide selon tes outils connectés
+                <p className="mt-1 max-w-[13rem] text-center text-[10px] text-text-muted leading-snug">
+                  Il t’accompagne pas à pas selon tes outils connectés.
                 </p>
                 <Link
                   href="/app/dashboard?assistant=open"
                   className="mt-4 rounded-full bg-accent-cyan px-5 py-2.5 text-xs font-semibold text-black shadow-[0_14px_36px_rgba(34,211,238,0.55)] transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-0.5 hover:shadow-[0_18px_44px_rgba(34,211,238,0.65)] active:translate-y-0"
                 >
-                  Ouvrir le guide
+                  Ouvrir l’assistant
                 </Link>
               </div>
             </DashboardAgentShell>
@@ -92,7 +97,7 @@ export default async function DashboardPage() {
         <div className="glass-strong rounded-xl border border-white/10 p-4 card-glow transition-all duration-[420ms] ease-[cubic-bezier(0.22,1,0.36,1)] hover:border-white/[0.14] hover:shadow-[0_20px_50px_-28px_rgba(34,211,238,0.15)]">
           <p className="text-xs uppercase tracking-[0.18em] text-text-dim">Conversations IA</p>
           <p className="mt-2 text-2xl font-semibold text-text-primary">{convCount ?? 0}</p>
-          <p className="text-xs text-text-muted mt-1">historique de guidage</p>
+          <p className="text-xs text-text-muted mt-1">historique avec l’assistant</p>
           <Link
             href="/app/dashboard?assistant=open"
             className="inline-block mt-3 text-xs text-accent-cyan transition-colors duration-200 hover:underline"
@@ -135,7 +140,9 @@ export default async function DashboardPage() {
               Ouvrir Stacky (chatbot)
             </Link>
           </div>
-          <p className="text-xs text-text-muted mt-3">Astuce : ouvre l&apos;assistant si tu hésites sur l&apos;outil à utiliser.</p>
+          <p className="text-xs text-text-muted mt-3">
+            Astuce : l’assistant IA peut te proposer l’outil le plus adapté à ta situation.
+          </p>
         </div>
       </section>
 

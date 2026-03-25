@@ -8,6 +8,8 @@ import { usePathname } from "next/navigation";
 import CommandPalette from "@/components/CommandPalette";
 import { createClient } from "@/lib/supabase/client";
 import { fetchBackend } from "@/lib/api";
+import NavIcon from "@/components/NavIcon";
+import { NAV_HEADER_BUBBLE_GLOW, NAV_HEADER_ITEMS, isAppNavActive } from "@/lib/app-nav-config";
 
 export default function AppHeader() {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -53,12 +55,45 @@ export default function AppHeader() {
             </span>
             <span className="hidden font-display text-base font-semibold tracking-tight sm:inline">AsuncIA</span>
             <span
-              className="hidden max-w-[7rem] truncate border-l border-white/10 pl-2 text-[10px] font-medium uppercase tracking-[0.18em] text-accent-cyan/80 xl:inline xl:max-w-[10rem]"
+              className="hidden max-w-[7rem] truncate pl-2.5 text-[10px] font-medium uppercase tracking-[0.18em] text-accent-cyan/75 xl:inline xl:max-w-[10rem]"
               title={title}
             >
               {title}
             </span>
           </Link>
+
+          <nav
+            className="app-header-nav-rail no-scrollbar ml-1.5 hidden min-w-0 shrink overflow-x-auto lg:ml-2 lg:flex"
+            aria-label="Navigation des outils"
+          >
+            {NAV_HEADER_ITEMS.map((nav) => {
+              const active = isAppNavActive(pathname, nav.href);
+              const glow = NAV_HEADER_BUBBLE_GLOW[nav.href] ?? "rgba(255, 255, 255, 0.12)";
+              return (
+                <Link
+                  key={nav.href}
+                  href={nav.href}
+                  title={nav.label}
+                  data-active={active ? "true" : "false"}
+                  aria-current={active ? "page" : undefined}
+                  style={{ ["--nav-bubble-glow" as string]: glow }}
+                  className={[
+                    "app-header-nav-bubble flex items-center whitespace-nowrap rounded-full px-3 py-1.5",
+                    "text-[11px] font-semibold tracking-tight backdrop-blur-md",
+                    "ring-1 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
+                    active
+                      ? `bg-gradient-to-b ${nav.accentBg} ${nav.accentText} ${nav.accentGlow} ring-white/30`
+                      : `bg-white/[0.06] text-text-muted ring-white/[0.09] ${nav.headerNavHover} hover:-translate-y-px`,
+                  ].join(" ")}
+                >
+                  <span className="app-header-nav-bubble-content">
+                    <NavIcon name={nav.icon} className="h-[15px] w-[15px] shrink-0 opacity-95" />
+                    <span>{nav.label}</span>
+                  </span>
+                </Link>
+              );
+            })}
+          </nav>
 
           <div className="min-w-0 flex-1 flex justify-center">
             <CommandPalette variant="header" />

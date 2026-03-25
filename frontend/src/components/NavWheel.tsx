@@ -3,88 +3,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
-import NavIcon, { type IconName } from "@/components/NavIcon";
+import NavIcon from "@/components/NavIcon";
+import { NAV_WHEEL_ITEMS, type AppNavItem, isAppNavActive } from "@/lib/app-nav-config";
 
-type NavItem = {
-  href: string;
-  label: string;
-  icon: IconName;
-  accentText: string;
-  accentGlow: string;
-  accentBg: string;
-  inactiveHover: string;
-};
-
-const item = (
-  href: string,
-  label: string,
-  icon: IconName,
-  accentText: string,
-  accentGlow: string,
-  accentBg: string,
-  inactiveHover: string,
-): NavItem => ({ href, label, icon, accentText, accentGlow, accentBg, inactiveHover });
-
-/** Dock bas : 5 colonnes, Dashboard au centre */
-const NAV_SIDE: NavItem[] = [
-  item(
-    "/app/airtable",
-    "Airtable",
-    "grid",
-    "text-emerald-300",
-    "shadow-[0_0_20px_-6px_rgba(110,231,183,0.8)]",
-    "from-emerald-300/20 to-emerald-300/5",
-    "hover:border-emerald-400/45 hover:bg-gradient-to-b hover:from-emerald-400/15 hover:to-emerald-500/5 hover:text-emerald-100",
-  ),
-  item(
-    "/app/supabase",
-    "Supabase",
-    "database",
-    "text-amber-300",
-    "shadow-[0_0_20px_-6px_rgba(252,211,77,0.8)]",
-    "from-amber-300/20 to-amber-300/5",
-    "hover:border-amber-400/45 hover:bg-gradient-to-b hover:from-amber-400/15 hover:to-amber-600/5 hover:text-amber-50",
-  ),
-];
-
-const NAV_CENTER: NavItem = item(
-  "/app/dashboard",
-  "Dashboard",
-  "dashboard",
-  "text-accent-cyan",
-  "shadow-[0_0_28px_-4px_rgba(34,211,238,0.95)]",
-  "from-cyan-400/35 to-cyan-400/10",
-  "hover:border-cyan-400/50 hover:bg-gradient-to-b hover:from-cyan-400/20 hover:to-cyan-600/10 hover:text-cyan-50",
-);
-
-/** Bleu hover demandé (#0047FF) */
-const NAV_CHATBOT: NavItem = item(
-  "/app/chatbot",
-  "Chatbot",
-  "chat",
-  "text-blue-50",
-  "shadow-[0_0_22px_-6px_rgba(0,71,255,0.9)]",
-  "from-[#0047FF]/35 to-[#0047FF]/8",
-  "hover:border-[#0047FF]/70 hover:bg-gradient-to-b hover:from-[#0047FF]/30 hover:to-[#0047FF]/12 hover:text-white hover:shadow-[0_0_28px_-10px_rgba(0,71,255,0.75)]",
-);
-
-const NAV_WORKFLOWS: NavItem = item(
-  "/app/n8n",
-  "Workflows",
-  "workflow",
-  "text-violet-300",
-  "shadow-[0_0_20px_-6px_rgba(196,181,253,0.8)]",
-  "from-violet-300/20 to-violet-300/5",
-  "hover:border-violet-400/45 hover:bg-gradient-to-b hover:from-violet-400/15 hover:to-violet-600/5 hover:text-violet-100",
-);
-
-function isActive(pathname: string, href: string): boolean {
-  if (href === "/app/dashboard") return pathname === "/app/dashboard";
-  return pathname === href || pathname.startsWith(`${href}/`);
-}
-
-function NavPill({ item: nav, pathname }: { item: NavItem; pathname: string }) {
-  const active = isActive(pathname, nav.href);
+function NavPill({ item: nav, pathname }: { item: AppNavItem; pathname: string }) {
+  const active = isAppNavActive(pathname, nav.href);
   return (
     <motion.div
       whileTap={{ scale: 0.93 }}
@@ -132,8 +55,8 @@ function NavPill({ item: nav, pathname }: { item: NavItem; pathname: string }) {
   );
 }
 
-function NavCenterPill({ item: nav, pathname }: { item: NavItem; pathname: string }) {
-  const active = isActive(pathname, nav.href);
+function NavCenterPill({ item: nav, pathname }: { item: AppNavItem; pathname: string }) {
+  const active = isAppNavActive(pathname, nav.href);
   return (
     <motion.div
       whileTap={{ scale: 0.96 }}
@@ -176,14 +99,16 @@ export default function NavWheel() {
     >
       <div className="pointer-events-auto mx-auto max-w-[30rem] sm:max-w-[32rem]">
         <nav
-          className="grid grid-cols-5 items-end gap-0.75 sm:gap-1 rounded-[2.15rem] sm:rounded-[2.35rem] border border-white/10 bg-gradient-to-r from-emerald-500/[0.14] via-cyan-500/12 to-violet-500/[0.14] px-1 py-1 shadow-[0_8px_40px_-10px_rgba(34,211,238,0.22),inset_0_1px_0_0_rgba(255,255,255,0.07)] ring-1 ring-white/10 backdrop-blur-xl sm:px-2 sm:py-1.25"
+          className="grid grid-cols-5 items-end gap-0.75 sm:gap-1 rounded-[2.15rem] sm:rounded-[2.35rem] border border-white/10 bg-gradient-to-r from-fuchsia-500/[0.1] via-cyan-500/12 to-[#0047FF]/[0.11] px-1 py-1 shadow-[0_8px_40px_-10px_rgba(34,211,238,0.22),inset_0_1px_0_0_rgba(255,255,255,0.07)] ring-1 ring-white/10 backdrop-blur-xl sm:px-2 sm:py-1.25"
           aria-label="Navigation principale"
         >
-          <NavPill item={NAV_SIDE[0]} pathname={pathname} />
-          <NavPill item={NAV_CHATBOT} pathname={pathname} />
-          <NavCenterPill item={NAV_CENTER} pathname={pathname} />
-          <NavPill item={NAV_WORKFLOWS} pathname={pathname} />
-          <NavPill item={NAV_SIDE[1]} pathname={pathname} />
+          {NAV_WHEEL_ITEMS.map((nav, i) =>
+            i === 2 ? (
+              <NavCenterPill key={nav.href} item={nav} pathname={pathname} />
+            ) : (
+              <NavPill key={nav.href} item={nav} pathname={pathname} />
+            ),
+          )}
         </nav>
       </div>
     </footer>

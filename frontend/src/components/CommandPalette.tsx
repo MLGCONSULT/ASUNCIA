@@ -4,6 +4,13 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import NavIcon, { type IconName } from "@/components/NavIcon";
+import {
+  appNavAirtable,
+  appNavChatbot,
+  appNavDashboard,
+  appNavN8n,
+  appNavSupabase,
+} from "@/lib/app-nav-config";
 
 /** Navigation applicative uniquement (pas de prompts assistant). */
 type CommandItem = {
@@ -12,6 +19,15 @@ type CommandItem = {
   label: string;
   hint: string;
   icon: IconName;
+};
+
+/** Couleurs de survol / sélection alignées sur le dock et les bulles orbit. */
+const NAV_PALETTE_BY_CMD_ID: Record<string, { paletteHover: string; paletteSelected: string }> = {
+  dashboard: appNavDashboard,
+  airtable: appNavAirtable,
+  chatbot: appNavChatbot,
+  n8n: appNavN8n,
+  supabase: appNavSupabase,
 };
 
 const COMMANDS: CommandItem[] = [
@@ -134,7 +150,9 @@ export default function CommandPalette({ variant = "default" }: Props) {
       {filtered.length === 0 ? (
         <li className="px-4 py-3 text-text-muted text-sm">Aucun résultat</li>
       ) : (
-        filtered.map((cmd, i) => (
+        filtered.map((cmd, i) => {
+          const pal = NAV_PALETTE_BY_CMD_ID[cmd.id];
+          return (
           <li key={cmd.id}>
             <button
               type="button"
@@ -143,8 +161,10 @@ export default function CommandPalette({ variant = "default" }: Props) {
                 closePalette();
               }}
               onMouseEnter={() => setSelected(i)}
-              className={`w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm transition-colors ${
-                i === selected ? "bg-accent-cyan/18 text-accent-cyan" : "text-text-primary hover:bg-white/[0.06]"
+              className={`w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm transition-colors border-l-2 ${
+                i === selected
+                  ? (pal?.paletteSelected ?? "bg-accent-cyan/18 text-accent-cyan border-cyan-400/75")
+                  : `border-transparent text-text-primary ${pal?.paletteHover ?? "hover:bg-white/[0.06]"}`
               }`}
             >
               <NavIcon name={cmd.icon} className="w-[18px] h-[18px] shrink-0 opacity-90" />
@@ -154,7 +174,8 @@ export default function CommandPalette({ variant = "default" }: Props) {
               </div>
             </button>
           </li>
-        ))
+          );
+        })
       )}
     </ul>
   );
