@@ -42,17 +42,6 @@ export async function executeTool(
         const result = await callAirtableMcpTool(toolName, toolArgs, runtime.accessToken);
         return mcpResultToText(result);
       }
-      case "mcp_notion": {
-        const toolName = String(args.toolName ?? "").trim();
-        const toolArgs = (args.arguments as Record<string, unknown>) ?? {};
-        if (!toolName) return "toolName requis.";
-        if (!isNotionMcpConfigured()) return MCP_ERROR_MESSAGES.notion;
-        const runtime = await getNotionRuntimeAccess({ supabase, userId });
-        if (!runtime.available)
-          return "Notion non connecté. L'utilisateur peut connecter Notion depuis les paramètres (OAuth).";
-        const result = await callNotionMcpTool(toolName, toolArgs, runtime.accessToken);
-        return mcpResultToText(result);
-      }
       case "airtable_list_bases": {
         if (!isAirtableMcpConfigured()) return MCP_ERROR_MESSAGES.airtable;
         const runtime = await getAirtableRuntimeAccess({ supabase, userId });
