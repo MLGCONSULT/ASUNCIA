@@ -18,6 +18,7 @@ type CommandItem = {
 const COMMANDS: CommandItem[] = [
   { id: "dashboard", kind: "navigate", href: "/app/dashboard", label: "Ouvrir le tableau de bord", hint: "Vue d’ensemble et assistant", icon: "chat" },
   { id: "airtable", kind: "navigate", href: "/app/airtable", label: "Ouvrir Airtable", hint: "Bases et enregistrements", icon: "grid" },
+  { id: "chatbot", kind: "navigate", href: "/app/chatbot", label: "Ouvrir Chatbot", hint: "Trouver la stack idéale", icon: "chat" },
   { id: "n8n", kind: "navigate", href: "/app/n8n", label: "Ouvrir n8n", hint: "Automatisations", icon: "workflow" },
   { id: "supabase", kind: "navigate", href: "/app/supabase", label: "Ouvrir Supabase", hint: "Données et requêtes", icon: "database" },
   ...dashboardIntents.map((intent) => ({

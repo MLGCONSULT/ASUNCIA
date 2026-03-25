@@ -28,12 +28,12 @@ SITE_FORMATION/
 ├── frontend/      # Next.js — UI, auth Supabase
 ├── backend-nest/  # API NestJS — chat IA, MCP, auth (déploiement principal)
 ├── backend/       # API Express (héritage / parallèle selon branche)
-└── z_docs/        # Guides, dont DOC_TECHNIQUE.md
+└── doc_technique/ # Guides, dont DOC_TECHNIQUE.md
 ```
 
 ## Documentation
 
-- **Technique (jury / reprise projet)** : [`z_docs/DOC_TECHNIQUE.md`](z_docs/DOC_TECHNIQUE.md)
+- **Technique (jury / reprise projet)** : [`doc_technique/DOC_TECHNIQUE.md`](doc_technique/DOC_TECHNIQUE.md)
 - **Support de présentation (slides)** : [`plan_slides.md`](plan_slides.md) — plan prêt pour un designer non technique
 - **MCP (détail)** : `backend/docs/MCP.md`
 

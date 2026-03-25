@@ -77,7 +77,7 @@ En plus des checks provider par provider, il faut aussi verifier :
 - que les callbacks OAuth ne cassent pas apres redeploiement
 - que les etats de connexion visibles par l'utilisateur restent coherents
 - que `npm run smoke -w backend` passe toujours
-- que la documentation `z_docs` raconte encore la verite
+- que la documentation `doc_technique` raconte encore la verite
 
 ## Conclusion
 

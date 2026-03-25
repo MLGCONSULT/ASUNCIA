@@ -168,7 +168,6 @@ export default function ChatAssistant({
   useEffect(() => {
     (async () => {
       try {
-        await fetchConversations();
         const res = await fetchBackend("/api/conversation");
         if (!res.ok) return;
         const data = (await res.json()) as {
@@ -190,7 +189,7 @@ export default function ChatAssistant({
         setHistoryLoaded(true);
       }
     })();
-  }, [fetchConversations]);
+  }, []);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -268,7 +267,6 @@ export default function ChatAssistant({
         const applyConversationId = (nextId: string | undefined) => {
           if (!nextId) return;
           setConversationId(nextId);
-          fetchConversations();
         };
 
         if (isStream) {
@@ -361,7 +359,7 @@ export default function ChatAssistant({
         setLoading(false);
       }
     },
-    [fetchConversations],
+    [],
   );
 
   async function handleSubmit(e: React.FormEvent) {
@@ -536,11 +534,7 @@ export default function ChatAssistant({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
     >
-      <aside
-        className={`w-[13.5rem] shrink-0 flex-col border-r border-white/10 bg-gradient-to-b from-surface/40 to-surface/20 ${
-          compact ? "hidden" : "hidden sm:flex"
-        }`}
-      >
+      <aside className="hidden">
         <div className="p-3 border-b border-white/10">
           <button
             type="button"
@@ -598,7 +592,7 @@ export default function ChatAssistant({
         </div>
       </aside>
       <div className="flex flex-col flex-1 min-w-0 min-h-0">
-        {conversationToolbar}
+        {null}
         <div className={`flex-1 overflow-y-auto ${compact ? "p-3" : "p-4"} space-y-3`}>
           <AnimatePresence initial={false}>
             {!historyLoaded && (

@@ -56,4 +56,4 @@ npm run dev
 - Projet frontend Vercel : racine **`frontend`**
 - Projet backend Vercel : racine **`backend-nest`** (ou équivalent selon le repo)
 
-Voir aussi `z_docs/DOC_TECHNIQUE.md` à la racine du monorepo.
+Voir aussi `doc_technique/DOC_TECHNIQUE.md` à la racine du monorepo.

@@ -16,6 +16,7 @@ export default function AppHeader() {
   const title = (() => {
     if (pathname === "/app/dashboard") return "Dashboard";
     if (pathname.startsWith("/app/airtable")) return "Airtable";
+    if (pathname.startsWith("/app/chatbot")) return "Chatbot";
     if (pathname.startsWith("/app/n8n")) return "Workflows";
     if (pathname.startsWith("/app/supabase")) return "Supabase";
     return "Espace outils";

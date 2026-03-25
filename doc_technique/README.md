@@ -1,4 +1,4 @@
-# z_docs
+# doc_technique
 
 Ce dossier a un role simple : expliquer le projet avec des mots humains, sans perdre le lien avec le vrai code.
 
@@ -18,7 +18,7 @@ Ces points doivent rester vrais, même si le code évolue :
 
 - l'application s'appuie sur **Supabase** pour la base de données et l'authentification
 - le **backend** orchestre les intégrations et reste la couche centrale
-- l'interface met en avant les intégrations **Airtable**, **n8n**, **Supabase** et l'**assistant IA**
+- l'interface met en avant les intégrations **Airtable**, **n8n**, **Supabase**, le **chatbot Stacky** (Typebot) et l'**assistant IA**
 - l'**IA** reste au cœur de l'expérience utilisateur
 
 ## Documentation courte (jury / déploiement)
@@ -44,7 +44,7 @@ Ces points doivent rester vrais, même si le code évolue :
 
 ## Source de verite
 
-`z_docs` n'a pas vocation a remplacer le code. Les verites techniques prioritaires restent :
+`doc_technique` n'a pas vocation a remplacer le code. Les verites techniques prioritaires restent :
 
 - `README.md` (racine)
 - `DOC_TECHNIQUE.md`

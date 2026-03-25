@@ -3,11 +3,12 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { AnimatePresence, motion } from "framer-motion";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import ChatAssistant from "@/components/ChatAssistant";
 
 export default function FloatingAssistant() {
   const [open, setOpen] = useState(false);
+  const pathname = usePathname();
   const searchParams = useSearchParams();
 
   useEffect(() => {
@@ -15,6 +16,9 @@ export default function FloatingAssistant() {
       setOpen(true);
     }
   }, [searchParams]);
+
+  /** Sur la page Chatbot (Typebot), masquer la bulle pour éviter deux chats superposés. */
+  if (pathname === "/app/chatbot") return null;
 
   return (
     <div className="pointer-events-none fixed bottom-24 right-3 z-50 flex flex-col items-end justify-end sm:bottom-28 sm:right-5 top-[calc(3.5rem+env(safe-area-inset-top,0px))]">

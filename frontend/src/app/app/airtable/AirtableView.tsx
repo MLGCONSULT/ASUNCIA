@@ -1392,7 +1392,7 @@ function RecordFormModal({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto py-10 px-4"
+      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto py-6 px-3 sm:py-8 sm:px-4"
       role="dialog"
       aria-modal="true"
     >
@@ -1405,14 +1405,14 @@ function RecordFormModal({
         className="relative z-10 my-auto w-full max-w-lg"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="glass-strong flex max-h-[min(92vh,44rem)] flex-col rounded-2xl border border-white/10 shadow-xl">
-          <div className="shrink-0 border-b border-white/10 px-5 pt-5 pb-3">
+        <div className="glass-strong flex max-h-[min(82vh,34rem)] flex-col rounded-2xl border border-white/10 shadow-xl">
+          <div className="shrink-0 border-b border-white/10 px-4 pt-4 pb-2.5">
             <h3 className="font-semibold text-text-primary">
               {isEdit ? "Modifier l'enregistrement" : "Créer un enregistrement"}
             </h3>
           </div>
           <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col overflow-hidden">
-            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4">
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-3">
         <div className="space-y-3">
           {tableFields.length > 0 && (
             <div className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-text-muted flex items-center justify-between gap-2">
@@ -1531,7 +1531,7 @@ function RecordFormModal({
           </details>
         </div>
             </div>
-            <div className="shrink-0 space-y-3 border-t border-white/10 px-5 py-4">
+            <div className="shrink-0 space-y-3 border-t border-white/10 px-4 py-3">
               {error ? <p className="text-sm text-accent-rose">{error}</p> : null}
               <div className="flex flex-wrap gap-2">
                 <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg bg-white/10 text-text-primary text-sm">

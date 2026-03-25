@@ -45,7 +45,7 @@ Dans le cadre d'une alternance, le plus pertinent est de justifier que le scrapi
 
 ## Si cette option est implantee
 
-Il faudra ajouter dans `z_docs` :
+Il faudra ajouter dans `doc_technique` :
 
 - le cas d'usage vise
 - la source cible

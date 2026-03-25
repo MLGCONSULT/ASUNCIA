@@ -135,4 +135,4 @@ Si l'architecture evolue, il faut garder :
 - `backend/src/mcp/`
 - `backend/src/routes/health.ts`
 - `backend/src/services/oauth-state.ts`
-- `z_docs/13-checklist-validation-mcp.md`
+- `doc_technique/13-checklist-validation-mcp.md`

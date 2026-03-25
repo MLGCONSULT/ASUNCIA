@@ -4,11 +4,11 @@
 
 Une documentation utile n'est pas une documentation ecrite une seule fois. Elle doit evoluer avec le projet.
 
-Le but de cette page est de poser des regles simples pour que `z_docs` reste fiable meme quand le code change.
+Le but de cette page est de poser des regles simples pour que `doc_technique` reste fiable meme quand le code change.
 
 ## Regle principale
 
-Chaque modification significative du code doit entrainer la mise a jour du ou des fichiers `z_docs` concernes dans le meme lot de travail.
+Chaque modification significative du code doit entrainer la mise a jour du ou des fichiers `doc_technique` concernes dans le meme lot de travail.
 
 ## Regles de mise a jour
 
@@ -53,7 +53,7 @@ Les futures modifications ne doivent pas casser sans decision explicite :
 
 Apres une modification importante, se poser ces questions :
 
-- est-ce que `z_docs` raconte encore la verite ?
+- est-ce que `doc_technique` raconte encore la verite ?
 - est-ce qu'un lecteur externe comprendrait toujours le projet ?
 - est-ce que les contraintes fondatrices sont toujours respectees ?
 

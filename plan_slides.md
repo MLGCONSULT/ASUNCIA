@@ -2,7 +2,7 @@
 
 **À qui s’adresse ce document :** à la personne qui conçoit les slides (PowerPoint, Canva, Google Slides, etc.) **sans être développeuse**. Tout est là pour produire un **support clair, élégant et fidèle au projet**, sans jargon inutile.
 
-**Objectif de la présentation :** montrer une **application web réelle**, déjà en ligne, qui **centralise des outils métier** (données, automatisation) avec un **assistant IA** intégré.
+**Objectif de la présentation :** montrer une **application web réelle**, déjà en ligne, qui **centralise des outils métier** (données, automatisation), un **chatbot de recommandation de stack** (Stacky / Typebot) et un **assistant IA** intégré.
 
 ---
 
@@ -73,8 +73,8 @@
 **Texte type :**
 
 1. L’utilisateur se **connecte** (compte sécurisé).
-2. Il choisit un **outil** dans le menu (Airtable, n8n, Supabase…).
-3. L’**assistant** peut répondre en langage naturel et **orienter** vers le bon écran.
+2. Il choisit un **outil** dans le menu du bas (Airtable, Chatbot Stacky, Dashboard, Workflows, Supabase…).
+3. L’**assistant IA** peut répondre en langage naturel et **orienter** vers le bon écran ; le **chatbot Stacky** propose un **questionnaire** pour suggérer une stack adaptée.
 
 **Visuel :** schéma **Utilisateur → Site web → Serveur → Outils connectés** (4 blocs).
 
@@ -117,7 +117,7 @@
 
 ### Slide 8 — Documentation & qualité
 
-**Idée :** Une **documentation technique** existe dans le dépôt (`z_docs/DOC_TECHNIQUE.md`, guides MCP) pour **installer**, **configurer** et **tester**.
+**Idée :** Une **documentation technique** existe dans le dépôt (`doc_technique/DOC_TECHNIQUE.md`, guides MCP) pour **installer**, **configurer** et **tester**.
 
 **Visuel :** icône « doc » + checklist courte (3 cases cochées).
 
@@ -150,8 +150,8 @@
 1. Page d’accueil / connexion  
 2. **Dashboard** avec les bulles ou cartes d’outils  
 3. **Barre de navigation** bas (dock coloré)  
-4. Un **outil** ouvert (ex. Airtable ou n8n)  
-5. **Assistant** ouvert avec une conversation  
+4. Un **outil** ouvert (ex. Airtable, n8n) ou la page **Chatbot Stacky**  
+5. **Assistant IA** ouvert avec une conversation  
 6. (Option) Page **santé** du backend dans le navigateur (JSON)
 
 ---
@@ -162,10 +162,10 @@
 - [ ] Compte de démo ou compte personnel prêt pour la connexion  
 - [ ] Slides **8–10 max**, pas de murs de texte  
 - [ ] **Reprise orale** chronométrée (viser 8–12 min)  
-- [ ] Doc technique à jour : `z_docs/DOC_TECHNIQUE.md`
+- [ ] Doc technique à jour : `doc_technique/DOC_TECHNIQUE.md`
 
 ---
 
 ## Fichier technique détaillé
 
-Pour le jury ou un développeur : **`z_docs/DOC_TECHNIQUE.md`** (URLs, health checks, variables, périmètre de l’interface).
+Pour le jury ou un développeur : **`doc_technique/DOC_TECHNIQUE.md`** (URLs, health checks, variables, périmètre de l’interface).

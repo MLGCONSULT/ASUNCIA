@@ -1,6 +1,6 @@
 # 14 – Configurer les MCP pour que l’app fonctionne à 100 %
 
-Ce guide indique **quoi mettre où** et **dans quel ordre** pour que chaque intégration MCP soit opérationnelle. Les variables listées sont la source de vérité minimale ; le détail technique est dans `backend/docs/MCP.md` et la checklist de validation dans `z_docs/13-checklist-validation-mcp.md`.
+Ce guide indique **quoi mettre où** et **dans quel ordre** pour que chaque intégration MCP soit opérationnelle. Les variables listées sont la source de vérité minimale ; le détail technique est dans `backend/docs/MCP.md` et la checklist de validation dans `doc_technique/13-checklist-validation-mcp.md`.
 
 ---
 
@@ -124,7 +124,7 @@ Même idée : un seul mode.
 
 1. Tester chaque health check concerné (`/api/health/mcp-*`).
 2. Dans l’app : connexion, puis utiliser chaque outil (Notion, Airtable, n8n) au moins une fois.
-3. Suivre **`z_docs/13-checklist-validation-mcp.md`** avant une démo ou la mise en production.
+3. Suivre **`doc_technique/13-checklist-validation-mcp.md`** avant une démo ou la mise en production.
 4. Lancer `npm run smoke -w backend` après build pour s’assurer que le backend répond correctement.
 
 Une fois ces étapes faites, l’application peut fonctionner à 100 % côté MCP pour les providers que tu as configurés.

@@ -25,7 +25,7 @@ const item = (
   inactiveHover: string,
 ): NavItem => ({ href, label, icon, accentText, accentGlow, accentBg, inactiveHover });
 
-/** Dock bas : 4 colonnes, Dashboard � gauche */
+/** Dock bas : 5 colonnes, Dashboard au centre */
 const NAV_SIDE: NavItem[] = [
   item(
     "/app/airtable",
@@ -57,6 +57,16 @@ const NAV_CENTER: NavItem = item(
   "hover:border-cyan-400/50 hover:bg-gradient-to-b hover:from-cyan-400/20 hover:to-cyan-600/10 hover:text-cyan-50",
 );
 
+const NAV_CHATBOT: NavItem = item(
+  "/app/chatbot",
+  "Chatbot",
+  "chat",
+  "text-sky-50",
+  "shadow-[0_0_22px_-6px_rgba(56,189,248,0.95)]",
+  "from-sky-500/30 to-cyan-400/10",
+  "hover:border-sky-400/55 hover:bg-gradient-to-b hover:from-sky-500/20 hover:to-blue-600/5 hover:text-sky-50 hover:shadow-[0_0_26px_-10px_rgba(56,189,248,0.7)]",
+);
+
 const NAV_WORKFLOWS: NavItem = item(
   "/app/n8n",
   "Workflows",
@@ -78,7 +88,7 @@ function NavPill({ item: nav, pathname }: { item: NavItem; pathname: string }) {
     <motion.div
       whileTap={{ scale: 0.93 }}
       transition={{ type: "spring", stiffness: 500, damping: 26 }}
-      className="min-w-0 w-full max-w-[4.85rem] sm:max-w-[5.15rem] justify-self-center"
+      className="min-w-0 w-full max-w-[4.2rem] sm:max-w-[4.65rem] justify-self-center"
     >
       <Link
         href={nav.href}
@@ -127,13 +137,13 @@ function NavCenterPill({ item: nav, pathname }: { item: NavItem; pathname: strin
     <motion.div
       whileTap={{ scale: 0.96 }}
       transition={{ type: "spring", stiffness: 480, damping: 28 }}
-      className="relative z-[2] min-w-0 w-full max-w-[5.6rem] justify-self-center -mt-1 sm:-mt-2 sm:max-w-[6.1rem]"
+      className="relative z-[2] min-w-0 w-full max-w-[4.75rem] justify-self-center -mt-0 sm:mt-0 sm:max-w-[5.15rem]"
     >
       <Link
         href={nav.href}
         title={nav.label}
         aria-current={active ? "page" : undefined}
-        className={`relative flex w-full flex-col items-center justify-center rounded-[1.35rem] border-2 py-2 px-2 shadow-lg transition-all duration-300 sm:rounded-[1.5rem] sm:py-2.5 sm:px-3 ${
+        className={`relative flex w-full flex-col items-center justify-center rounded-[1.35rem] border-2 py-2 px-2 shadow-lg transition-all duration-300 sm:rounded-[1.5rem] sm:py-2 sm:px-3 ${
           active
             ? `bg-gradient-to-b ${nav.accentBg} border-accent-cyan/50 ${nav.accentGlow} ${nav.accentText} scale-[1.04] sm:scale-[1.06]`
             : `bg-gradient-to-b from-white/[0.08] to-white/[0.02] border-white/15 text-text-muted ${nav.inactiveHover}`
@@ -142,7 +152,7 @@ function NavCenterPill({ item: nav, pathname }: { item: NavItem; pathname: strin
         {active && (
           <motion.span
             layoutId="navwheel-center-ring"
-            className="absolute -inset-[2.5px] rounded-[1.15rem] border border-accent-cyan/40 opacity-80 sm:rounded-[1.25rem]"
+            className="absolute -inset-[2px] rounded-[1.15rem] border border-accent-cyan/40 opacity-80 sm:rounded-[1.25rem]"
             transition={{ type: "spring", bounce: 0.2, duration: 0.4 }}
           />
         )}
@@ -160,18 +170,19 @@ export default function NavWheel() {
 
   return (
     <footer
-      className="fixed bottom-0 left-0 right-0 z-50 pb-[max(0.35rem,env(safe-area-inset-bottom))] pt-5 px-1 sm:px-2 bg-gradient-to-t from-void via-void/95 to-transparent pointer-events-none"
+      className="fixed bottom-0 left-0 right-0 z-50 pb-[max(0.35rem,env(safe-area-inset-bottom))] pt-0 px-1 sm:px-2 bg-gradient-to-t from-void via-void/95 to-transparent pointer-events-none overflow-hidden"
       aria-label="Navigation"
     >
-      <div className="pointer-events-auto mx-auto max-w-[26rem] sm:max-w-[28rem]">
+      <div className="pointer-events-auto mx-auto max-w-[30rem] sm:max-w-[32rem]">
         <nav
-          className="grid grid-cols-4 items-end gap-1 sm:gap-1.5 rounded-[2.15rem] sm:rounded-[2.35rem] border border-white/10 bg-gradient-to-r from-emerald-500/[0.14] via-cyan-500/12 to-violet-500/[0.14] px-2 py-1.5 shadow-[0_8px_40px_-10px_rgba(34,211,238,0.26),inset_0_1px_0_0_rgba(255,255,255,0.07)] ring-1 ring-white/10 backdrop-blur-xl sm:px-2.5 sm:py-2"
+          className="grid grid-cols-5 items-end gap-0.75 sm:gap-1 rounded-[2.15rem] sm:rounded-[2.35rem] border border-white/10 bg-gradient-to-r from-emerald-500/[0.14] via-cyan-500/12 to-violet-500/[0.14] px-1 py-1 shadow-[0_8px_40px_-10px_rgba(34,211,238,0.22),inset_0_1px_0_0_rgba(255,255,255,0.07)] ring-1 ring-white/10 backdrop-blur-xl sm:px-2 sm:py-1.25"
           aria-label="Navigation principale"
         >
-          <NavCenterPill item={NAV_CENTER} pathname={pathname} />
           <NavPill item={NAV_SIDE[0]} pathname={pathname} />
-          <NavPill item={NAV_SIDE[1]} pathname={pathname} />
+          <NavPill item={NAV_CHATBOT} pathname={pathname} />
+          <NavCenterPill item={NAV_CENTER} pathname={pathname} />
           <NavPill item={NAV_WORKFLOWS} pathname={pathname} />
+          <NavPill item={NAV_SIDE[1]} pathname={pathname} />
         </nav>
       </div>
     </footer>
