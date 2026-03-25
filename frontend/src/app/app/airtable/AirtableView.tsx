@@ -36,6 +36,13 @@ type RefreshRecordsOpts = {
 
 const FIELD_ID_RE = /^fld[A-Za-z0-9]{14}$/;
 
+/** Tri API : un seul sens (plus de menu « Croissant / Décroissant »). */
+const DEFAULT_SORT_DIRECTION = "asc" as const;
+
+/** Styles des `<select>` : fond sombre + `color-scheme: dark` pour des options lisibles (Windows / Chrome). */
+const AIR_TABLE_SELECT_CLASS =
+  "rounded-lg border border-white/25 bg-slate-950/95 px-2.5 py-1.5 text-sm text-slate-100 [color-scheme:dark] shadow-inner focus:border-accent-cyan/55 focus:outline-none focus:ring-2 focus:ring-accent-cyan/30 max-w-[min(16rem,100%)]";
+
 /** Libellé affichable pour une clé de champ (id fld… ou nom). */
 function resolveFieldDisplayName(
   key: string,
@@ -189,10 +196,7 @@ export default function AirtableView({ hasAirtable: initialHasAirtable }: Props)
   const [searchingBases, setSearchingBases] = useState(false);
   const [recordsTotalCount, setRecordsTotalCount] = useState<number | null>(null);
   const [sortFieldId, setSortFieldId] = useState<string | null>(null);
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [detailRecord, setDetailRecord] = useState<AirtableRecordRow | null>(null);
-  const [schemaPreview, setSchemaPreview] = useState<string | null>(null);
-  const [schemaLoading, setSchemaLoading] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [editRecord, setEditRecord] = useState<AirtableRecordRow | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
@@ -370,11 +374,11 @@ export default function AirtableView({ hasAirtable: initialHasAirtable }: Props)
       {
         setNextCursor: setRecordsNextCursor,
         sortFieldId,
-        sortDirection,
+        sortDirection: DEFAULT_SORT_DIRECTION,
         setTotalRecordCount: setRecordsTotalCount,
       },
     );
-  }, [selectedBase, selectedTable, sortFieldId, sortDirection]);
+  }, [selectedBase, selectedTable, sortFieldId]);
 
   const loadMoreRecords = useCallback(() => {
     if (!selectedBase || !selectedTable || !recordsNextCursor) return;
@@ -390,10 +394,10 @@ export default function AirtableView({ hasAirtable: initialHasAirtable }: Props)
         append: true,
         setNextCursor: setRecordsNextCursor,
         sortFieldId,
-        sortDirection,
+        sortDirection: DEFAULT_SORT_DIRECTION,
       },
     );
-  }, [selectedBase, selectedTable, recordsNextCursor, sortFieldId, sortDirection]);
+  }, [selectedBase, selectedTable, recordsNextCursor, sortFieldId]);
 
   async function handleConnect() {
     setConnecting(true);
@@ -487,41 +491,11 @@ export default function AirtableView({ hasAirtable: initialHasAirtable }: Props)
 
   useEffect(() => {
     setSortFieldId(null);
-    setSortDirection("asc");
   }, [selectedBase?.id]);
 
   useEffect(() => {
     if (baseSearchHint) setBaseSearchOpen(true);
   }, [baseSearchHint]);
-
-  useEffect(() => {
-    setSchemaPreview(null);
-  }, [selectedTable?.id]);
-
-  const loadSchemaPreview = useCallback(async () => {
-    if (!selectedBase || !selectedTable) return;
-    const ids = (selectedTable.fields ?? []).map((f) => f.id).filter((id) => FIELD_ID_RE.test(id));
-    if (ids.length === 0) {
-      setError("Impossible de charger le schéma : aucun identifiant de champ connu.");
-      return;
-    }
-    setSchemaLoading(true);
-    setError(null);
-    try {
-      const r = await fetchBackend(`/api/airtable/bases/${selectedBase.id}/table-schema`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tables: [{ tableId: selectedTable.id, fieldIds: ids }] }),
-      });
-      const data = await r.json();
-      if (data.error) throw new Error(data.error);
-      setSchemaPreview(JSON.stringify(data, null, 2));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Erreur");
-    } finally {
-      setSchemaLoading(false);
-    }
-  }, [selectedBase, selectedTable]);
 
   useEffect(() => {
     if (!selectedBase || !selectedTable) {
@@ -542,11 +516,11 @@ export default function AirtableView({ hasAirtable: initialHasAirtable }: Props)
       {
         setNextCursor: setRecordsNextCursor,
         sortFieldId,
-        sortDirection,
+        sortDirection: DEFAULT_SORT_DIRECTION,
         setTotalRecordCount: setRecordsTotalCount,
       },
     );
-  }, [selectedBase, selectedTable, sortFieldId, sortDirection]);
+  }, [selectedBase, selectedTable, sortFieldId]);
 
   if (!hasAirtable) {
     if (!status.statusChecked) {
@@ -796,7 +770,6 @@ export default function AirtableView({ hasAirtable: initialHasAirtable }: Props)
                         type="button"
                         onClick={() => {
                           setSortFieldId(null);
-                          setSortDirection("asc");
                           setSelectedTable(table);
                         }}
                         className={`min-w-0 flex-1 text-left truncate rounded-md px-1 -mx-1 py-0.5 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent-violet ${
@@ -866,55 +839,25 @@ export default function AirtableView({ hasAirtable: initialHasAirtable }: Props)
             ) : null}
             {selectedBase && selectedTable && selectedTableResolvedFields.length > 0 ? (
               <div className="flex flex-wrap items-center gap-2 text-xs">
-                <label className="text-text-muted flex items-center gap-1.5">
-                  <span className="text-text-dim">Trier par</span>
+                <label className="flex items-center gap-2 text-slate-200/95">
+                  <span className="shrink-0 font-medium text-slate-300/95">Trier par</span>
                   <select
                     value={sortFieldId ?? ""}
                     onChange={(e) => setSortFieldId(e.target.value.length > 0 ? e.target.value : null)}
-                    className="rounded-lg bg-white/5 border border-white/10 text-text-primary px-2 py-1 max-w-[10rem]"
+                    className={AIR_TABLE_SELECT_CLASS}
                   >
-                    <option value="">Ordre par défaut</option>
+                    <option value="" className="bg-slate-900 text-slate-100">
+                      Ordre par défaut
+                    </option>
                     {selectedTableResolvedFields.map((f) => (
-                      <option key={f.id} value={f.id}>
+                      <option key={f.id} value={f.id} className="bg-slate-900 text-slate-100">
                         {f.name}
                       </option>
                     ))}
                   </select>
                 </label>
-                <label className="text-text-muted flex items-center gap-1.5">
-                  <span className="text-text-dim">Sens</span>
-                  <select
-                    value={sortDirection}
-                    onChange={(e) => setSortDirection(e.target.value === "desc" ? "desc" : "asc")}
-                    className="rounded-lg bg-white/5 border border-white/10 text-text-primary px-2 py-1"
-                    disabled={!sortFieldId}
-                  >
-                    <option value="asc">Croissant</option>
-                    <option value="desc">Décroissant</option>
-                  </select>
-                </label>
               </div>
             ) : null}
-            <details className="rounded-lg border border-white/5 bg-white/[0.02] px-2 py-1.5 text-[11px] text-text-muted">
-              <summary className="cursor-pointer select-none text-text-dim">Avancé — schéma des champs</summary>
-              <div className="mt-2 space-y-2">
-                <button
-                  type="button"
-                  onClick={loadSchemaPreview}
-                  disabled={schemaLoading || !selectedTable}
-                  className="px-2 py-1 rounded bg-white/10 text-text-primary hover:bg-white/15 disabled:opacity-50"
-                >
-                  {schemaLoading ? "Chargement…" : "Charger le JSON du schéma"}
-                </button>
-                {schemaPreview ? (
-                  <pre className="text-[10px] leading-relaxed overflow-auto max-h-40 rounded border border-white/10 bg-black/20 p-2 font-mono text-text-muted">
-                    {schemaPreview}
-                  </pre>
-                ) : (
-                  <p className="text-text-dim">Utile pour vérifier les types et options (select, etc.).</p>
-                )}
-              </div>
-            </details>
           </div>
           {recordsLoading ? (
             <div className="p-4 text-text-muted text-sm">Chargement…</div>
@@ -1304,9 +1247,6 @@ function RecordFormModal({
         }))
       : [{ key: "", label: "", type: undefined, value: "" }];
   });
-  const [typecast, setTypecast] = useState(false);
-  const [upsertMergeFieldIds, setUpsertMergeFieldIds] = useState("");
-
   const addRow = () => setFields((f) => [...f, { key: "", label: "", type: undefined, value: "" }]);
   const updateRow = (i: number, key: string, value: string) => {
     setFields((f) => f.map((r, j) => (j === i ? { ...r, key, label: key, value } : r)));
@@ -1344,18 +1284,7 @@ function RecordFormModal({
     }
     setLoading(true);
     setError(null);
-    const buildPayload = () => {
-      const payload: Record<string, unknown> = { fields: obj };
-      if (typecast) payload.typecast = true;
-      if (isEdit && upsertMergeFieldIds.trim()) {
-        const ids = upsertMergeFieldIds
-          .split(/[\s,]+/)
-          .map((s) => s.trim())
-          .filter((id) => FIELD_ID_RE.test(id));
-        if (ids.length > 0) payload.performUpsert = { fieldIdsToMergeOn: ids };
-      }
-      return payload;
-    };
+    const buildPayload = () => ({ fields: obj });
     if (isEdit) {
       fetchBackend(`/api/airtable/bases/${baseId}/tables/${tableId}/records/${record.id}`, {
         method: "PATCH",
@@ -1370,12 +1299,10 @@ function RecordFormModal({
         .catch((e) => setError(e instanceof Error ? e.message : "Erreur"))
         .finally(() => setLoading(false));
     } else {
-      const createPayload: Record<string, unknown> = { fields: obj };
-      if (typecast) createPayload.typecast = true;
       fetchBackend(`/api/airtable/bases/${baseId}/tables/${tableId}/records`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(createPayload),
+        body: JSON.stringify({ fields: obj }),
       })
         .then((r) => r.json())
         .then((data) => {
@@ -1501,34 +1428,6 @@ function RecordFormModal({
           {tableFields.length === 0 ? (
             <button type="button" onClick={addRow} className="text-sm text-accent-cyan hover:underline">+ Ajouter un champ</button>
           ) : null}
-          <details className="rounded-xl border border-white/10 bg-white/[0.02] p-3 text-xs">
-            <summary className="cursor-pointer text-text-muted select-none">Options avancées</summary>
-            <div className="mt-2 space-y-2 text-text-muted">
-              <label className="flex items-start gap-2">
-                <input
-                  type="checkbox"
-                  checked={typecast}
-                  onChange={(e) => setTypecast(e.target.checked)}
-                  className="mt-0.5"
-                />
-                <span>
-                  <span className="text-text-primary font-medium">Typecast</span> — accepter des libellés (choix, liens…) comme dans l&apos;interface Airtable.
-                </span>
-              </label>
-              {isEdit ? (
-                <label className="block space-y-1">
-                  <span className="text-text-dim">Fusion (upsert) : identifiants de champs <code className="text-[10px]">fld…</code>, séparés par des virgules</span>
-                  <input
-                    type="text"
-                    value={upsertMergeFieldIds}
-                    onChange={(e) => setUpsertMergeFieldIds(e.target.value)}
-                    placeholder="fldXXXXXXXXXXXXXX, fldYYYYYYYYYYYYYY"
-                    className="w-full px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-text-primary text-sm font-mono"
-                  />
-                </label>
-              ) : null}
-            </div>
-          </details>
         </div>
             </div>
             <div className="shrink-0 space-y-3 border-t border-white/10 px-4 py-3">
