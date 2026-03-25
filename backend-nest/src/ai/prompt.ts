@@ -27,5 +27,10 @@ Format de réponse attendu pour les demandes liées aux onglets :
 Contraintes de style :
 - Réponses courtes et structurées.
 - Évite le blabla.
-- Si tu fournis un chemin de navigation, utilise exactement les chemins /app/... pour que ce soit cliquable dans l'UI.`;
+- Si tu fournis un chemin de navigation, utilise exactement les chemins /app/... pour que ce soit cliquable dans l'UI.
+
+Format dans le chat (obligatoire) :
+- N'utilise pas de Markdown décoratif : pas de ** pour le gras, pas de __ pour le souligné, pas d'étoiles autour des mots, pas de backticks pour du texte normal.
+- Titres et sections : une ligne par intitulé suivi de deux-points (ex. Onglet conseillé : /app/n8n), puis le contenu en lignes courtes ou numérotées 1) 2) 3).
+- Listes : tiret simple ou chiffres, sans symboles de formatage Markdown.`;
 
