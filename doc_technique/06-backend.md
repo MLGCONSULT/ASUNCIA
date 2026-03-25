@@ -10,7 +10,7 @@ Structure **NestJS** : modules, contrôleurs, services, middleware d’auth, cou
 
 ## Familles de routes utiles à connaître
 
-Chat (assistant), conversations, Airtable, n8n, MCP, health. Le détail est dans `backend-nest/src/`.
+Chat (assistant), conversations, Airtable, n8n, MCP, health. Le détail est dans `backend-nest/src/`. Pour **n8n**, les appels MCP passent par `mcp/n8n-client.ts` (normalisation des arguments `execute_workflow`, alignement sur les outils `search_workflows` / `get_workflow_details` / `execute_workflow` de l’instance) et `n8n/n8n.controller.ts` pour les routes HTTP `/api/n8n/...`.
 
 ## Validation
 

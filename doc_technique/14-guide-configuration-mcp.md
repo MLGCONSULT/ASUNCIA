@@ -45,7 +45,9 @@ Créer `backend-nest/.env` à la main ; copier `frontend/.env.example` vers `fro
 - `N8N_MCP_URL` — URL du serveur MCP n8n
 - `N8N_MCP_ACCESS_TOKEN` — jeton d’accès au MCP
 
-**Vérif** : `GET /api/health/mcp-n8n` → `200` ; `GET /api/n8n/workflows` une fois authentifié sur l’app.
+**Vérif** : `GET /api/health/mcp-n8n` → `200` ; `GET /api/n8n/workflows` une fois authentifié sur l’app ; `GET /api/n8n/workflows/<id>` pour le détail ; exécution test via l’UI Workflows ou `POST /api/n8n/workflows/<id>/execute`.
+
+**Optionnel** : `N8N_BASE_URL` — si renseignée sans `N8N_MCP_URL`, l’URL MCP est dérivée (`…/mcp-server/http`). Comportement des outils MCP (schéma `execute_workflow`, etc.) : voir [`04-mcp-et-integrations.md`](04-mcp-et-integrations.md).
 
 ---
 

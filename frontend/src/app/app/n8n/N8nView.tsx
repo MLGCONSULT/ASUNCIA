@@ -30,6 +30,53 @@ const toPrettyJson = (value: unknown) => {
   }
 };
 
+/**
+ * Le MCP renvoie souvent le brouillon dans `workflow.nodes` / `connections` et le graphe
+ * réellement publié (exécution / export) dans `activeVersion`. On reconstruit un JSON proche
+ * d’un export n8n : nodes, connections, pinData, meta.
+ */
+function buildEffectiveWorkflowGraph(wf: Record<string, unknown> | null): Record<string, unknown> | null {
+  if (!wf || typeof wf !== "object") return null;
+  const av = wf.activeVersion;
+  if (av && typeof av === "object" && !Array.isArray(av) && Array.isArray((av as Record<string, unknown>).nodes)) {
+    const active = av as Record<string, unknown>;
+    const pinData =
+      wf.pinData !== undefined && typeof wf.pinData === "object" && wf.pinData !== null
+        ? wf.pinData
+        : active.pinData !== undefined && typeof active.pinData === "object" && active.pinData !== null
+          ? active.pinData
+          : {};
+    const out: Record<string, unknown> = {
+      nodes: active.nodes,
+      connections:
+        typeof active.connections === "object" && active.connections !== null && !Array.isArray(active.connections)
+          ? active.connections
+          : {},
+      pinData,
+    };
+    const meta =
+      wf.meta !== undefined && typeof wf.meta === "object" && wf.meta !== null
+        ? wf.meta
+        : active.meta !== undefined && typeof active.meta === "object" && active.meta !== null
+          ? active.meta
+          : undefined;
+    if (meta !== undefined) out.meta = meta;
+    return out;
+  }
+  const out: Record<string, unknown> = {
+    nodes: Array.isArray(wf.nodes) ? wf.nodes : [],
+    connections:
+      typeof wf.connections === "object" && wf.connections !== null && !Array.isArray(wf.connections)
+        ? wf.connections
+        : {},
+    pinData: typeof wf.pinData === "object" && wf.pinData !== null ? wf.pinData : {},
+  };
+  if (wf.meta !== undefined && typeof wf.meta === "object" && wf.meta !== null) {
+    out.meta = wf.meta;
+  }
+  return out;
+}
+
 const defaultWorkflowTemplate = `{
   "name": "Nouveau workflow",
   "nodes": [],
@@ -67,8 +114,9 @@ export default function N8nView() {
   const [editorBaseUrl, setEditorBaseUrl] = useState<string | null>(null);
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [workflowJson, setWorkflowJson] = useState<string>("");
   const [workflowObject, setWorkflowObject] = useState<Record<string, unknown> | null>(null);
+  /** JSON affiché : graphe publié (effectif) ou réponse MCP brute (métadonnées + brouillon). */
+  const [detailJsonMode, setDetailJsonMode] = useState<"effective" | "mcp">("effective");
   const [templateJson, setTemplateJson] = useState<string>(defaultWorkflowTemplate);
   const [workflowRequest, setWorkflowRequest] = useState<string>("");
   const [generatingTemplate, setGeneratingTemplate] = useState(false);
@@ -105,7 +153,6 @@ export default function N8nView() {
       }
       if (autoPickFirst && list.length === 0) {
         setSelectedId(null);
-        setWorkflowJson("");
         setWorkflowObject(null);
         setNotice("Aucun workflow disponible pour le moment.");
       }
@@ -132,10 +179,8 @@ export default function N8nView() {
       if (typeof data.editorBaseUrl === "string") setEditorBaseUrl(data.editorBaseUrl);
       const wf = (data.workflow && typeof data.workflow === "object" ? data.workflow : data) as Record<string, unknown>;
       setWorkflowObject(wf);
-      setWorkflowJson(toPrettyJson(wf));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erreur réseau.");
-      setWorkflowJson("");
       setWorkflowObject(null);
     } finally {
       setLoadingDetail(false);
@@ -154,6 +199,17 @@ export default function N8nView() {
   useEffect(() => {
     setExecutionError(null);
   }, [selectedId]);
+
+  const effectiveWorkflowGraph = useMemo(() => buildEffectiveWorkflowGraph(workflowObject), [workflowObject]);
+
+  const mcpWorkflowJson = useMemo(() => (workflowObject ? toPrettyJson(workflowObject) : ""), [workflowObject]);
+
+  const effectiveWorkflowJson = useMemo(
+    () => (effectiveWorkflowGraph ? toPrettyJson(effectiveWorkflowGraph) : ""),
+    [effectiveWorkflowGraph],
+  );
+
+  const displayWorkflowJson = detailJsonMode === "effective" ? effectiveWorkflowJson : mcpWorkflowJson;
 
   const handleExecute = useCallback(async () => {
     if (!selectedId) return;
@@ -197,15 +253,20 @@ export default function N8nView() {
     }
   }, [selectedId]);
 
-  const handleCopyJson = useCallback(async () => {
-    if (!workflowJson) return;
+  const handleCopyWorkflowDetailJson = useCallback(async () => {
+    if (!displayWorkflowJson) return;
     try {
-      await navigator.clipboard.writeText(workflowJson);
-      setNotice("JSON copié.");
+      await navigator.clipboard.writeText(displayWorkflowJson);
+      setNotice(detailJsonMode === "effective" ? "JSON effectif copié." : "Réponse MCP copiée.");
     } catch {
       setError("Impossible de copier le JSON (clipboard indisponible).");
     }
-  }, [workflowJson]);
+  }, [displayWorkflowJson, detailJsonMode]);
+
+  const handleRefreshWorkflowDetail = useCallback(() => {
+    if (!selectedId) return;
+    void loadDetails(selectedId);
+  }, [selectedId, loadDetails]);
 
   const handleCopyTemplateJson = useCallback(async () => {
     if (!templateJson.trim()) {
@@ -253,7 +314,9 @@ export default function N8nView() {
   }, [workflowRequest]);
 
   const nodesSummary = useMemo(() => {
-    const nodes = Array.isArray(workflowObject?.nodes) ? (workflowObject?.nodes as Array<Record<string, unknown>>) : [];
+    const nodes = Array.isArray(effectiveWorkflowGraph?.nodes)
+      ? (effectiveWorkflowGraph.nodes as Array<Record<string, unknown>>)
+      : [];
     const triggerNodes = nodes.filter((n) => {
       const t = String(n.type ?? "").toLowerCase();
       return t.includes("trigger") || t.includes("webhook") || t.includes("cron") || t.includes("schedule");
@@ -263,7 +326,7 @@ export default function N8nView() {
       triggers: triggerNodes.length,
       top: nodes.slice(0, 8),
     };
-  }, [workflowObject]);
+  }, [effectiveWorkflowGraph]);
 
   const handleCopyExecutionResult = useCallback(async () => {
     if (!executionResultJson) return;
@@ -434,11 +497,19 @@ export default function N8nView() {
               </button>
               <button
                 type="button"
-                onClick={handleCopyJson}
-                disabled={!workflowJson}
+                onClick={() => void handleCopyWorkflowDetailJson()}
+                disabled={!displayWorkflowJson}
                 className="px-3 py-1.5 rounded-lg bg-accent-cyan/20 text-accent-cyan text-sm font-semibold hover:bg-accent-cyan/30 border border-accent-cyan/35 disabled:opacity-50 transition-colors"
               >
                 Copier JSON
+              </button>
+              <button
+                type="button"
+                onClick={handleRefreshWorkflowDetail}
+                disabled={!selectedId || loadingDetail}
+                className="px-2.5 py-1.5 rounded-lg bg-white/10 text-text-muted text-xs font-medium hover:bg-white/15 disabled:opacity-50 transition-colors"
+              >
+                {loadingDetail ? "…" : "Actualiser"}
               </button>
             </div>
           </div>
@@ -579,12 +650,55 @@ export default function N8nView() {
                   ) : null}
                 </div>
                 <div className="rounded-lg border border-accent-cyan/30 bg-accent-cyan/10 p-3">
-                  <p className="text-xs text-text-muted mb-2">Détail JSON du workflow sélectionné</p>
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                    <div>
+                      <p className="text-xs font-medium text-text-primary">JSON du workflow</p>
+                      <p className="text-[11px] text-text-muted mt-0.5">
+                        Par défaut : graphe publié (champ MCP{" "}
+                        <code className="text-[10px] opacity-90">activeVersion</code>
+                        ), proche d’un export n8n. La vue « Réponse MCP » montre l’objet brut (brouillon, scopes, etc.).
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="flex rounded-lg border border-white/15 overflow-hidden">
+                        <button
+                          type="button"
+                          onClick={() => setDetailJsonMode("effective")}
+                          className={`px-2.5 py-1 text-xs ${detailJsonMode === "effective" ? "bg-white/15 text-text-primary" : "bg-white/5 text-text-muted hover:bg-white/10"}`}
+                        >
+                          Effectif
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDetailJsonMode("mcp")}
+                          className={`px-2.5 py-1 text-xs border-l border-white/15 ${detailJsonMode === "mcp" ? "bg-white/15 text-text-primary" : "bg-white/5 text-text-muted hover:bg-white/10"}`}
+                        >
+                          Réponse MCP
+                        </button>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => void handleCopyWorkflowDetailJson()}
+                        disabled={!displayWorkflowJson}
+                        className="px-2.5 py-1 rounded-lg bg-white/10 text-text-primary text-xs hover:bg-white/15 disabled:opacity-50"
+                      >
+                        Copier
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleRefreshWorkflowDetail}
+                        disabled={!selectedId || loadingDetail}
+                        className="px-2.5 py-1 rounded-lg bg-white/10 text-text-primary text-xs hover:bg-white/15 disabled:opacity-50"
+                      >
+                        {loadingDetail ? "…" : "Actualiser"}
+                      </button>
+                    </div>
+                  </div>
                   <textarea
-                    value={workflowJson}
+                    value={displayWorkflowJson}
                     readOnly
                     spellCheck={false}
-                    placeholder="Le détail du workflow apparaît ici."
+                    placeholder="Sélectionne un workflow ou actualise pour charger le JSON."
                     className="w-full min-h-[320px] rounded-lg border border-accent-cyan/30 bg-black/30 p-3 text-xs font-mono text-text-primary focus:outline-none"
                   />
                 </div>

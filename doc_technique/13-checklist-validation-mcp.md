@@ -20,8 +20,10 @@ Avant une **démonstration** importante, une recette de préproduction, ou une *
 - `N8N_MCP_URL`
 - `N8N_MCP_ACCESS_TOKEN`
 - `GET /api/health/mcp-n8n`
-- `GET /api/n8n/workflows`
-- Au moins **une exécution réelle** de workflow sur un environnement de test
+- `GET /api/n8n/workflows` (optionnel : `limit`, `query`, `projectId`)
+- `GET /api/n8n/workflows/:id` — la réponse contient `workflow` avec souvent **`activeVersion`** (graphe publié) en plus du brouillon racine
+- `POST /api/n8n/workflows/:id/execute` — au moins **une exécution réelle** sur un workflow **actif**, avec déclencheur compatible MCP (ex. webhook)
+- Dans l’app, page **Workflows** : vérifier que la vue **JSON effectif** correspond au graphe publié dans n8n après une publication
 
 ## Airtable MCP (server-token)
 

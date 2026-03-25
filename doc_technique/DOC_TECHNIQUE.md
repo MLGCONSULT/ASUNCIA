@@ -49,7 +49,7 @@ Un **503** avec un message clair indique souvent qu’**une variable d’environ
 
 - Tableau de bord  
 - **Airtable** (bases / tables / enregistrements via MCP)  
-- **n8n** (workflows)  
+- **n8n** (workflows : liste, détail, exécution via API ; JSON **effectif** = graphe publié `activeVersion`, voir [`04-mcp-et-integrations.md`](04-mcp-et-integrations.md) et [`07-frontend.md`](07-frontend.md))  
 - **Supabase** (données, requêtes guidées)  
 - **Chatbot Stacky** (`/app/chatbot`) : même parcours que la page publique [typebot.co/stacky-asuncian](https://typebot.co/stacky-asuncian), affichée dans l’app en **iframe**  
 - **Assistant intégré** : un seul fil de conversation par utilisateur (pas de liste de chats séparés)
