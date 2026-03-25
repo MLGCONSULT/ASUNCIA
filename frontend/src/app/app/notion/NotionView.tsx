@@ -237,6 +237,11 @@ export default function NotionView({ hasNotion: initialHasNotion }: Props) {
   }
 
   if (error && !loading && databases.length === 0 && pages.length === 0) {
+    const tokenIssue =
+      typeof error === "string" &&
+      (error.includes("invalid_token") ||
+        error.includes("Invalid token") ||
+        error.includes("invalid token"));
     return (
       <motion.div
         className="glass-strong rounded-xl border border-accent-rose/30 p-6"
@@ -244,7 +249,13 @@ export default function NotionView({ hasNotion: initialHasNotion }: Props) {
         animate={{ opacity: 1, y: 0 }}
       >
         <p className="text-accent-rose font-medium">Notion non disponible</p>
-        <p className="text-text-muted text-sm mt-1">{error}</p>
+        {tokenIssue ? (
+          <p className="mt-3 text-sm text-text-primary leading-relaxed">
+            Connecte ton workspace Notion avec le bouton « Se connecter à Notion » : le service officiel attend une
+            connexion à ton compte, pas seulement une clé d’intégration dans la configuration.
+          </p>
+        ) : null}
+        <p className={`text-text-muted text-sm mt-2 ${tokenIssue ? "text-xs opacity-80" : ""}`}>{error}</p>
         <button
           type="button"
           onClick={handleDisconnect}

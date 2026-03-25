@@ -12,6 +12,23 @@ function getRawNotionEnvToken(): string | undefined {
   return process.env.NOTION_MCP_TOKEN?.trim() || process.env.NOTION_API_KEY?.trim() || undefined;
 }
 
+/** URL MCP hébergé par Notion (OAuth utilisateur uniquement, pas le secret d’intégration). */
+function isOfficialNotionMcpUrl(url: string): boolean {
+  try {
+    return new URL(url).hostname === "mcp.notion.com";
+  } catch {
+    return (url || "").includes("mcp.notion.com");
+  }
+}
+
+function normalizeBearerToken(raw: string): string {
+  let t = raw.trim();
+  if (t.toLowerCase().startsWith("bearer ")) {
+    t = t.slice(7).trim();
+  }
+  return t;
+}
+
 export function getNotionRuntimeMode(): NotionRuntimeMode {
   const mode = process.env.NOTION_RUNTIME_MODE?.trim().toLowerCase();
   if (mode === "oauth" || mode === "server-token") {
@@ -42,9 +59,20 @@ export function isNotionMcpConfigured(): boolean {
 function getNotionMcpConfig(accessToken?: string | null): { url: string; token: string } | null {
   const url = getNotionMcpUrl();
   const mode = getNotionRuntimeMode();
-  const token = accessToken?.trim() || (mode !== "oauth" ? getRawNotionEnvToken() : undefined);
-  if (!token) return null;
-  return { url, token };
+  const official = isOfficialNotionMcpUrl(url);
+  const oauthUser = accessToken?.trim() ? normalizeBearerToken(accessToken) : undefined;
+
+  // MCP officiel Notion : uniquement jeton OAuth (pas NOTION_API_KEY / secret d’intégration).
+  if (official) {
+    if (!oauthUser) return null;
+    return { url, token: oauthUser };
+  }
+
+  if (oauthUser) return { url, token: oauthUser };
+  if (mode === "oauth") return null;
+  const envTok = getRawNotionEnvToken();
+  if (!envTok) return null;
+  return { url, token: normalizeBearerToken(envTok) };
 }
 
 async function withNotionMcpClient<T>(

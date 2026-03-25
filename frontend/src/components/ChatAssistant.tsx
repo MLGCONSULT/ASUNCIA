@@ -31,6 +31,24 @@ function buildHistoryPayload(messagesBeforeTurn: Message[]): { role: string; con
     .map((m) => ({ role: m.role, content: m.content }));
 }
 
+function formatConversationDate(iso: string): string {
+  try {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return "";
+    const now = new Date();
+    const sameDay =
+      d.getDate() === now.getDate() &&
+      d.getMonth() === now.getMonth() &&
+      d.getFullYear() === now.getFullYear();
+    if (sameDay) {
+      return d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+    }
+    return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
+  } catch {
+    return "";
+  }
+}
+
 function renderMessageWithLinks(content: string): React.ReactNode {
   const regex = /(https?:\/\/[^\s]+|\/app\/[a-zA-Z0-9/_-]+)/g;
   const parts = content.split(regex);
@@ -344,32 +362,44 @@ export default function ChatAssistant({
 
   const conversationToolbar = (
     <div
-      className={`${showConversationToolbar} shrink-0 items-center gap-2 border-b border-white/10 bg-surface/40 px-2 py-2 sm:px-3`}
+      className={`${showConversationToolbar} shrink-0 items-stretch gap-2 border-b border-white/10 bg-gradient-to-r from-surface/80 via-surface/50 to-surface/80 px-2 py-2.5 sm:px-3`}
     >
-      <label className="sr-only" htmlFor="assistant-conversation-select">
-        Conversation
-      </label>
-      <select
-        id="assistant-conversation-select"
-        className="min-w-0 flex-1 rounded-lg border border-white/10 bg-void/40 px-2 py-1.5 text-xs text-text-primary outline-none focus:border-accent-cyan/40"
-        value={conversationId ?? ""}
-        onChange={(e) => {
-          const v = e.target.value;
-          if (v) void loadConversation(v);
-        }}
-      >
-        {conversations.map((c) => (
-          <option key={c.id} value={c.id}>
-            {c.titre || "Sans titre"}
-          </option>
-        ))}
-      </select>
+      <div className="relative min-w-0 flex-1 flex items-center rounded-xl border border-white/12 bg-black/25 pl-3 pr-8 shadow-inner shadow-black/20">
+        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-dim" aria-hidden>
+          <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+          </svg>
+        </span>
+        <label className="sr-only" htmlFor="assistant-conversation-select">
+          Conversation active
+        </label>
+        <select
+          id="assistant-conversation-select"
+          className="w-full appearance-none rounded-xl border-0 bg-transparent py-2 pl-8 pr-2 text-xs font-medium text-text-primary outline-none focus:ring-0 cursor-pointer"
+          value={conversationId ?? ""}
+          onChange={(e) => {
+            const v = e.target.value;
+            if (v) void loadConversation(v);
+          }}
+        >
+          {conversations.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.titre || "Sans titre"}
+            </option>
+          ))}
+        </select>
+        <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-text-dim" aria-hidden>
+          <svg className="h-3.5 w-3.5 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </span>
+      </div>
       <button
         type="button"
         onClick={() => void startNewConversation()}
-        className="shrink-0 rounded-lg border border-accent-cyan/35 bg-accent-cyan/15 px-2.5 py-1.5 text-xs font-medium text-accent-cyan hover:bg-accent-cyan/25"
+        className="shrink-0 rounded-xl border border-accent-cyan/40 bg-accent-cyan/15 px-3 py-2 text-xs font-semibold text-accent-cyan shadow-[0_0_20px_-8px_rgba(34,211,238,0.5)] hover:bg-accent-cyan/25 active:scale-[0.98] transition-all"
       >
-        Nouveau
+        + Nouveau
       </button>
     </div>
   );
@@ -384,38 +414,64 @@ export default function ChatAssistant({
       transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
     >
       <aside
-        className={`w-48 shrink-0 border-r border-white/10 flex-col bg-surface/30 ${
+        className={`w-[13.5rem] shrink-0 flex-col border-r border-white/10 bg-gradient-to-b from-surface/40 to-surface/20 ${
           compact ? "hidden" : "hidden sm:flex"
         }`}
       >
-        <div className="p-2 border-b border-white/10">
+        <div className="p-3 border-b border-white/10">
           <button
             type="button"
             onClick={() => void startNewConversation()}
-            className="w-full py-2 px-2.5 rounded-lg text-sm font-medium bg-accent-cyan/15 text-accent-cyan border border-accent-cyan/30 hover:bg-accent-cyan/25 transition-colors"
+            className="group w-full rounded-xl border border-accent-cyan/35 bg-accent-cyan/10 py-2.5 px-3 text-left transition-all hover:bg-accent-cyan/20 hover:border-accent-cyan/50"
           >
-            Nouvelle conversation
+            <span className="flex items-center gap-2 text-sm font-semibold text-accent-cyan">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent-cyan/20 text-lg leading-none">
+                +
+              </span>
+              Nouvelle conversation
+            </span>
+            <span className="mt-1 block text-[10px] text-text-muted group-hover:text-text-muted/90">
+              Démarrer un fil vierge
+            </span>
           </button>
         </div>
-        <div className="flex-1 overflow-y-auto p-2">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden p-2.5 space-y-1.5 [scrollbar-width:thin]">
+          <p className="px-1 pb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-text-dim">
+            Historique
+          </p>
           {conversationsError && (
-            <p className="text-[11px] text-accent-rose/90 px-1 mb-2">Liste indisponible pour le moment.</p>
+            <p className="text-[11px] text-accent-rose/90 px-1 rounded-lg bg-accent-rose/10 border border-accent-rose/20 py-2">
+              Liste indisponible pour le moment.
+            </p>
           )}
-          {conversations.map((c) => (
-            <button
-              key={c.id}
-              type="button"
-              onClick={() => void loadConversation(c.id)}
-              className={`w-full rounded-lg px-2.5 py-2 text-left text-sm leading-5 whitespace-normal break-words transition-colors ${
-                conversationId === c.id
-                  ? "bg-accent-cyan/20 text-accent-cyan border border-accent-cyan/30"
-                  : "text-text-muted hover:bg-white/5 hover:text-text-primary border border-transparent"
-              }`}
-              title={c.titre}
-            >
-              {c.titre || "Sans titre"}
-            </button>
-          ))}
+          {conversations.map((c) => {
+            const active = conversationId === c.id;
+            const sub = formatConversationDate(c.dateMiseAJour || c.dateCreation);
+            return (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => void loadConversation(c.id)}
+                className={`group w-full rounded-xl border px-3 py-2.5 text-left transition-all ${
+                  active
+                    ? "border-accent-cyan/45 bg-accent-cyan/15 shadow-[0_0_24px_-12px_rgba(34,211,238,0.55)]"
+                    : "border-white/8 bg-white/[0.03] hover:border-white/15 hover:bg-white/[0.06]"
+                }`}
+                title={c.titre}
+              >
+                <span
+                  className={`line-clamp-2 text-sm font-medium leading-snug ${
+                    active ? "text-accent-cyan" : "text-text-primary group-hover:text-text-primary"
+                  }`}
+                >
+                  {c.titre || "Sans titre"}
+                </span>
+                {sub ? (
+                  <span className="mt-1 block text-[10px] text-text-dim">{sub}</span>
+                ) : null}
+              </button>
+            );
+          })}
         </div>
       </aside>
       <div className="flex flex-col flex-1 min-w-0 min-h-0">

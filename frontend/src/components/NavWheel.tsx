@@ -18,59 +18,156 @@ type NavItem = {
   accentBg: string;
 };
 
-const NAV_ITEMS: NavItem[] = [
-  {
-    href: "/app/dashboard",
-    label: "Assistant",
-    icon: "chat",
-    accentText: "text-accent-cyan",
-    accentGlow: "shadow-[0_0_20px_-6px_rgba(34,211,238,0.8)]",
-    accentBg: "from-cyan-400/20 to-cyan-400/5",
-  },
-  {
-    href: "/app/airtable",
-    label: "Airtable",
-    icon: "grid",
-    accentText: "text-emerald-300",
-    accentGlow: "shadow-[0_0_20px_-6px_rgba(110,231,183,0.8)]",
-    accentBg: "from-emerald-300/20 to-emerald-300/5",
-  },
-  {
-    href: "/app/notion",
-    label: "Notion",
-    icon: "document",
-    accentText: "text-fuchsia-300",
-    accentGlow: "shadow-[0_0_20px_-6px_rgba(240,171,252,0.8)]",
-    accentBg: "from-fuchsia-300/20 to-fuchsia-300/5",
-  },
-  {
-    href: "/app/supabase",
-    label: "Supabase",
-    icon: "database",
-    accentText: "text-amber-300",
-    accentGlow: "shadow-[0_0_20px_-6px_rgba(252,211,77,0.8)]",
-    accentBg: "from-amber-300/20 to-amber-300/5",
-  },
-  {
-    href: "/app/n8n",
-    label: "Workflows",
-    icon: "workflow",
-    accentText: "text-violet-300",
-    accentGlow: "shadow-[0_0_20px_-6px_rgba(196,181,253,0.8)]",
-    accentBg: "from-violet-300/20 to-violet-300/5",
-  },
+const item = (
+  href: string,
+  label: string,
+  icon: IconName,
+  accentText: string,
+  accentGlow: string,
+  accentBg: string,
+): NavItem => ({ href, label, icon, accentText, accentGlow, accentBg });
+
+/** 2 outils | Dashboard central | 2 outils */
+const NAV_LEFT: NavItem[] = [
+  item(
+    "/app/airtable",
+    "Airtable",
+    "grid",
+    "text-emerald-300",
+    "shadow-[0_0_20px_-6px_rgba(110,231,183,0.8)]",
+    "from-emerald-300/20 to-emerald-300/5",
+  ),
+  item(
+    "/app/notion",
+    "Notion",
+    "document",
+    "text-fuchsia-300",
+    "shadow-[0_0_20px_-6px_rgba(240,171,252,0.8)]",
+    "from-fuchsia-300/20 to-fuchsia-300/5",
+  ),
 ];
+
+const NAV_CENTER: NavItem = item(
+  "/app/dashboard",
+  "Dashboard",
+  "chat",
+  "text-accent-cyan",
+  "shadow-[0_0_28px_-4px_rgba(34,211,238,0.95)]",
+  "from-cyan-400/35 to-cyan-400/10",
+);
+
+const NAV_RIGHT: NavItem[] = [
+  item(
+    "/app/supabase",
+    "Supabase",
+    "database",
+    "text-amber-300",
+    "shadow-[0_0_20px_-6px_rgba(252,211,77,0.8)]",
+    "from-amber-300/20 to-amber-300/5",
+  ),
+  item(
+    "/app/n8n",
+    "Workflows",
+    "workflow",
+    "text-violet-300",
+    "shadow-[0_0_20px_-6px_rgba(196,181,253,0.8)]",
+    "from-violet-300/20 to-violet-300/5",
+  ),
+];
+
+function isActive(pathname: string, href: string): boolean {
+  if (href === "/app/dashboard") return pathname === "/app/dashboard";
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+function NavPill({ item: nav, pathname }: { item: NavItem; pathname: string }) {
+  const active = isActive(pathname, nav.href);
+  return (
+    <motion.div
+      whileTap={{ scale: 0.93 }}
+      transition={{ type: "spring", stiffness: 500, damping: 26 }}
+      className="flex-1 min-w-0 max-w-[100px]"
+    >
+      <Link
+        href={nav.href}
+        title={nav.label}
+        aria-current={active ? "page" : undefined}
+        className={`relative overflow-hidden flex w-full flex-col items-center justify-center rounded-2xl py-2.5 px-1.5 transition-all duration-300 border ${
+          active
+            ? `bg-gradient-to-b ${nav.accentBg} border-white/25 ${nav.accentGlow} ${nav.accentText}`
+            : "bg-white/[0.03] border-white/5 text-text-muted hover:bg-white/[0.07] hover:text-text-primary hover:border-white/20"
+        }`}
+      >
+        {active && (
+          <>
+            <motion.span
+              layoutId="navwheel-active-pill"
+              className="absolute inset-0 rounded-2xl border border-white/25"
+              transition={{ type: "spring", bounce: 0.18, duration: 0.35 }}
+            />
+            <motion.span
+              className="absolute -top-5 left-1/2 w-14 h-14 -translate-x-1/2 rounded-full blur-xl bg-white/20"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.6 }}
+              aria-hidden
+            />
+          </>
+        )}
+        <span
+          className={`relative flex items-center justify-center rounded-xl px-2 py-1.5 ${active ? "bg-white/[0.1]" : ""}`}
+        >
+          <NavIcon name={nav.icon} className="h-5 w-5 shrink-0" />
+        </span>
+        <span className="relative mt-1 text-[10px] sm:text-[11px] leading-none font-semibold truncate max-w-full px-0.5">
+          {nav.label}
+        </span>
+        {active && (
+          <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-current" aria-hidden />
+        )}
+      </Link>
+    </motion.div>
+  );
+}
+
+/** Dashboard : plus visible, au centre de la barre */
+function NavCenterPill({ item: nav, pathname }: { item: NavItem; pathname: string }) {
+  const active = isActive(pathname, nav.href);
+  return (
+    <motion.div
+      whileTap={{ scale: 0.96 }}
+      transition={{ type: "spring", stiffness: 480, damping: 28 }}
+      className="relative z-[2] shrink-0 -mt-3 px-1"
+    >
+      <Link
+        href={nav.href}
+        title={nav.label}
+        aria-current={active ? "page" : undefined}
+        className={`relative flex min-w-[92px] flex-col items-center justify-center rounded-2xl border-2 py-3 px-3 shadow-lg transition-all duration-300 ${
+          active
+            ? `bg-gradient-to-b ${nav.accentBg} border-accent-cyan/50 ${nav.accentGlow} ${nav.accentText} scale-[1.06]`
+            : "bg-gradient-to-b from-white/[0.08] to-white/[0.02] border-white/15 text-text-muted hover:border-accent-cyan/35 hover:text-text-primary"
+        }`}
+      >
+        {active && (
+          <motion.span
+            layoutId="navwheel-center-ring"
+            className="absolute -inset-[3px] rounded-[1.15rem] border border-accent-cyan/40 opacity-80"
+            transition={{ type: "spring", bounce: 0.2, duration: 0.4 }}
+          />
+        )}
+        <span className="relative flex items-center justify-center rounded-xl bg-white/[0.12] p-2 ring-1 ring-white/10">
+          <NavIcon name={nav.icon} className="h-6 w-6 shrink-0" />
+        </span>
+        <span className="relative mt-1.5 text-[11px] font-bold tracking-wide uppercase">{nav.label}</span>
+      </Link>
+    </motion.div>
+  );
+}
 
 export default function NavWheel() {
   const pathname = usePathname();
   const [showMenu, setShowMenu] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-
-  const activeIndex = NAV_ITEMS.findIndex(
-    (item) =>
-      pathname === item.href ||
-      (item.href !== "/app/dashboard" && pathname.startsWith(item.href))
-  );
 
   function handleLogout(e: React.FormEvent) {
     e.preventDefault();
@@ -92,75 +189,32 @@ export default function NavWheel() {
   return (
     <>
       <footer
-        className="fixed bottom-0 left-0 right-0 z-50 pt-7 pb-3 px-2 bg-surface/75 backdrop-blur-2xl"
+        className="fixed bottom-0 left-0 right-0 z-50 pt-8 pb-3 px-2 bg-surface/75 backdrop-blur-2xl"
         aria-label="Navigation"
       >
-        {/* Délimitation en arc de cercle (bordure supérieure du footer) */}
         <div
           className="absolute left-0 right-0 top-0 h-8 border-t border-white/10 bg-gradient-to-b from-white/[0.08] to-surface/70 backdrop-blur-2xl rounded-t-[50%]"
           style={{ boxShadow: "0 -1px 0 0 rgb(255 255 255 / 0.08), 0 -18px 28px -24px rgba(125,211,252,0.45)" }}
           aria-hidden
         />
         <nav
-          className="relative flex items-stretch gap-1.5 max-w-3xl mx-auto overflow-x-auto no-scrollbar px-1"
+          className="relative flex items-end justify-center gap-1 sm:gap-2 max-w-lg mx-auto px-1"
           aria-label="Navigation principale"
         >
-          {NAV_ITEMS.map((item, i) => {
-            const isActive = activeIndex === i;
-            return (
-              <motion.div
-                key={item.href}
-                whileTap={{ scale: 0.93 }}
-                transition={{ type: "spring", stiffness: 500, damping: 26 }}
-              >
-                <Link
-                  href={item.href}
-                  title={item.label}
-                  aria-current={isActive ? "page" : undefined}
-                  className={`relative overflow-hidden flex min-w-[78px] flex-1 flex-col items-center justify-center rounded-2xl py-2.5 px-2 transition-all duration-300 border ${
-                    isActive
-                      ? `bg-gradient-to-b ${item.accentBg} border-white/20 ${item.accentGlow} ${item.accentText}`
-                      : "bg-white/[0.03] border-white/5 text-text-muted hover:bg-white/[0.07] hover:text-text-primary hover:border-white/20"
-                  }`}
-                >
-                  {isActive && (
-                    <>
-                      <motion.span
-                        layoutId="navwheel-active-pill"
-                        className="absolute inset-0 rounded-2xl border border-white/20"
-                        transition={{ type: "spring", bounce: 0.18, duration: 0.35 }}
-                      />
-                      <motion.span
-                        className="absolute -top-5 left-1/2 w-16 h-16 -translate-x-1/2 rounded-full blur-xl bg-white/20"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 0.65 }}
-                        exit={{ opacity: 0 }}
-                        transition={{ duration: 0.25 }}
-                        aria-hidden
-                      />
-                    </>
-                  )}
-                  <span
-                    className={`relative flex items-center justify-center rounded-xl px-2.5 py-1.5 ${
-                      isActive ? "bg-white/[0.08]" : ""
-                    }`}
-                  >
-                    <NavIcon name={item.icon} className="h-5 w-5 shrink-0" />
-                  </span>
-                  <span className="relative mt-1 text-[11px] leading-none font-semibold truncate max-w-[70px]">
-                    {item.label}
-                  </span>
-                  {isActive && (
-                    <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-current" aria-hidden />
-                  )}
-                </Link>
-              </motion.div>
-            );
-          })}
+          <div className="flex flex-1 items-end justify-end gap-1 sm:gap-1.5 min-w-0">
+            {NAV_LEFT.map((nav) => (
+              <NavPill key={nav.href} item={nav} pathname={pathname} />
+            ))}
+          </div>
+          <NavCenterPill item={NAV_CENTER} pathname={pathname} />
+          <div className="flex flex-1 items-end justify-start gap-1 sm:gap-1.5 min-w-0">
+            {NAV_RIGHT.map((nav) => (
+              <NavPill key={nav.href} item={nav} pathname={pathname} />
+            ))}
+          </div>
         </nav>
       </footer>
 
-      {/* Menu : Command palette + Déconnexion (mobile et desktop) */}
       <div className="fixed right-4 top-4 z-50 flex items-center gap-2">
         <CommandPalette />
         <button
