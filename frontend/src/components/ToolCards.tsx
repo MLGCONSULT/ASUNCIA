@@ -25,12 +25,12 @@ const TOOLS: ToolCard[] = [
     accent: "fuchsia",
   },
   {
-    id: "notion",
-    href: "/app/notion",
-    label: "Notion",
-    description: "Retrouver le contexte.",
-    icon: "document",
-    accent: "violet",
+    id: "supabase",
+    href: "/app/supabase",
+    label: "Supabase",
+    description: "Données et requêtes.",
+    icon: "database",
+    accent: "cyan",
   },
   {
     id: "n8n",
@@ -70,10 +70,10 @@ export default function ToolCards() {
           .then((response) => response.json())
           .then((data) => ["airtable", { connected: Boolean(data.connected), available: Boolean(data.configured), source: data.source as string | undefined }] as const)
           .catch(() => ["airtable", { connected: false, available: false }] as const),
-        fetchBackend("/api/auth/notion/status")
+        fetchBackend("/api/health/mcp-supabase")
           .then((response) => response.json())
-          .then((data) => ["notion", { connected: Boolean(data.connected), available: Boolean(data.configured), source: data.source as string | undefined }] as const)
-          .catch(() => ["notion", { connected: false, available: false }] as const),
+          .then((data) => ["supabase", { connected: Boolean(data.ok), available: Boolean(data.ok) }] as const)
+          .catch(() => ["supabase", { connected: false, available: false }] as const),
         fetchBackend("/api/health/mcp-n8n")
           .then((response) => response.json())
           .then((data) => ["n8n", { connected: Boolean(data.ok), available: Boolean(data.ok) }] as const)
@@ -91,7 +91,7 @@ export default function ToolCards() {
   }, []);
 
   return (
-    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3 xl:grid-cols-3">
+    <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-3">
       {TOOLS.map((tool, i) => (
         <motion.div
           key={tool.href}
@@ -105,12 +105,24 @@ export default function ToolCards() {
               <span className="dashboard-tool-icon flex h-9 w-9 shrink-0 items-center justify-center border border-white/10 bg-white/5">
                 <NavIcon name={tool.icon} className="w-4 h-4" />
               </span>
-              <span className={`dashboard-status-cut shrink-0 text-[10px] uppercase ${
-                statuses[tool.id]?.connected ? "text-accent-cyan" : statuses[tool.id]?.available ? "text-accent-amber" : "text-text-dim"
-              }`}>
+              <span
+                className={`dashboard-status-cut shrink-0 text-[10px] uppercase ${
+                  statuses[tool.id]?.connected
+                    ? "text-accent-cyan"
+                    : statuses[tool.id]?.available
+                      ? "text-accent-amber"
+                      : "text-text-dim"
+                }`}
+              >
                 {statuses[tool.id]?.connected
-                  ? statuses[tool.id]?.source === "server-token" ? "Prêt" : "OK"
-                  : statuses[tool.id]?.available ? "Config" : "—"}
+                  ? tool.id === "airtable" && statuses[tool.id]?.source === "server-token"
+                    ? "Prêt"
+                    : tool.id === "airtable"
+                      ? "OK"
+                      : "OK"
+                  : statuses[tool.id]?.available
+                    ? "Config"
+                    : "—"}
               </span>
             </div>
             <p className="lava-text-safe mt-2 text-sm font-semibold text-text-primary">{tool.label}</p>

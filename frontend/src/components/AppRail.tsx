@@ -14,7 +14,6 @@ type NavItem = { href: string; label: string; icon: IconName };
 const NAV_ITEMS: NavItem[] = [
   { href: "/app/dashboard", label: "Dashboard", icon: "chat" },
   { href: "/app/airtable", label: "Airtable", icon: "grid" },
-  { href: "/app/notion", label: "Notion", icon: "document" },
   { href: "/app/n8n", label: "Workflows", icon: "workflow" },
   { href: "/app/supabase", label: "Supabase", icon: "database" },
 ];

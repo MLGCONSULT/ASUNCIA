@@ -15,8 +15,8 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AsuncIA – CRM intelligent",
-  description: "CRM piloté par IA, multi-utilisateurs",
+  title: "AsuncIA – Espace outils & assistant IA",
+  description: "Pilotage Airtable, n8n et Supabase avec assistant intégré",
 };
 
 export const viewport = {

@@ -17,12 +17,12 @@ export default function FloatingAssistant() {
   }, [searchParams]);
 
   return (
-    <div className="pointer-events-none fixed bottom-24 right-3 z-50 sm:bottom-28 sm:right-5">
+    <div className="pointer-events-none fixed bottom-24 right-3 z-50 flex flex-col items-end justify-end sm:bottom-28 sm:right-5 top-[calc(3.5rem+env(safe-area-inset-top,0px))]">
       <AnimatePresence initial={false}>
         {open ? (
           <motion.div
             key="assistant-panel"
-            className="pointer-events-auto mb-3 h-[min(34rem,calc(100dvh-14rem))] max-h-[calc(100dvh-14rem)] w-[min(27rem,calc(100vw-1.25rem))] assistant-panel-shell overflow-hidden"
+            className="pointer-events-auto mb-3 flex max-h-[min(32rem,calc(100dvh-10rem))] min-h-0 w-[min(27rem,calc(100vw-1.25rem))] flex-col assistant-panel-shell overflow-hidden"
             initial={{ opacity: 0, y: 18, scale: 0.96 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 16, scale: 0.97 }}
@@ -32,7 +32,7 @@ export default function FloatingAssistant() {
               <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3">
                 <div>
                   <p className="text-[11px] uppercase tracking-[0.22em] text-accent-cyan">Guide intégré</p>
-                  <p className="mt-1 text-xs text-text-muted">Airtable, Notion, n8n, Supabase — demande ce dont tu as besoin</p>
+                  <p className="mt-1 text-xs text-text-muted">Airtable, n8n, Supabase — demande ce dont tu as besoin</p>
                 </div>
                 <button
                   type="button"

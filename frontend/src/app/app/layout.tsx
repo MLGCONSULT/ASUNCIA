@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import NavWheel from "@/components/NavWheel";
 import FloatingAssistant from "@/components/FloatingAssistant";
+import AppHeader from "@/components/AppHeader";
 
 export default async function AppLayout({
   children,
@@ -25,7 +26,8 @@ export default async function AppLayout({
         <div className="lava-passive-lamp lava-passive-lamp-left" />
         <div className="lava-passive-lamp lava-passive-lamp-right" />
       </div>
-      <main className="relative flex-1 min-h-0 flex flex-col pt-1.5 pb-24 px-2 sm:px-4 md:px-4">
+      <AppHeader />
+      <main className="relative flex-1 min-h-0 flex flex-col pt-[calc(3.5rem+env(safe-area-inset-top,0px))] pb-28 px-2 sm:px-4 md:px-4">
         <div className="panel-asymmetric lava-shell flex-1 min-h-0 mx-0 mt-0 mb-1 md:mb-2 glass-strong border border-white/10 overflow-auto flex flex-col">
           <div className="p-4 sm:p-5 md:p-6 flex-1 min-h-0 flex flex-col">
             {children}

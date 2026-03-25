@@ -72,14 +72,13 @@ export default function HomePage() {
             delay={0}
           />
           <BubbleLink label="Airtable" subtitle="Bases" href="/connexion?redirect=/app/airtable" tone="fuchsia" delay={0.12} />
-          <BubbleLink label="Notion" subtitle="Notes" href="/connexion?redirect=/app/notion" tone="violet" delay={0.24} />
-          <BubbleLink label="n8n" subtitle="Flows" href="/connexion?redirect=/app/n8n" tone="amber" delay={0.36} />
+          <BubbleLink label="n8n" subtitle="Flows" href="/connexion?redirect=/app/n8n" tone="amber" delay={0.24} />
           <BubbleLink
             label="Supabase"
             subtitle="Données"
             href={`/connexion?redirect=${encodeURIComponent(supabaseChatUrl)}`}
             tone="emerald"
-            delay={0.48}
+            delay={0.36}
           />
         </div>
       </motion.div>

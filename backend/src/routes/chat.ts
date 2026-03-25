@@ -8,7 +8,10 @@ import { parseBody } from "../validators/http.js";
 import { chatBodySchema } from "../validators/schemas.js";
 import type { AuthRequest } from "../middleware/auth.js";
 
-const FALLBACK_REPLY = "Bienvenue. Dis-moi simplement ce que tu souhaites faire : ajouter un contact, voir tes derniers emails, lancer une automatisation… Je m'occupe du reste.";
+const FALLBACK_REPLY =
+  "Je n’ai pas pu formuler une réponse complète. Reformule ta question ou précise ton besoin (workflow, données, etc.).";
+const NO_API_KEY_REPLY =
+  "L’assistant IA n’est pas activé côté serveur : configure **OPENAI_API_KEY** sur le backend, puis redéploie.";
 const MAX_TOOL_ROUNDS = 5;
 
 type Message =
@@ -96,10 +99,10 @@ export function chatRouter(): Router {
 
     if (!apiKey) {
       if (conversationId) {
-        await supabase.from("ai_messages").insert({ conversation_id: conversationId, role: "assistant", contenu: FALLBACK_REPLY });
+        await supabase.from("ai_messages").insert({ conversation_id: conversationId, role: "assistant", contenu: NO_API_KEY_REPLY });
         await supabase.from("ai_conversations").update({ date_mise_a_jour: new Date().toISOString() }).eq("id", conversationId);
       }
-      res.json({ reply: FALLBACK_REPLY, conversationId });
+      res.json({ reply: NO_API_KEY_REPLY, conversationId });
       return;
     }
 

@@ -14,18 +14,21 @@ Il a ete pense pour un projet d'alternance. L'objectif n'est pas seulement de do
 
 ## Contraintes fondatrices du projet
 
-Ces points doivent rester vrais, meme si le code evolue :
+Ces points doivent rester vrais, même si le code évolue :
 
-- l'application s'appuie sur `Supabase` pour la base de donnees et l'authentification
-- le backend orchestre les integrations et reste la couche centrale
-- l'application conserve la connexion MCP `n8n`
-- l'application conserve la connexion MCP `Supabase`
-- l'application peut utiliser des automatisations et integrations MCP comme `Gmail`, `Notion` et `Airtable`
-- l'IA reste au coeur de l'experience utilisateur
+- l'application s'appuie sur **Supabase** pour la base de données et l'authentification
+- le **backend** orchestre les intégrations et reste la couche centrale
+- l'interface met en avant les intégrations **Airtable**, **n8n**, **Supabase** et l'**assistant IA**
+- l'**IA** reste au cœur de l'expérience utilisateur
+
+## Documentation courte (jury / déploiement)
+
+- **`DOC_TECHNIQUE.md`** — URLs de production, health checks, périmètre de l’interface (à lire en premier pour une mise en prod ou une soutenance).
 
 ## Ordre de lecture conseille
 
-1. `01-projet-et-justification.md`
+1. `DOC_TECHNIQUE.md` — **référence actuelle** (URLs, santé API)
+2. `01-projet-et-justification.md`
 2. `02-architecture-globale.md`
 3. `03-bdd-supabase.md`
 4. `04-mcp-et-integrations.md`
@@ -43,7 +46,9 @@ Ces points doivent rester vrais, meme si le code evolue :
 
 `z_docs` n'a pas vocation a remplacer le code. Les verites techniques prioritaires restent :
 
-- `README.md`
+- `README.md` (racine)
+- `DOC_TECHNIQUE.md`
+- `backend-nest/.env.example` et `backend/docs/MCP.md` (selon le backend déployé)
 - `backend/.env.example`
 - `backend/docs/MCP.md`
 - `backend/src/config/mcp.ts`

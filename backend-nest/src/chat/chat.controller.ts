@@ -14,8 +14,13 @@ import { executeTool } from "../ai/tool-executor";
 import { SYSTEM_PROMPT } from "../ai/prompt";
 import { createUserSupabaseFromRequest } from "../services/auth-context";
 
+/** Réponse quand le modèle ne renvoie rien ou en cas d'échec partiel (clé API présente). */
 const FALLBACK_REPLY =
-  "Bienvenue. Dis-moi simplement ce que tu souhaites faire : organiser Airtable, explorer Notion, lancer une automatisation n8n… Je m'occupe du reste.";
+  "Je n’ai pas pu formuler une réponse complète. Reformule ta question ou précise ton besoin (ex. quel déclencheur n8n, quelles données Airtable).";
+
+/** Réponse quand OPENAI_API_KEY est absente : l’utilisateur doit configurer le backend. */
+const NO_API_KEY_REPLY =
+  "L’assistant IA n’est pas activé côté serveur : configure **OPENAI_API_KEY** sur le backend (variables d’environnement), puis redéploie. Tu peux en attendant ouvrir **Workflows** (/app/n8n) pour créer une automatisation à la main.";
 const MAX_TOOL_ROUNDS = 5;
 
 type AuthRequest = Request & { user?: { id: string } };
@@ -137,13 +142,13 @@ export class ChatController {
       if (conversationId) {
         await supabase
           .from("ai_messages")
-          .insert({ conversation_id: conversationId, role: "assistant", contenu: FALLBACK_REPLY });
+          .insert({ conversation_id: conversationId, role: "assistant", contenu: NO_API_KEY_REPLY });
         await supabase
           .from("ai_conversations")
           .update({ date_mise_a_jour: new Date().toISOString() })
           .eq("id", conversationId);
       }
-      res.json({ reply: FALLBACK_REPLY, conversationId });
+      res.json({ reply: NO_API_KEY_REPLY, conversationId });
       return;
     }
 

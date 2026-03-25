@@ -2,15 +2,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { callMcpTool } from "../mcp/supabase-client";
 import { callN8nMcpTool, isN8nMcpConfigured } from "../mcp/n8n-client";
 import { callAirtableMcpTool, isAirtableMcpConfigured } from "../mcp/airtable-client";
-import {
-  callNotionMcpTool,
-  getNotionMcpToolNames,
-  isNotionMcpConfigured,
-} from "../mcp/notion-client";
 import { mcpResultToText } from "../mcp/result";
 import { MCP_ERROR_MESSAGES } from "../config/mcp";
 import { getAirtableRuntimeAccess } from "../services/integrations/airtable";
-import { getNotionRuntimeAccess } from "../services/integrations/notion";
 
 export type ToolContext = { supabase: SupabaseClient; userId: string };
 
@@ -22,45 +16,6 @@ export async function executeTool(
   const { supabase, userId } = ctx;
   try {
     switch (name) {
-      case "list_leads": {
-        const { data, error } = await supabase
-          .from("leads")
-          .select("id, nom, email, statut, date_creation")
-          .order("date_creation", { ascending: false })
-          .limit(50);
-        if (error) return `Erreur leads: ${error.message}`;
-        return JSON.stringify(data ?? [], null, 2);
-      }
-      case "create_lead": {
-        const nom = String(args.nom ?? "").trim();
-        const email = String(args.email ?? "").trim();
-        const statut = (args.statut as string) ?? "nouveau";
-        if (!nom || !email) return "Nom et email sont requis.";
-        const { data, error } = await supabase
-          .from("leads")
-          .insert({ nom, email, statut, utilisateur_id: userId })
-          .select("id, nom, email, statut")
-          .single();
-        if (error) return `Erreur: ${error.message}`;
-        return `Lead créé: ${JSON.stringify(data)}`;
-      }
-      case "update_lead": {
-        const id = String(args.id ?? "").trim();
-        if (!id) return "ID du lead requis.";
-        const updates: Record<string, unknown> = {};
-        if (args.nom != null) updates.nom = String(args.nom);
-        if (args.email != null) updates.email = String(args.email);
-        if (args.statut != null) updates.statut = args.statut;
-        if (Object.keys(updates).length === 0) return "Aucun champ à mettre à jour.";
-        const { data, error } = await supabase
-          .from("leads")
-          .update(updates)
-          .eq("id", id)
-          .select()
-          .single();
-        if (error) return `Erreur: ${error.message}`;
-        return `Lead mis à jour: ${JSON.stringify(data)}`;
-      }
       case "mcp_supabase": {
         const toolName = String(args.toolName ?? "").trim();
         const toolArgs = (args.arguments as Record<string, unknown>) ?? {};
@@ -116,40 +71,6 @@ export async function executeTool(
         const result = await callAirtableMcpTool(
           "list_records_for_table",
           { baseId, tableId, pageSize },
-          runtime.accessToken,
-        );
-        return mcpResultToText(result);
-      }
-      case "notion_search": {
-        if (!isNotionMcpConfigured()) return MCP_ERROR_MESSAGES.notion;
-        const runtime = await getNotionRuntimeAccess({ supabase, userId });
-        if (!runtime.available)
-          return "Notion n'est pas connecté. L'utilisateur peut le connecter depuis les paramètres.";
-        const { search: searchTool } = getNotionMcpToolNames();
-        const filterType = args.filterType as "database" | "page" | undefined;
-        const query = typeof args.query === "string" ? args.query.trim() : "";
-        const toolArgs =
-          searchTool === "notion-search"
-            ? { query: query.length > 0 ? query : " ", ...(filterType && { filter_type: filterType }) }
-            : filterType
-              ? { filter_type: filterType }
-              : {};
-        const result = await callNotionMcpTool(searchTool, toolArgs, runtime.accessToken);
-        return mcpResultToText(result);
-      }
-      case "notion_query_database": {
-        if (!isNotionMcpConfigured()) return MCP_ERROR_MESSAGES.notion;
-        const runtime = await getNotionRuntimeAccess({ supabase, userId });
-        if (!runtime.available) return "Notion n'est pas connecté.";
-        const databaseId = String(args.databaseId ?? "").trim();
-        const pageSize = Math.min(Number(args.pageSize) || 20, 50);
-        if (!databaseId) return "databaseId requis.";
-        const { queryDatabase: queryTool } = getNotionMcpToolNames();
-        const result = await callNotionMcpTool(
-          queryTool,
-          queryTool === "query-data-source"
-            ? { data_source_id: databaseId, page_size: pageSize }
-            : { database_id: databaseId, page_size: pageSize },
           runtime.accessToken,
         );
         return mcpResultToText(result);

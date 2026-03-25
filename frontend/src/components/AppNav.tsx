@@ -12,10 +12,7 @@ import { fetchBackend } from "@/lib/api";
 
 type NavItem = { href: string; label: string; icon: IconName };
 
-const LEFT_TOOLS: NavItem[] = [
-  { href: "/app/airtable", label: "Airtable", icon: "grid" },
-  { href: "/app/notion", label: "Notion", icon: "document" },
-];
+const LEFT_TOOLS: NavItem[] = [{ href: "/app/airtable", label: "Airtable", icon: "grid" }];
 
 const CENTER_ITEM: NavItem = { href: "/app/dashboard", label: "Dashboard", icon: "chat" };
 

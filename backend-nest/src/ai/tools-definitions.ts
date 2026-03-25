@@ -4,56 +4,6 @@ export const CHAT_TOOLS: ChatCompletionTool[] = [
   {
     type: "function",
     function: {
-      name: "list_leads",
-      description: "Liste les leads du CRM (nom, email, statut, date).",
-      parameters: { type: "object", properties: {}, additionalProperties: false },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "create_lead",
-      description: "Crée un nouveau lead.",
-      parameters: {
-        type: "object",
-        properties: {
-          nom: { type: "string", description: "Nom du lead" },
-          email: { type: "string", description: "Email du lead" },
-          statut: {
-            type: "string",
-            description: "Statut : nouveau, contacte, qualifie, gagne, perdu",
-            enum: ["nouveau", "contacte", "qualifie", "gagne", "perdu"],
-          },
-        },
-        required: ["nom", "email"],
-        additionalProperties: false,
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "update_lead",
-      description: "Modifie un lead existant (id requis).",
-      parameters: {
-        type: "object",
-        properties: {
-          id: { type: "string", description: "ID du lead" },
-          nom: { type: "string" },
-          email: { type: "string" },
-          statut: {
-            type: "string",
-            enum: ["nouveau", "contacte", "qualifie", "gagne", "perdu"],
-          },
-        },
-        required: ["id"],
-        additionalProperties: false,
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
       name: "mcp_supabase",
       description: "Appel au MCP Supabase : list_tables, execute_sql, list_migrations, etc.",
       parameters: {
@@ -102,22 +52,6 @@ export const CHAT_TOOLS: ChatCompletionTool[] = [
   {
     type: "function",
     function: {
-      name: "mcp_notion",
-      description: "Appel au MCP Notion : rechercher, lire ou écrire des pages et bases.",
-      parameters: {
-        type: "object",
-        properties: {
-          toolName: { type: "string" },
-          arguments: { type: "object", additionalProperties: true },
-        },
-        required: ["toolName"],
-        additionalProperties: false,
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
       name: "airtable_list_bases",
       description: "Liste les bases Airtable accessibles.",
       parameters: { type: "object", properties: {}, additionalProperties: false },
@@ -136,36 +70,6 @@ export const CHAT_TOOLS: ChatCompletionTool[] = [
           maxRecords: { type: "number", default: 20 },
         },
         required: ["baseId", "tableId"],
-        additionalProperties: false,
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "notion_search",
-      description: "Recherche dans Notion (bases et pages).",
-      parameters: {
-        type: "object",
-        properties: {
-          filterType: { type: "string", enum: ["database", "page"] },
-        },
-        additionalProperties: false,
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "notion_query_database",
-      description: "Contenu d'une base de données Notion.",
-      parameters: {
-        type: "object",
-        properties: {
-          databaseId: { type: "string" },
-          pageSize: { type: "number", default: 20 },
-        },
-        required: ["databaseId"],
         additionalProperties: false,
       },
     },

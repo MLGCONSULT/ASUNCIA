@@ -10,7 +10,8 @@ export const dashboardIntents: AssistantIntent[] = [
     id: "daily-priority",
     title: "Prioriser ma journée",
     description: "Identifier les actions les plus importantes.",
-    prompt: "Aide-moi à prioriser ma journée selon ce que tu vois dans Airtable, Notion, n8n et mes données.",
+    prompt:
+      "Aide-moi à prioriser ma journée selon ce que tu vois dans Airtable, n8n et mes données Supabase.",
   },
   {
     id: "airtable-check",
@@ -19,10 +20,11 @@ export const dashboardIntents: AssistantIntent[] = [
     prompt: "Analyse mes données Airtable et dis-moi quelles actions prioritaires je devrais traiter.",
   },
   {
-    id: "notion-focus",
-    title: "Trouver mon contexte",
-    description: "Retrouver les pages et bases Notion utiles.",
-    prompt: "Cherche dans Notion les pages et bases les plus utiles pour préparer ma journée.",
+    id: "n8n-create",
+    title: "Créer un workflow n8n",
+    description: "Structurer une automatisation pas à pas.",
+    prompt:
+      "Je veux créer un workflow n8n : guide-moi étape par étape (déclencheur, nœuds, données, test) et indique l’onglet /app/n8n pour l’exécuter.",
   },
   {
     id: "n8n-review",

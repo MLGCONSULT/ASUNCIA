@@ -267,7 +267,7 @@ export default function ChatAssistant({
 
         const applyConversationId = (nextId: string | undefined) => {
           if (!nextId) return;
-          setConversationId((prev) => prev ?? nextId);
+          setConversationId(nextId);
           fetchConversations();
         };
 
@@ -637,8 +637,8 @@ export default function ChatAssistant({
                   className={`lava-text-safe text-text-muted text-sm ${compact ? "max-w-xs" : "max-w-md"} mx-auto`}
                 >
                   {compact
-                    ? "Une question sur Airtable, Notion, n8n ou tes données : décris ce que tu veux obtenir."
-                    : "Je peux t’orienter vers le bon outil : bases Airtable, pages Notion, automatisations n8n, ou exploration de données. Dis-moi ton objectif."}
+                    ? "Une question sur Airtable, n8n ou Supabase : décris ce que tu veux obtenir."
+                    : "Je peux t’orienter vers le bon outil : bases Airtable, workflows n8n, ou données Supabase. Dis-moi ton objectif."}
                 </p>
                 <div
                   className={`mt-5 flex flex-wrap justify-center gap-2 ${compact ? "max-w-sm" : "max-w-2xl"} mx-auto`}

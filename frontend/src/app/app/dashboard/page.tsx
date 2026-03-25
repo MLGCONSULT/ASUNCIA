@@ -14,9 +14,8 @@ type Bubble = {
 
 const integrationBubbles: Bubble[] = [
   { id: "airtable", label: "Airtable", subtitle: "Bases", href: "/app/airtable", tone: "fuchsia" },
-  { id: "notion", label: "Notion", subtitle: "Notes", href: "/app/notion", tone: "violet" },
+  { id: "supabase", label: "Supabase", subtitle: "Données", href: "/app/supabase", tone: "emerald" },
   { id: "n8n", label: "n8n", subtitle: "Flows", href: "/app/n8n", tone: "amber" },
-  { id: "supabase", label: "Supabase", subtitle: "SQL IA", href: "/app/supabase", tone: "emerald" },
 ];
 
 const toneClasses: Record<Bubble["tone"], string> = {
@@ -76,7 +75,7 @@ export default async function DashboardPage() {
             </div>
 
             {/* Anneau de bulles outils */}
-            <div className="grid w-full max-w-xl grid-cols-2 gap-4 md:grid-cols-4">
+            <div className="grid w-full max-w-md grid-cols-3 gap-4 md:max-w-2xl">
               {integrationBubbles.map((bubble) => (
                 <Link
                   key={bubble.id}
@@ -107,9 +106,6 @@ export default async function DashboardPage() {
           <div className="mt-3 flex flex-wrap gap-2">
             <Link href="/app/airtable" className="px-3 py-1.5 rounded-full bg-white/10 text-xs text-text-primary hover:bg-white/15">
               Explorer mes bases Airtable
-            </Link>
-            <Link href="/app/notion" className="px-3 py-1.5 rounded-full bg-white/10 text-xs text-text-primary hover:bg-white/15">
-              Rechercher dans Notion
             </Link>
             <Link href="/app/n8n" className="px-3 py-1.5 rounded-full bg-white/10 text-xs text-text-primary hover:bg-white/15">
               Exécuter un workflow n8n

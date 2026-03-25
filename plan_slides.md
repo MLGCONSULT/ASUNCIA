@@ -1,237 +1,171 @@
-# Guide Slides (pour une personne non-tech)
+# Plan de présentation — AsuncIA (pour créer le support visuel)
 
-But: aider quelqu'un qui n'est pas du milieu a faire un PowerPoint clair, joli et utile, sans devoir comprendre tout le code.
+**À qui s’adresse ce document :** à la personne qui conçoit les slides (PowerPoint, Canva, Google Slides, etc.) **sans être développeuse**. Tout est là pour produire un **support clair, élégant et fidèle au projet**, sans jargon inutile.
 
-## Ce qu'il faut livrer le 27 mars
-
-1. Une presentation simple (8 a 10 slides max)
-2. Une demo live du projet
-3. Un lien de test (si possible) pour que Mickael puisse essayer
-4. Une doc technique claire (simple a lire, mais complete)
+**Objectif de la présentation :** montrer une **application web réelle**, déjà en ligne, qui **centralise des outils métier** (données, automatisation) avec un **assistant IA** intégré.
 
 ---
 
-## Regles simples pour faire les slides
+## Style visuel recommandé
 
-- 1 slide = 1 idee
-- 4 a 6 points max par slide
-- phrases courtes
-- beaucoup de captures d'ecran, peu de texte
-- style visuel propre, pas surcharge
-- police lisible (minimum 24 pour titres, 16 pour texte)
+- **Ambiance** : moderne, sombre avec touches lumineuses (bleu lagon / violet doux), comme l’interface du site.
+- **Lisibilité** : titres **grands** (≥ 28 pt), texte **court** (≥ 18 pt sur les puces).
+- **Règle d’or** : **1 idée principale par slide**, peu de mots, **captures d’écran** dès que possible.
+- **Éviter** : listes de technologies pour le plaisir ; mots « bâtards » non expliqués (MCP, JWT, etc.) — si une slide est technique, la traduire en français simple.
 
 ---
 
-## Plan slide par slide (pret a suivre)
+## Liens à mettre (très important pour le jury)
 
-### Slide 1 - Titre
+| Quoi | Lien |
+|------|------|
+| **Application (à tester)** | **https://asuncia.vercel.app** |
+| **API / backend (preuve que le serveur tourne)** | **https://asuncia-backend.vercel.app** |
 
-**Mettre:**
-- AsuncIA - CRM intelligent
-- "Presentation live - 27 mars"
-- Nom + role
+**Liens « santé »** (le jury peut les ouvrir dans un navigateur ; ce sont des réponses JSON) :
 
-**A dire en oral (simple):**
-"Je vais vous montrer un outil deja utilisable, pas un simple prototype."
+| Vérification | URL complète |
+|--------------|----------------|
+| Présence du backend | `https://asuncia-backend.vercel.app/` |
+| Connecteur Supabase | `https://asuncia-backend.vercel.app/api/health/mcp-supabase` |
+| Connecteur Airtable | `https://asuncia-backend.vercel.app/api/health/mcp-airtable` |
+| Connecteur n8n | `https://asuncia-backend.vercel.app/api/health/mcp-n8n` |
 
-**Visuel:**
-- logo + belle capture de la page d'accueil/dashboard
-
----
-
-### Slide 2 - Le probleme et la vision
-
-**Mettre:**
-- Probleme: trop d'outils separes (emails, CRM, automatisation, bases)
-- Vision: tout piloter dans une seule interface
-- Benefice: gain de temps + plus simple + meilleure vue globale
-
-**A dire:**
-"On veut enlever la dispersion et centraliser le travail."
-
-**Visuel:**
-- schema "Avant / Apres"
+*Note pour l’oral : si une ligne affiche « erreur » ou « non configuré », c’est souvent une **variable d’environnement manquante pour ce service**, pas forcément une panne globale.*
 
 ---
 
-### Slide 3 - Ce qui existe deja
+## Plan slide par slide (8 à 10 slides)
 
-**Mettre (niveau non-tech):**
-- Assistant IA integre
-- Onglets: Airtable, Notion, Supabase, n8n
-- Auth utilisateur securisee
-- Dashboard utile (actions du jour + raccourcis)
-- n8n simplifie: "demande de workflow" -> "Generer le JSON" -> "Copier"
+### Slide 1 — Titre
 
-**A dire:**
-"Le coeur du produit est deja en place et fonctionne."
+**Titre proposé :** AsuncIA — un seul espace pour vos outils et l’IA  
+**Sous-titre :** Présentation / soutenance + [date] + [prénom]
 
-**Visuel:**
-- tableau simple "Fonction / Statut"
+**Visuel :** logo + capture du **tableau de bord** ou de la page d’accueil (`asuncia.vercel.app`).
+
+**À dire en une phrase :** « Je vous montre une application **déjà en ligne**, pas une maquette. »
 
 ---
 
-### Slide 4 - Comment ca marche (version simple)
+### Slide 2 — Le problème
 
-**Mettre:**
-- L'utilisateur agit dans le front (site)
-- Le backend fait les traitements
-- Les donnees viennent de services connectes (Airtable, Notion, n8n, Supabase)
+**Idée :** Les équipes jonglent entre **plusieurs outils** (bases de données, fichiers, automatisation) ; on perd du temps à changer de contexte.
 
-**A dire:**
-"L'appli sert de chef d'orchestre entre l'utilisateur et les outils."
+**À mettre en 3–4 puces courtes.**
 
-**Visuel:**
-- diagramme 4 blocs: Utilisateur -> App -> Backend -> Outils externes
+**Visuel :** schéma « avant » : plusieurs boîtes dispersées → « après » : une seule fenêtre (AsuncIA).
 
 ---
 
-### Slide 5 - Demo live (script)
+### Slide 3 — La solution (en une image)
 
-**Mettre:**
-1. Ouvrir dashboard
-2. Ouvrir n8n
-3. Ecrire une demande claire de workflow (langage naturel)
-4. Generer le JSON puis copier-coller dans n8n
+**Idée :** Une **interface unique** qui connecte **Airtable**, **n8n** (workflows), **Supabase** (données), et un **assistant** pour guider l’utilisateur.
 
-**A dire:**
-"On montre un cas reel du debut a la fin."
+**Ne pas mentionner** d’anciennes pistes non présentes dans l’app (ex. messagerie ou écran « Leads »).
 
-**Visuel:**
-- mini captures des 4 etapes
-
-**Important:**
-- ajouter le lien de test si dispo (pour Mickael)
+**Visuel :** capture des **cartes d’outils** sur le dashboard ou schéma simple avec les 4 noms.
 
 ---
 
-### Slide 6 - Exemples de prompts Cursor
+### Slide 4 — Comment ça marche (version grand public)
 
-Objectif de cette slide: montrer que la demarche IA est intelligente, concrete, et controlee.
+**Texte type :**
 
-**Format visuel recommande (3 cartes):**
-- Carte 1: "Probleme"
-- Carte 2: "Prompt Cursor"
-- Carte 3: "Resultat mesurable"
+1. L’utilisateur se **connecte** (compte sécurisé).
+2. Il choisit un **outil** dans le menu (Airtable, n8n, Supabase…).
+3. L’**assistant** peut répondre en langage naturel et **orienter** vers le bon écran.
 
-Tu peux copier-coller ces 3 exemples:
-
-**Exemple 1 - Debug n8n (cas reel)**
-- Probleme: l'onglet n8n affichait une erreur "invalid type: limit string".
-- Prompt Cursor:
-  - "Analyse l'erreur MCP n8n sur `search_workflows` et corrige backend + frontend pour envoyer `limit` en integer. Affiche un message d'erreur clair cote UI."
-- Resultat a afficher:
-  - "Correction en 1 passe: parsing `limit` cote backend + message UI detaille."
-  - "Impact: l'onglet n8n est redevenu utilisable."
-
-**Exemple 2 - UX orientee usage (n8n)**
-- Probleme: l'onglet n8n etait trop technique et peu lisible.
-- Prompt Cursor:
-  - "Refais l'onglet n8n en mode utilisateur final: une zone 'demande de workflow', bouton 'Generer le JSON', resultat copiable, et labels explicites."
-- Resultat a afficher:
-  - "Parcours simplifie: besoin -> JSON -> copie."
-  - "Impact: comprehension immediate, moins d'erreurs et de friction."
-
-**Exemple 3 - Assistant guide utilisateur**
-- Probleme: l'IA repondait sans toujours orienter vers le bon onglet.
-- Prompt Cursor:
-  - "Reecris le system prompt pour forcer une reponse guidee: onglet conseille, pourquoi, etapes, resultat attendu, puis mode chat general pour questions quotidiennes."
-- Resultat a afficher:
-  - "L'assistant devient un copilote concret, pas juste un chatbot."
-  - "Impact: onboarding plus rapide et meilleure comprehension des fonctionnalites."
-
-**A dire a l'oral (phrase simple):**
-"On utilise Cursor pour aller plus vite, mais chaque changement est relu, teste et valide humainement."
-
-**Ce qu'il faut mettre exactement sur la slide:**
-- 1 titre: "Comment Cursor nous fait gagner du temps"
-- 3 cartes (une par exemple ci-dessus)
-- en bas: une ligne "Gain: debug plus rapide + UX meilleure + livrables plus propres"
+**Visuel :** schéma **Utilisateur → Site web → Serveur → Outils connectés** (4 blocs).
 
 ---
 
-### Slide 7 - Documentation technique (ce qu'on livre)
+### Slide 5 — Démo live (script)
 
-**Mettre:**
-- installation
-- variables d'environnement
-- endpoints importants
-- tests Postman
-- deploiement
-- incidents connus + solutions
-- detail important: Notion passe par MCP en 2 modes clairement documentes (OAuth officiel ou server-token auto-heberge)
+**Ordre suggéré :**
 
-**A dire:**
-"La doc permet a quelqu'un d'autre de reprendre le projet."
+1. Ouvrir **https://asuncia.vercel.app**
+2. Montrer le **dashboard**
+3. Ouvrir un **outil** (ex. n8n ou Airtable)
+4. Ouvrir l’**assistant** (bulle en bas à droite) et poser une question simple (ex. « Comment créer une automatisation ? »)
 
-**Visuel:**
-- checklist "doc complete"
+**Visuel :** mini-captures numérotées 1 à 4.
 
 ---
 
-### Slide 8 - Risques et solutions
+### Slide 6 — L’IA (rôle concret)
 
-**Mettre:**
-- risques: connexions externes, variables d'env, erreurs API
-- solutions: health checks, messages clairs, procedures de test
-- preciser que `mcp.notion.com/mcp` = OAuth utilisateur, et `server-token` = serveur MCP Notion auto-heberge
+**Idée :** L’assistant **guide** et **structure** la réponse (étapes, liens vers les bons onglets), pas seulement du texte générique.
 
-**A dire:**
-"Les risques sont connus et traites avec une methode."
+**Visuel :** capture du **chat** avec une question + une réponse structurée.
 
 ---
 
-### Slide 9 - Roadmap
+### Slide 7 — Preuve technique (pour le jury)
 
-**Mettre:**
-- court terme: stabilisation + fiabilite
-- moyen terme: UX + IA plus proactive metier
+**Titre :** « Le projet est en ligne et vérifiable »
 
-**A dire:**
-"On sait deja la suite, ce n'est pas un projet fige."
+**Contenu :**
 
----
+- Lien **frontend** : `https://asuncia.vercel.app`
+- Lien **backend** : `https://asuncia-backend.vercel.app`
+- Lien **santé** (exemple) : `https://asuncia-backend.vercel.app/api/health/mcp-n8n`
 
-### Slide 10 - Conclusion
-
-**Mettre:**
-- vision claire
-- demo reelle
-- base technique solide
-- doc transmissible
-- Q&A
-
-**A dire:**
-"Le projet est deja utile et evolutif."
+**Visuel :** QR code optionnel vers le front + une petite capture du JSON du backend (page racine).
 
 ---
 
-## Mini guide "doc technique" (a produire en plus)
+### Slide 8 — Documentation & qualité
 
-La doc doit etre en 2 niveaux:
+**Idée :** Une **documentation technique** existe dans le dépôt (`z_docs/DOC_TECHNIQUE.md`, guides MCP) pour **installer**, **configurer** et **tester**.
 
-### 1) Version simple (pour lire vite)
-- c'est quoi le projet
-- comment le lancer
-- comment le tester
-- comment le deployer
-
-### 2) Version detaillee (annexe)
-- toutes les variables d'environnement
-- endpoints avec exemples
-- procedures Postman completes
-- checklists de debug par integration
-
-Objectif: comprenable vite, mais exploitable par un dev.
+**Visuel :** icône « doc » + checklist courte (3 cases cochées).
 
 ---
 
-## Liste de verification finale
+### Slide 9 — Roadmap (optionnel)
 
-- [ ] Slides 8-10 max
-- [ ] Chaque slide est comprenable sans jargon
-- [ ] Captures d'ecran ajoutees
-- [ ] Lien de test ajoute (si dispo)
-- [ ] Script oral repete (9-10 min)
-- [ ] Doc technique simple + detaillee prete
+**Idée court terme :** stabiliser, enrichir l’UX.  
+**Idée moyen terme :** aller plus loin sur l’intelligence des parcours métier.
 
+**Visuel :** flèche du temps ou deux colonnes.
+
+---
+
+### Slide 10 — Conclusion
+
+**Puces :**
+
+- Application **utilisable aujourd’hui**
+- **Architecture** claire (front + back + services)
+- **Documentation** pour reprendre le projet
+- **Questions**
+
+**Visuel :** même identité visuelle que la slide 1 + logo.
+
+---
+
+## Liste de captures d’écran à prévoir
+
+1. Page d’accueil / connexion  
+2. **Dashboard** avec les bulles ou cartes d’outils  
+3. **Barre de navigation** bas (dock coloré)  
+4. Un **outil** ouvert (ex. Airtable ou n8n)  
+5. **Assistant** ouvert avec une conversation  
+6. (Option) Page **santé** du backend dans le navigateur (JSON)
+
+---
+
+## Checklist avant la présentation
+
+- [ ] Liens `asuncia.vercel.app` et `asuncia-backend.vercel.app` testés le jour J  
+- [ ] Compte de démo ou compte personnel prêt pour la connexion  
+- [ ] Slides **8–10 max**, pas de murs de texte  
+- [ ] **Reprise orale** chronométrée (viser 8–12 min)  
+- [ ] Doc technique à jour : `z_docs/DOC_TECHNIQUE.md`
+
+---
+
+## Fichier technique détaillé
+
+Pour le jury ou un développeur : **`z_docs/DOC_TECHNIQUE.md`** (URLs, health checks, variables, périmètre de l’interface).

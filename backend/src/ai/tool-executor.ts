@@ -16,32 +16,6 @@ export async function executeTool(name: string, args: Record<string, unknown>, c
   const { supabase, userId } = ctx;
   try {
     switch (name) {
-      case "list_leads": {
-        const { data, error } = await supabase.from("leads").select("id, nom, email, statut, date_creation").order("date_creation", { ascending: false }).limit(50);
-        if (error) return `Erreur leads: ${error.message}`;
-        return JSON.stringify(data ?? [], null, 2);
-      }
-      case "create_lead": {
-        const nom = String(args.nom ?? "").trim();
-        const email = String(args.email ?? "").trim();
-        const statut = (args.statut as string) ?? "nouveau";
-        if (!nom || !email) return "Nom et email sont requis.";
-        const { data, error } = await supabase.from("leads").insert({ nom, email, statut, utilisateur_id: userId }).select("id, nom, email, statut").single();
-        if (error) return `Erreur: ${error.message}`;
-        return `Lead créé: ${JSON.stringify(data)}`;
-      }
-      case "update_lead": {
-        const id = String(args.id ?? "").trim();
-        if (!id) return "ID du lead requis.";
-        const updates: Record<string, unknown> = {};
-        if (args.nom != null) updates.nom = String(args.nom);
-        if (args.email != null) updates.email = String(args.email);
-        if (args.statut != null) updates.statut = args.statut;
-        if (Object.keys(updates).length === 0) return "Aucun champ à mettre à jour.";
-        const { data, error } = await supabase.from("leads").update(updates).eq("id", id).select().single();
-        if (error) return `Erreur: ${error.message}`;
-        return `Lead mis à jour: ${JSON.stringify(data)}`;
-      }
       case "mcp_supabase": {
         const toolName = String(args.toolName ?? "").trim();
         const toolArgs = (args.arguments as Record<string, unknown>) ?? {};
