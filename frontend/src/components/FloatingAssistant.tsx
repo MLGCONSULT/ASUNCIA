@@ -31,8 +31,8 @@ export default function FloatingAssistant() {
             <div className="assistant-panel-frame flex h-full min-h-0 flex-col overflow-hidden">
               <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3">
                 <div>
-                  <p className="text-[11px] uppercase tracking-[0.22em] text-accent-cyan">Assistant IA</p>
-                  <p className="mt-1 text-xs text-text-muted">Accessible depuis chaque page</p>
+                  <p className="text-[11px] uppercase tracking-[0.22em] text-accent-cyan">Guide intégré</p>
+                  <p className="mt-1 text-xs text-text-muted">Airtable, Notion, n8n, Supabase — demande ce dont tu as besoin</p>
                 </div>
                 <button
                   type="button"

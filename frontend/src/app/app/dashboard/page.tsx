@@ -46,20 +46,33 @@ export default async function DashboardPage() {
           </div>
 
           <div className="relative flex w-full max-w-4xl flex-col items-center gap-7">
-            {/* Bulle centrale Agent IA */}
-            <div className="dashboard-agent-bubble relative flex h-52 w-52 flex-col items-center justify-center rounded-full border border-white/10 bg-black/80 backdrop-blur-2xl">
-              <span className="text-[11px] uppercase tracking-[0.22em] text-text-dim">
-                Agent IA
-              </span>
-              <p className="mt-1 text-lg font-display font-semibold text-text-primary">
-                {profile?.nom_affichage ?? "Assistant"}
-              </p>
-              <Link
-                href="/app/dashboard?assistant=open"
-                className="mt-4 rounded-full bg-accent-cyan/80 px-5 py-2 text-xs font-medium text-black shadow-[0_12px_30px_rgba(34,211,238,0.6)] transition-transform hover:-translate-y-0.5 hover:bg-accent-cyan"
-              >
-                Ouvrir l’agent
-              </Link>
+            {/* Bulle centrale Agent — halo et double anneau */}
+            <div className="relative flex h-[13.5rem] w-[13.5rem] items-center justify-center">
+              <span
+                aria-hidden
+                className="pointer-events-none absolute inset-[-10%] rounded-full bg-[conic-gradient(from_200deg_at_50%_50%,rgba(56,189,248,0.35),rgba(147,51,234,0.35),rgba(34,211,238,0.2),transparent_70%)] opacity-90 blur-2xl"
+              />
+              <span
+                aria-hidden
+                className="pointer-events-none absolute inset-[4%] rounded-full border border-white/15 shadow-[0_0_0_1px_rgba(255,255,255,0.06)]"
+              />
+              <div className="dashboard-agent-bubble relative z-[1] flex h-52 w-52 flex-col items-center justify-center rounded-full border border-white/15 bg-black/85 backdrop-blur-2xl">
+                <span className="text-[11px] uppercase tracking-[0.28em] text-accent-cyan/90">
+                  Agent
+                </span>
+                <p className="mt-1.5 px-3 text-center text-lg font-display font-semibold text-text-primary leading-tight">
+                  {profile?.nom_affichage ?? "Ton espace"}
+                </p>
+                <p className="mt-1 max-w-[10rem] text-center text-[10px] text-text-muted leading-snug">
+                  Guide selon tes outils connectés
+                </p>
+                <Link
+                  href="/app/dashboard?assistant=open"
+                  className="mt-4 rounded-full bg-accent-cyan px-5 py-2.5 text-xs font-semibold text-black shadow-[0_14px_36px_rgba(34,211,238,0.55)] transition-transform hover:-translate-y-0.5 hover:shadow-[0_18px_44px_rgba(34,211,238,0.65)]"
+                >
+                  Ouvrir le guide
+                </Link>
+              </div>
             </div>
 
             {/* Anneau de bulles outils */}
@@ -102,10 +115,10 @@ export default async function DashboardPage() {
               Exécuter un workflow n8n
             </Link>
             <Link href="/app/n8n" className="px-3 py-1.5 rounded-full bg-accent-amber/20 border border-accent-amber/35 text-xs text-amber-200 hover:bg-accent-amber/30">
-              Générer un JSON workflow
+              Créer ou adapter une automatisation
             </Link>
             <Link href="/app/supabase" className="px-3 py-1.5 rounded-full bg-white/10 text-xs text-text-primary hover:bg-white/15">
-              Interroger Supabase SQL
+              Explorer mes données
             </Link>
           </div>
           <p className="text-xs text-text-muted mt-3">Astuce : ouvre l'assistant si tu hésites sur l'outil à utiliser.</p>

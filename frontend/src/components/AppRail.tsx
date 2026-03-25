@@ -9,13 +9,20 @@ import CommandPalette from "@/components/CommandPalette";
 import { createClient } from "@/lib/supabase/client";
 import { fetchBackend } from "@/lib/api";
 
-const NAV_ITEMS: { href: string; label: string; icon: IconName }[] = [
-  { href: "/app/dashboard", label: "Assistant", icon: "chat" },
-  { href: "/app/mails", label: "Mails", icon: "mail" },
+type NavItem = { href: string; label: string; icon: IconName };
+
+const NAV_ITEMS: NavItem[] = [
+  { href: "/app/dashboard", label: "Dashboard", icon: "chat" },
   { href: "/app/airtable", label: "Airtable", icon: "grid" },
   { href: "/app/notion", label: "Notion", icon: "document" },
   { href: "/app/n8n", label: "Workflows", icon: "workflow" },
+  { href: "/app/supabase", label: "Supabase", icon: "database" },
 ];
+
+function isActive(pathname: string, href: string): boolean {
+  if (href === "/app/dashboard") return pathname === "/app/dashboard";
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
 
 export default function AppRail() {
   const pathname = usePathname();
@@ -41,28 +48,25 @@ export default function AppRail() {
 
   return (
     <>
-      {/* Desktop: rail vertical gauche, formes rondes asymétriques */}
       <aside
         className="fixed left-0 top-0 bottom-0 z-50 w-[76px] hidden md:flex flex-col glass-strong border-r border-white/10 rail-asymmetric ml-0 mt-3 mb-3"
         aria-label="Navigation"
       >
         <div className="flex flex-col flex-1 py-5 gap-2">
           {NAV_ITEMS.map((item) => {
-            const isActive =
-              pathname === item.href ||
-              (item.href !== "/app/dashboard" && pathname.startsWith(item.href));
+            const active = isActive(pathname, item.href);
             return (
               <Link
                 key={item.href}
                 href={item.href}
                 title={item.label}
                 className={`relative flex items-center justify-center w-12 h-12 mx-auto rounded-2xl transition-all duration-200 group ${
-                  isActive
+                  active
                     ? "text-accent-cyan bg-accent-cyan/10 shadow-[0_0_20px_-6px_var(--glow-cyan)]"
                     : "text-text-muted hover:text-text-primary hover:bg-white/5 rounded-[1.25rem]"
                 }`}
               >
-                {isActive && (
+                {active && (
                   <motion.span
                     layoutId="rail-pill"
                     className="absolute inset-0 rounded-2xl border border-accent-cyan/30"
@@ -108,22 +112,19 @@ export default function AppRail() {
         </div>
       </aside>
 
-      {/* Mobile: barre en bas, coins ronds asymétriques */}
       <nav
         className="fixed bottom-0 left-0 right-0 z-50 md:hidden flex items-center justify-around py-3 px-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] border-t border-white/10 glass-strong rounded-t-[2rem]"
         aria-label="Navigation"
       >
         {NAV_ITEMS.map((item) => {
-          const isActive =
-            pathname === item.href ||
-            (item.href !== "/app/dashboard" && pathname.startsWith(item.href));
+          const navActive = isActive(pathname, item.href);
           return (
             <Link
               key={item.href}
               href={item.href}
-              aria-current={isActive ? "page" : undefined}
-              className={`flex flex-col items-center gap-0.5 py-2 px-3 rounded-2xl min-w-[52px] transition-colors ${
-                isActive
+              aria-current={navActive ? "page" : undefined}
+              className={`flex flex-col items-center gap-0.5 py-2 px-2 rounded-2xl min-w-[52px] transition-colors ${
+                navActive
                   ? "text-accent-cyan bg-accent-cyan/10 rounded-[1.25rem]"
                   : "text-text-muted hover:text-text-primary hover:bg-white/5"
               }`}
@@ -148,7 +149,6 @@ export default function AppRail() {
         </button>
       </nav>
 
-      {/* Mobile menu drawer: Command palette + Déconnexion */}
       <AnimatePresence>
         {mobileMenuOpen && (
           <motion.div
@@ -195,7 +195,6 @@ export default function AppRail() {
         )}
       </AnimatePresence>
 
-      {/* Modal confirmation déconnexion */}
       <AnimatePresence>
         {showLogoutConfirm && (
           <motion.div

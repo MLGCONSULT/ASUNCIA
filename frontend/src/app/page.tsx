@@ -64,13 +64,19 @@ export default function HomePage() {
 
         {/* Bulles d’accès rapide */}
         <div className="relative flex w-full max-w-4xl flex-wrap items-center justify-center gap-7">
-          <BubbleLink label="Gmail" subtitle="Mails" href="/connexion?redirect=/app/mails" tone="cyan" delay={0} />
+          <BubbleLink
+            label="Tableau de bord"
+            subtitle="Assistant"
+            href="/connexion?redirect=/app/dashboard"
+            tone="cyan"
+            delay={0}
+          />
           <BubbleLink label="Airtable" subtitle="Bases" href="/connexion?redirect=/app/airtable" tone="fuchsia" delay={0.12} />
           <BubbleLink label="Notion" subtitle="Notes" href="/connexion?redirect=/app/notion" tone="violet" delay={0.24} />
           <BubbleLink label="n8n" subtitle="Flows" href="/connexion?redirect=/app/n8n" tone="amber" delay={0.36} />
           <BubbleLink
             label="Supabase"
-            subtitle="SQL IA"
+            subtitle="Données"
             href={`/connexion?redirect=${encodeURIComponent(supabaseChatUrl)}`}
             tone="emerald"
             delay={0.48}
