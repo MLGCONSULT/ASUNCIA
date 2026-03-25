@@ -28,8 +28,8 @@ export default async function AppLayout({
       </div>
       <AppHeader />
       <main className="relative flex-1 min-h-0 flex flex-col pt-[calc(3.5rem+env(safe-area-inset-top,0px))] pb-[7.5rem] sm:pb-32 px-2 sm:px-4 md:px-4">
-        <div className="panel-asymmetric lava-shell flex-1 min-h-0 mx-0 mt-0 mb-1 md:mb-2 glass-strong border border-white/10 overflow-auto flex flex-col">
-          <div className="p-4 sm:p-5 md:p-6 flex-1 min-h-0 flex flex-col">
+        <div className="panel-asymmetric lava-shell mx-0 mt-0 mb-1 flex min-h-0 flex-1 flex-col overflow-hidden border border-white/10 glass-strong md:mb-2">
+          <div className="flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto overscroll-y-contain p-4 sm:p-5 md:p-6">
             {children}
           </div>
         </div>

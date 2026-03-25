@@ -48,9 +48,15 @@ Auth + PostgreSQL + politiques de sécurité sans monter une stack serveur de ba
 
 Tenir la **doc** à jour quand les migrations changent ; ne pas contourner la RLS sans bonne raison.
 
+## Interface « Supabase SQL » (app)
+
+L’écran **`/app/supabase`** permet de générer et exécuter du **SQL en lecture** via l’API (MCP Supabase côté backend). L’UI est décrite avec le reste du front dans [`07-frontend.md`](07-frontend.md) (scroll dans les cartes, layout dédié).
+
 ## Fichiers de référence
 
 - `frontend/supabase/migrations/20250213000001_schema_initial.sql`
 - `frontend/supabase/migrations/20250213000002_rls.sql`
 - `frontend/supabase/migrations/20250213100000_oauth_tokens.sql`
 - `backend-nest/src/lib/supabase.ts`
+- `frontend/src/app/app/supabase/page.tsx`
+- `frontend/src/app/app/supabase/layout.tsx`

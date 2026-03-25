@@ -80,45 +80,60 @@ function NavBubble({
 }) {
   const active = isAppNavActive(pathname, nav.href);
   const tone = NAV_WHEEL_ORBIT_TONE[nav.href] ?? "dashboard-tool-bubble-cyan";
+  const rgb = NAV_WHEEL_WIRE_RGB[nav.href];
+  const baseScale = isCenter ? 1.07 : 1;
+  const activeScale = isCenter ? 1.2 : 1.14;
 
   return (
-    <motion.div
-      whileTap={{ scale: 0.94 }}
-      transition={{ type: "spring", stiffness: 520, damping: 28 }}
-      className={`relative z-[1] flex flex-col items-center ${isCenter ? "z-[3] -mx-0.5 sm:-mx-1" : ""}`}
+    <div
+      className={`relative flex flex-col items-center ${isCenter ? "z-[4] -mx-0.5 sm:-mx-1" : "z-[1]"}`}
     >
-      <Link
-        href={nav.href}
-        title={nav.label}
-        aria-current={active ? "page" : undefined}
-        className={[
-          "dashboard-tool-bubble relative flex h-[3.25rem] w-[3.25rem] shrink-0 flex-col items-center justify-center rounded-full border text-text-primary backdrop-blur-xl",
-          "transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
-          tone,
-          isCenter ? "sm:h-[3.75rem] sm:w-[3.75rem] scale-[1.06] sm:scale-[1.08]" : "",
-          active ? "opacity-100 ring-2 ring-white/25" : "opacity-[0.82] hover:opacity-100",
-          active ? "" : "hover:-translate-y-0.5 hover:scale-[1.04]",
-        ].join(" ")}
+      <motion.div
+        animate={{ scale: active ? activeScale : baseScale }}
+        whileTap={{ scale: (active ? activeScale : baseScale) * 0.92 }}
+        transition={{ type: "spring", stiffness: 440, damping: 22 }}
+        className="relative origin-center"
       >
-        {active && (
-          <motion.span
-            layoutId="navwheel-bubble-active"
-            className="pointer-events-none absolute inset-0 rounded-full border border-white/20"
-            transition={{ type: "spring", bounce: 0.2, duration: 0.38 }}
-          />
-        )}
-        <span className="relative z-[1]">
-          <NavIcon name={nav.icon} className={`h-[1.15rem] w-[1.15rem] sm:h-5 sm:w-5 ${active ? nav.accentText : "text-text-primary"}`} />
-        </span>
-      </Link>
+        <Link
+          href={nav.href}
+          title={nav.label}
+          aria-current={active ? "page" : undefined}
+          style={
+            active
+              ? {
+                  boxShadow: `0 0 40px 8px rgba(${rgb},0.5), 0 0 72px -8px rgba(${rgb},0.35), inset 0 1px 0 rgba(255,255,255,0.16)`,
+                }
+              : undefined
+          }
+          className={[
+            "dashboard-tool-bubble relative flex h-[3.25rem] w-[3.25rem] shrink-0 flex-col items-center justify-center rounded-full border text-text-primary backdrop-blur-xl",
+            "transition-[transform,opacity,filter] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] sm:h-[3.5rem] sm:w-[3.5rem]",
+            tone,
+            active
+              ? `opacity-100 ring-2 ring-white/40 ${nav.accentGlow} brightness-[1.05]`
+              : "opacity-[0.82] hover:opacity-100 hover:-translate-y-0.5",
+          ].join(" ")}
+        >
+          {active && (
+            <motion.span
+              layoutId="navwheel-bubble-active"
+              className="pointer-events-none absolute inset-0 rounded-full border border-white/30 shadow-[inset_0_0_24px_rgba(255,255,255,0.08)]"
+              transition={{ type: "spring", bounce: 0.2, duration: 0.38 }}
+            />
+          )}
+          <span className="relative z-[1]">
+            <NavIcon name={nav.icon} className={`h-[1.15rem] w-[1.15rem] sm:h-5 sm:w-5 ${active ? nav.accentText : "text-text-primary"}`} />
+          </span>
+        </Link>
+      </motion.div>
       <span
-        className={`mt-1.5 max-w-[4.5rem] text-center text-[9px] font-semibold leading-tight sm:text-[10px] ${
-          active ? nav.accentText : "text-text-muted"
+        className={`mt-1.5 max-w-[4.5rem] text-center text-[9px] font-semibold leading-tight transition-all duration-300 sm:text-[10px] ${
+          active ? `${nav.accentText} scale-105 drop-shadow-[0_0_12px_rgba(255,255,255,0.15)]` : "text-text-muted"
         }`}
       >
         {nav.label}
       </span>
-    </motion.div>
+    </div>
   );
 }
 

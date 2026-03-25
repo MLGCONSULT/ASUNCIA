@@ -1,0 +1,6 @@
+/**
+ * Empêche le scroll de tout l’onglet : la hauteur est bornée, le contenu défile dans les cartes.
+ */
+export default function SupabaseLayout({ children }: { children: React.ReactNode }) {
+  return <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{children}</div>;
+}

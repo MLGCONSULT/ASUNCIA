@@ -234,7 +234,7 @@ export default function SupabasePage() {
         return (
           <div className="rounded-2xl border border-white/10 bg-black/70 p-3">
             <div className="text-[11px] text-text-dim mb-2">Résultat (liste)</div>
-            <pre className="max-h-72 overflow-auto whitespace-pre-wrap rounded-xl border border-white/10 bg-black/70 p-3 text-xs text-text-muted">
+            <pre className="max-h-56 overflow-auto whitespace-pre-wrap rounded-xl border border-white/10 bg-black/70 p-3 text-xs text-text-muted sm:max-h-60">
               {resultText ?? JSON.stringify(resultValue, null, 2)}
             </pre>
           </div>
@@ -256,7 +256,7 @@ export default function SupabasePage() {
               <div className="text-[11px] text-text-dim">{`Affichage de 50/${resultValue.length} lignes`}</div>
             )}
           </div>
-          <div className="max-h-72 overflow-auto rounded-xl border border-white/10">
+          <div className="max-h-56 overflow-auto rounded-xl border border-white/10 sm:max-h-60">
             <table className="min-w-full border-collapse text-xs">
               <thead className="sticky top-0 bg-black/90">
                 <tr>
@@ -323,7 +323,7 @@ export default function SupabasePage() {
     return (
       <div className="rounded-2xl border border-white/10 bg-black/70 p-3">
         <div className="text-[11px] text-text-dim mb-2">Résultat</div>
-        <pre className="max-h-72 overflow-auto whitespace-pre-wrap rounded-xl border border-white/10 bg-black/70 p-3 text-xs text-text-muted">
+        <pre className="max-h-56 overflow-auto whitespace-pre-wrap rounded-xl border border-white/10 bg-black/70 p-3 text-xs text-text-muted sm:max-h-60">
           {typeof resultValue === "string" ? resultValue : resultText ?? JSON.stringify(resultValue, null, 2)}
         </pre>
       </div>
@@ -336,65 +336,67 @@ export default function SupabasePage() {
   }
 
   return (
-    <PageMotion className="h-full flex flex-col min-h-0 px-4 py-4">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 lg:flex-row lg:items-start">
-        <section className="flex min-w-0 flex-1 flex-col gap-4 rounded-3xl border border-white/8 bg-black/70 p-5 shadow-[0_18px_45px_rgba(0,0,0,0.85)] backdrop-blur-xl">
-        <header className="flex items-center justify-between gap-2">
-          <h1 className="text-lg font-display font-semibold text-text-primary">Supabase SQL</h1>
-          <span className="text-[11px] uppercase tracking-[0.2em] text-text-dim">Éditeur</span>
-        </header>
+    <PageMotion className="flex max-h-full min-h-0 flex-1 flex-col overflow-hidden">
+      <div className="mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col gap-3 overflow-hidden lg:flex-row lg:items-stretch lg:gap-4">
+        <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-3xl border border-white/8 bg-black/70 shadow-[0_18px_45px_rgba(0,0,0,0.85)] backdrop-blur-xl">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain p-4 sm:p-5">
+            <header className="mb-3 flex shrink-0 items-center justify-between gap-2">
+              <h1 className="text-lg font-display font-semibold text-text-primary">Supabase SQL</h1>
+              <span className="text-[11px] uppercase tracking-[0.2em] text-text-dim">Éditeur</span>
+            </header>
 
-        <form onSubmit={handleGenerateSql} className="space-y-3">
-          <textarea
-            value={nlPrompt}
-            onChange={(e) => setNlPrompt(e.target.value)}
-            className="h-24 w-full resize-none rounded-2xl border border-white/10 bg-black/60 px-3 py-2 text-sm text-text-primary outline-none focus:border-accent-cyan/60"
-            spellCheck={false}
-          />
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-[11px] text-text-dim">
-              Génère un SQL de lecture (SELECT) via le MCP Supabase.
-            </span>
-            <button
-              type="submit"
-              disabled={generating}
-              className="rounded-full bg-accent-cyan/80 px-4 py-2 text-xs font-semibold text-black transition-colors hover:bg-accent-cyan disabled:opacity-60"
-            >
-              {generating ? "Génération…" : "Générer la requête"}
-            </button>
+            <form onSubmit={handleGenerateSql} className="mb-4 space-y-2">
+              <textarea
+                value={nlPrompt}
+                onChange={(e) => setNlPrompt(e.target.value)}
+                className="h-20 w-full resize-none rounded-2xl border border-white/10 bg-black/60 px-3 py-2 text-sm text-text-primary outline-none focus:border-accent-cyan/60"
+                spellCheck={false}
+              />
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-[11px] text-text-dim">
+                  Génère un SQL de lecture (SELECT) via le MCP Supabase.
+                </span>
+                <button
+                  type="submit"
+                  disabled={generating}
+                  className="rounded-full bg-accent-cyan/80 px-4 py-2 text-xs font-semibold text-black transition-colors hover:bg-accent-cyan disabled:opacity-60"
+                >
+                  {generating ? "Génération…" : "Générer la requête"}
+                </button>
+              </div>
+            </form>
+
+            <form onSubmit={handleRun} className="mb-4 space-y-2">
+              <textarea
+                value={sql}
+                onChange={(e) => setSql(e.target.value)}
+                className="h-28 w-full resize-none rounded-2xl border border-white/10 bg-black/60 px-3 py-2 font-mono text-sm text-text-primary outline-none focus:border-accent-cyan/60 sm:h-32"
+                spellCheck={false}
+              />
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-[11px] text-text-dim">La requête est exécutée via le MCP Supabase.</span>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="rounded-full bg-accent-cyan/80 px-4 py-2 text-xs font-semibold text-black transition-colors hover:bg-accent-cyan disabled:opacity-60"
+                >
+                  {loading ? "Exécution…" : "Exécuter la requête"}
+                </button>
+              </div>
+            </form>
+
+            {error && (
+              <div className="mb-4 shrink-0 rounded-2xl border border-accent-rose/40 bg-accent-rose/10 px-3 py-2 text-xs text-accent-rose">
+                {error}
+              </div>
+            )}
+
+            {resultValue != null && <div className="pb-2">{renderResult()}</div>}
           </div>
-        </form>
+        </section>
 
-        <form onSubmit={handleRun} className="space-y-3">
-          <textarea
-            value={sql}
-            onChange={(e) => setSql(e.target.value)}
-            className="h-40 w-full resize-none rounded-2xl border border-white/10 bg-black/60 px-3 py-2 text-sm text-text-primary outline-none focus:border-accent-cyan/60"
-            spellCheck={false}
-          />
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-[11px] text-text-dim">La requête est exécutée via le MCP Supabase.</span>
-            <button
-              type="submit"
-              disabled={loading}
-              className="rounded-full bg-accent-cyan/80 px-4 py-2 text-xs font-semibold text-black transition-colors hover:bg-accent-cyan disabled:opacity-60"
-            >
-              {loading ? "Exécution…" : "Exécuter la requête"}
-            </button>
-          </div>
-        </form>
-
-        {error && (
-          <div className="rounded-2xl border border-accent-rose/40 bg-accent-rose/10 px-3 py-2 text-xs text-accent-rose">
-            {error}
-          </div>
-        )}
-
-        {resultValue != null && renderResult()}
-      </section>
-
-        <aside className="flex w-full shrink-0 flex-col rounded-3xl border border-white/8 bg-black/60 shadow-[0_12px_36px_rgba(0,0,0,0.75)] backdrop-blur-xl lg:sticky lg:top-4 lg:max-h-[calc(100vh-5rem)] lg:w-[280px]">
-          <div className="flex items-center justify-between gap-2 border-b border-white/10 px-3 py-2.5">
+        <aside className="flex max-h-[42vh] min-h-0 w-full shrink-0 flex-col overflow-hidden rounded-3xl border border-white/8 bg-black/60 shadow-[0_12px_36px_rgba(0,0,0,0.75)] backdrop-blur-xl lg:max-h-none lg:h-auto lg:w-[272px] lg:self-stretch">
+          <div className="flex shrink-0 items-center justify-between gap-2 border-b border-white/10 px-3 py-2.5">
             <h2 className="text-sm font-semibold text-text-primary">Tables</h2>
             <button
               type="button"
@@ -405,7 +407,7 @@ export default function SupabasePage() {
               {tablesLoading ? "…" : "Actualiser"}
             </button>
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto p-2">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain p-2">
             {tablesLoading && schemaTables.length === 0 ? (
               <p className="px-2 py-3 text-xs text-text-muted">Chargement...</p>
             ) : tablesError ? (
@@ -447,7 +449,7 @@ export default function SupabasePage() {
               </ul>
             )}
           </div>
-          <p className="border-t border-white/10 px-3 py-2 text-[10px] leading-snug text-text-dim">
+          <p className="shrink-0 border-t border-white/10 px-3 py-2 text-[10px] leading-snug text-text-dim">
             Liste fournie par le MCP Supabase (schéma public). Les noms t’aident à écrire du SQL ou une demande en langage naturel.
           </p>
         </aside>

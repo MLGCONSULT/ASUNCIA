@@ -50,9 +50,10 @@ Un **503** avec un message clair indique souvent qu’**une variable d’environ
 - Tableau de bord  
 - **Airtable** (bases / tables / enregistrements via MCP)  
 - **n8n** (workflows : liste, détail, exécution via API ; JSON **effectif** = graphe publié `activeVersion`, voir [`04-mcp-et-integrations.md`](04-mcp-et-integrations.md) et [`07-frontend.md`](07-frontend.md))  
-- **Supabase** (données, requêtes guidées)  
+- **Supabase** (éditeur SQL + liste des tables ; scroll dans les panneaux, voir [`07-frontend.md`](07-frontend.md))  
 - **Chatbot Stacky** (`/app/chatbot`) : même parcours que la page publique [typebot.co/stacky-asuncian](https://typebot.co/stacky-asuncian), affichée dans l’app en **iframe**  
-- **Assistant intégré** : un seul fil de conversation par utilisateur (pas de liste de chats séparés)
+- **Assistant intégré** : un seul fil de conversation par utilisateur (pas de liste de chats séparés)  
+- **Navigation** : dock **bas** en bulles colorées ; **recherche** en haut limitée aux **pages** (pas aux prompts assistant) — détail dans [`07-frontend.md`](07-frontend.md)
 
 Il n’y a **pas d’écran « Leads »** dans l’app telle qu’elle est présentée aujourd’hui ; l’assistant ne devrait pas renvoyer vers une page qui n’existe pas.
 

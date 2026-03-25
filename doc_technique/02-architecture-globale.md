@@ -31,7 +31,7 @@ flowchart TD
 
 ## Frontend : responsabilités
 
-Affichage, navigation, récupération de la session, envoi du **JWT** vers l’API. Fichiers utiles : `frontend/src/app/`, `frontend/src/lib/api.ts`, `frontend/src/lib/supabase/`.
+Affichage, **navigation** (dock bas en bulles, barre de recherche pages, layout `/app` — voir [`07-frontend.md`](07-frontend.md)), récupération de la session, envoi du **JWT** vers l’API. Fichiers utiles : `frontend/src/app/`, `frontend/src/lib/api.ts`, `frontend/src/lib/supabase/`.
 
 ## Backend : responsabilités
 

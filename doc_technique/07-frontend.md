@@ -34,11 +34,52 @@ Fichier : `frontend/src/app/app/n8n/N8nView.tsx`.
 
 Si la navigation ressemble à une **liste de modules techniques**, l’utilisateur ne voit qu’un catalogue d’outils. Si elle est **guidée**, il voit plutôt un **parcours** vers un objectif — c’est le second cas que le projet vise.
 
+### En-tête (`AppHeader`)
+
+- **Logo / marque** (lien vers le dashboard), **indicateur de page** (libellé court sur grands écrans).
+- **Barre de recherche** : composant `CommandPalette` en variante `header` — saisie visible, résultats sous le header (pas de liste d’intentions assistant : uniquement les **pages outils**).
+- **Déconnexion**.
+- Il n’y a **pas** de rangée d’onglets outils dans le header : la navigation principale des modules est le **dock bas**.
+
+### Dock bas (`NavWheel`)
+
+- Cinq entrées, ordre : **Airtable** → **Chatbot** → **Dashboard** (centre, légèrement plus grand) → **Workflows (n8n)** → **Supabase**.
+- Rendu **bulles** aligné sur l’orbit du dashboard : classes CSS `dashboard-tool-bubble` + teinte par outil (`dashboard-tool-bubble-fuchsia`, `-stacky`, `-cyan`, `-amber`, `-emerald`).
+- **Fil** entre les bulles : segments en dégradé des couleurs voisines ; **intensité / glow** selon l’onglet **survolé** ou **actif** (route courante).
+- **Onglet actif** : mise à l’échelle (scale) + halo coloré (RGB partagés avec le fil).
+
+### Configuration partagée (`app-nav-config.ts`)
+
+- Types **AppNavItem** : libellés, icônes (`NavIcon`), classes Tailwind (accents, dock, palette de commandes).
+- Exporte notamment `NAV_WHEEL_ITEMS`, `NAV_WHEEL_ORBIT_TONE`, `NAV_WHEEL_WIRE_RGB`, `isAppNavActive`, et les couleurs **palette** (`paletteHover` / `paletteSelected`) pour la recherche.
+
+### Palette de commandes (`CommandPalette`)
+
+- **Header** : barre + liste déroulante ; **variante par défaut** (bouton ⌘K + modale) pour les layouts qui l’utilisent encore (`AppNav`, `AppRail`).
+- Raccourci **⌘K** / **Ctrl+K** : ouverture / fermeture ; les lignes non sélectionnées ont un **survol teinté** par outil ; la sélection (clavier ou souris) reprend la même **charte couleur**.
+
+### Layout zone `/app` (`app/app/layout.tsx`)
+
+- Le **cadre glass** du panneau principal est en **`overflow-hidden`** : le contour de l’onglet ne défile pas.
+- Le **défilement vertical** a lieu **à l’intérieur** de la zone paddée (`overflow-y-auto`, `overscroll-y-contain`), pour garder header + dock fixes à l’écran.
+
+### Page Supabase SQL (`app/app/supabase/`)
+
+- **`layout.tsx`** : conteneur `flex-1 min-h-0 overflow-hidden` pour emboîter correctement la chaîne flex et éviter que toute la page s’étire sans limite.
+- **`page.tsx`** : colonne **éditeur** (formulaires + résultats) dans une carte avec **`overflow-y-auto`** ; colonne **Tables** avec scroll interne ; sur mobile la colonne Tables a une **hauteur max** (~42vh) pour laisser de la place à l’éditeur. Les zones de résultat (table / JSON) ont des **hauteurs max** réduites pour favoriser le scroll dans la carte plutôt qu’une page interminable.
+
 ## Fichiers de référence
 
 - `frontend/src/app/`
 - `frontend/src/app/page.tsx`
+- `frontend/src/app/app/layout.tsx`
+- `frontend/src/app/app/supabase/layout.tsx`
+- `frontend/src/app/app/supabase/page.tsx`
 - `frontend/src/app/app/n8n/N8nView.tsx`
+- `frontend/src/components/AppHeader.tsx`
+- `frontend/src/components/NavWheel.tsx`
+- `frontend/src/components/CommandPalette.tsx`
+- `frontend/src/lib/app-nav-config.ts`
 - `frontend/src/components/`
 - `frontend/src/lib/api.ts`
 - `frontend/src/lib/supabase/`

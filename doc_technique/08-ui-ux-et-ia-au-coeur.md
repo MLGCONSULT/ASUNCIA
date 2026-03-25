@@ -28,11 +28,17 @@ Un **assistant opérationnel** : reformuler une demande, mobiliser les bonnes in
 
 Réduire l’IA à **un widget de chat** dans un coin. Ici, elle doit **structurer** l’expérience (parcours, liens, intentions), pas seulement **habiller** une page.
 
+## Navigation visuelle (rappel)
+
+Le **dock en bas** reprend l’esthétique **bulles** du dashboard (couleurs par outil, lien fin entre les bulles). La **recherche** en haut ne remplace pas ce dock : elle sert au **saut rapide** entre pages, avec la même **palette de couleurs** au survol. Le **contenu** des écrans (ex. Supabase SQL) est pensé pour **défiler dans les cartes**, pas faire bouger tout le cadre de l’application.
+
 ## Fichiers de référence
 
 - `frontend/src/app/page.tsx`
 - `frontend/src/app/app/dashboard/page.tsx`
+- `frontend/src/app/app/layout.tsx`
 - `frontend/src/components/ChatAssistant.tsx`
 - `frontend/src/components/ToolCards.tsx`
 - `frontend/src/components/NavWheel.tsx`
 - `frontend/src/components/CommandPalette.tsx`
+- `frontend/src/lib/app-nav-config.ts`

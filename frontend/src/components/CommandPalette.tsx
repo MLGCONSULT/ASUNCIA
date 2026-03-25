@@ -161,16 +161,19 @@ export default function CommandPalette({ variant = "default" }: Props) {
                 closePalette();
               }}
               onMouseEnter={() => setSelected(i)}
-              className={`w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm transition-colors border-l-2 ${
+              className={`group w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm transition-all duration-200 border-l-2 ${
                 i === selected
-                  ? (pal?.paletteSelected ?? "bg-accent-cyan/18 text-accent-cyan border-cyan-400/75")
-                  : `border-transparent text-text-primary ${pal?.paletteHover ?? "hover:bg-white/[0.06]"}`
+                  ? (pal?.paletteSelected ??
+                    "bg-cyan-500/22 text-cyan-50 border-l-2 border-cyan-400 shadow-[0_0_28px_-12px_rgba(34,211,238,0.42)]")
+                  : `border-transparent text-text-primary ${pal?.paletteHover ?? "hover:bg-white/[0.08] hover:border-l-white/20"}`
               }`}
             >
               <NavIcon name={cmd.icon} className="w-[18px] h-[18px] shrink-0 opacity-90" />
               <div className="min-w-0 flex-1">
                 <div className="font-medium leading-snug">{cmd.label}</div>
-                <div className="text-xs text-text-muted mt-0.5 leading-snug">{cmd.hint}</div>
+                <div className="text-xs text-text-muted mt-0.5 leading-snug transition-colors group-hover:text-text-primary/75">
+                  {cmd.hint}
+                </div>
               </div>
             </button>
           </li>

@@ -46,8 +46,8 @@ export const appNavAirtable = item(
   "shadow-[0_0_20px_-6px_rgba(232,121,249,0.88)]",
   "from-fuchsia-500/30 to-fuchsia-600/10",
   "hover:border-fuchsia-400/50 hover:bg-gradient-to-b hover:from-fuchsia-500/22 hover:to-fuchsia-950/25 hover:text-fuchsia-50 hover:shadow-[0_0_26px_-8px_rgba(232,121,249,0.55)]",
-  "hover:bg-fuchsia-500/[0.12] hover:text-fuchsia-100",
-  "bg-fuchsia-500/18 text-fuchsia-100 border-l-2 border-fuchsia-400/80",
+  "hover:bg-fuchsia-500/[0.16] hover:text-fuchsia-50 hover:border-l-fuchsia-400 hover:shadow-[0_0_28px_-10px_rgba(232,121,249,0.45)]",
+  "bg-fuchsia-500/20 text-fuchsia-50 border-l-2 border-fuchsia-400 shadow-[0_0_28px_-12px_rgba(232,121,249,0.42)]",
 );
 
 /** Stacky / Chatbot — #0047FF */
@@ -59,8 +59,8 @@ export const appNavChatbot = item(
   "shadow-[0_0_22px_-6px_rgba(0,71,255,0.9)]",
   "from-[#0047FF]/35 to-[#0047FF]/8",
   "hover:border-[#0047FF]/70 hover:bg-gradient-to-b hover:from-[#0047FF]/30 hover:to-[#0047FF]/12 hover:text-white hover:shadow-[0_0_28px_-10px_rgba(0,71,255,0.75)]",
-  "hover:bg-[#0047FF]/15 hover:text-blue-100",
-  "bg-[#0047FF]/20 text-blue-100 border-l-2 border-[#0047FF]/70",
+  "hover:bg-[#0047FF]/22 hover:text-white hover:border-l-[#5c7cff] hover:shadow-[0_0_28px_-10px_rgba(0,71,255,0.5)]",
+  "bg-[#0047FF]/24 text-white border-l-2 border-[#5c7cff] shadow-[0_0_28px_-12px_rgba(0,71,255,0.45)]",
 );
 
 /** Tableau de bord — cyan */
@@ -72,8 +72,8 @@ export const appNavDashboard = item(
   "shadow-[0_0_28px_-4px_rgba(34,211,238,0.95)]",
   "from-cyan-400/35 to-cyan-400/10",
   "hover:border-cyan-400/50 hover:bg-gradient-to-b hover:from-cyan-400/20 hover:to-cyan-600/10 hover:text-cyan-50",
-  "hover:bg-cyan-500/[0.14] hover:text-cyan-100",
-  "bg-cyan-500/18 text-cyan-100 border-l-2 border-cyan-400/75",
+  "hover:bg-cyan-500/[0.18] hover:text-cyan-50 hover:border-l-cyan-400 hover:shadow-[0_0_28px_-10px_rgba(34,211,238,0.45)]",
+  "bg-cyan-500/22 text-cyan-50 border-l-2 border-cyan-400 shadow-[0_0_28px_-12px_rgba(34,211,238,0.42)]",
 );
 
 /** n8n — ambre */
@@ -98,8 +98,8 @@ export const appNavSupabase = item(
   "shadow-[0_0_20px_-6px_rgba(52,211,153,0.85)]",
   "from-emerald-400/28 to-emerald-700/10",
   "hover:border-emerald-400/50 hover:bg-gradient-to-b hover:from-emerald-400/20 hover:to-emerald-950/25 hover:text-emerald-50 hover:shadow-[0_0_24px_-8px_rgba(16,185,129,0.4)]",
-  "hover:bg-emerald-500/[0.14] hover:text-emerald-100",
-  "bg-emerald-500/18 text-emerald-100 border-l-2 border-emerald-400/75",
+  "hover:bg-emerald-500/[0.18] hover:text-emerald-50 hover:border-l-emerald-400 hover:shadow-[0_0_28px_-10px_rgba(52,211,153,0.4)]",
+  "bg-emerald-500/22 text-emerald-50 border-l-2 border-emerald-400 shadow-[0_0_28px_-12px_rgba(52,211,153,0.38)]",
 );
 
 /** Ordre du dock bas */
