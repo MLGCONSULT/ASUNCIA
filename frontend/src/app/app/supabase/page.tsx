@@ -337,8 +337,8 @@ export default function SupabasePage() {
 
   return (
     <PageMotion className="flex max-h-full min-h-0 flex-1 flex-col overflow-hidden">
-      <div className="mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col gap-3 overflow-hidden lg:flex-row lg:items-stretch lg:gap-4">
-        <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-3xl border border-white/8 bg-black/70 shadow-[0_18px_45px_rgba(0,0,0,0.85)] backdrop-blur-xl">
+      <div className="mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col gap-3 overflow-hidden lg:min-h-0 lg:flex-row lg:items-stretch lg:gap-4">
+        <section className="flex min-h-0 min-w-0 max-h-full flex-1 flex-col overflow-hidden rounded-3xl border border-white/8 bg-black/70 shadow-[0_18px_45px_rgba(0,0,0,0.85)] backdrop-blur-xl lg:min-h-0">
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain p-4 sm:p-5">
             <header className="mb-3 flex shrink-0 items-center justify-between gap-2">
               <h1 className="text-lg font-display font-semibold text-text-primary">Supabase SQL</h1>
@@ -395,7 +395,7 @@ export default function SupabasePage() {
           </div>
         </section>
 
-        <aside className="flex max-h-[42vh] min-h-0 w-full shrink-0 flex-col overflow-hidden rounded-3xl border border-white/8 bg-black/60 shadow-[0_12px_36px_rgba(0,0,0,0.75)] backdrop-blur-xl lg:max-h-none lg:h-auto lg:w-[272px] lg:self-stretch">
+        <aside className="flex max-h-[40vh] min-h-0 w-full shrink-0 flex-col overflow-hidden rounded-3xl border border-white/8 bg-black/60 shadow-[0_12px_36px_rgba(0,0,0,0.75)] backdrop-blur-xl lg:max-h-full lg:w-[272px] lg:flex-shrink-0 lg:self-stretch">
           <div className="flex shrink-0 items-center justify-between gap-2 border-b border-white/10 px-3 py-2.5">
             <h2 className="text-sm font-semibold text-text-primary">Tables</h2>
             <button
@@ -422,9 +422,10 @@ export default function SupabasePage() {
                       <summary className="cursor-pointer list-none px-2 py-2 text-xs font-mono text-accent-cyan hover:bg-white/5">
                         <span className="inline text-text-primary">{t.name}</span>
                       </summary>
-                      <div className="border-t border-white/5 px-2 pb-2 pt-1">
+                      {/* Hauteur plafonnée : beaucoup de colonnes ne font plus grandir la carte / la page */}
+                      <div className="max-h-[11rem] overflow-y-auto overscroll-y-contain border-t border-white/5 px-2 pb-2 pt-1 sm:max-h-[13rem]">
                         {t.columns.length > 0 ? (
-                          <ul className="max-h-40 space-y-0.5 overflow-y-auto text-[10px] text-text-dim">
+                          <ul className="space-y-0.5 text-[10px] text-text-dim">
                             {t.columns.map((c) => (
                               <li key={`${t.name}-${c.name}`} className="flex justify-between gap-2">
                                 <span className="truncate text-text-muted">{c.name}</span>

@@ -9,6 +9,7 @@ import {
   NAV_WHEEL_ITEMS,
   NAV_WHEEL_ORBIT_TONE,
   NAV_WHEEL_WIRE_RGB,
+  appNavDashboard,
   type AppNavItem,
   isAppNavActive,
 } from "@/lib/app-nav-config";
@@ -72,21 +73,21 @@ function WireSegment({
 function NavBubble({
   nav,
   pathname,
-  isCenter,
+  isDashboard,
 }: {
   nav: AppNavItem;
   pathname: string;
-  isCenter: boolean;
+  isDashboard: boolean;
 }) {
   const active = isAppNavActive(pathname, nav.href);
   const tone = NAV_WHEEL_ORBIT_TONE[nav.href] ?? "dashboard-tool-bubble-cyan";
   const rgb = NAV_WHEEL_WIRE_RGB[nav.href];
-  const baseScale = isCenter ? 1.07 : 1;
-  const activeScale = isCenter ? 1.2 : 1.14;
+  const baseScale = isDashboard ? 1.12 : 1;
+  const activeScale = isDashboard ? 1.26 : 1.14;
 
   return (
     <div
-      className={`relative flex flex-col items-center ${isCenter ? "z-[4] -mx-0.5 sm:-mx-1" : "z-[1]"}`}
+      className={`relative flex flex-col items-center ${isDashboard ? "z-[4] -mx-0.5 sm:-mx-1" : "z-[1]"}`}
     >
       <motion.div
         animate={{ scale: active ? activeScale : baseScale }}
@@ -106,8 +107,11 @@ function NavBubble({
               : undefined
           }
           className={[
-            "dashboard-tool-bubble relative flex h-[3.25rem] w-[3.25rem] shrink-0 flex-col items-center justify-center rounded-full border text-text-primary backdrop-blur-xl",
-            "transition-[transform,opacity,filter] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] sm:h-[3.5rem] sm:w-[3.5rem]",
+            "dashboard-tool-bubble relative flex shrink-0 flex-col items-center justify-center rounded-full border text-text-primary backdrop-blur-xl",
+            isDashboard
+              ? "h-[3.45rem] w-[3.45rem] sm:h-[3.75rem] sm:w-[3.75rem]"
+              : "h-[3.25rem] w-[3.25rem] sm:h-[3.5rem] sm:w-[3.5rem]",
+            "transition-[transform,opacity,filter] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
             tone,
             active
               ? `opacity-100 ring-2 ring-white/40 ${nav.accentGlow} brightness-[1.05]`
@@ -152,7 +156,6 @@ export default function NavWheel() {
       aria-label="Navigation"
     >
       <div className="pointer-events-auto mx-auto flex max-w-[26rem] flex-col items-center sm:max-w-[30rem]">
-        <p className="mb-1 text-[9px] font-medium uppercase tracking-[0.22em] text-text-dim/80">Navigation</p>
         <div className="w-full pb-0.5" onMouseLeave={() => setHovered(null)}>
           <nav
             className="flex w-full items-center justify-center"
@@ -176,7 +179,7 @@ export default function NavWheel() {
                   </div>
                 ) : null}
                 <div className="flex flex-col items-center" onMouseEnter={() => setHovered(i)}>
-                  <NavBubble nav={nav} pathname={pathname} isCenter={i === 2} />
+                  <NavBubble nav={nav} pathname={pathname} isDashboard={nav.href === appNavDashboard.href} />
                 </div>
               </Fragment>
             ))}

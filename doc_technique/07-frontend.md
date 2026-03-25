@@ -66,7 +66,7 @@ Si la navigation ressemble à une **liste de modules techniques**, l’utilisate
 ### Page Supabase SQL (`app/app/supabase/`)
 
 - **`layout.tsx`** : conteneur `flex-1 min-h-0 overflow-hidden` pour emboîter correctement la chaîne flex et éviter que toute la page s’étire sans limite.
-- **`page.tsx`** : colonne **éditeur** (formulaires + résultats) dans une carte avec **`overflow-y-auto`** ; colonne **Tables** avec scroll interne ; sur mobile la colonne Tables a une **hauteur max** (~42vh) pour laisser de la place à l’éditeur. Les zones de résultat (table / JSON) ont des **hauteurs max** réduites pour favoriser le scroll dans la carte plutôt qu’une page interminable.
+- **`page.tsx`** : colonne **éditeur** (formulaires + résultats) dans une carte avec **`overflow-y-auto`** ; colonne **Tables** avec scroll interne ; sur mobile la colonne Tables a une **hauteur max** (~40vh). En **desktop**, le panneau Tables ne doit **pas** utiliser `h-auto` sur la carte : il est **borné** par la hauteur de la ligne (`max-h-full`, `self-stretch`, `min-h-0`) pour ne pas faire grandir tout le layout quand une table est ouverte. Le corps de chaque **`<details>`** (colonnes + bouton) a un **`max-h` + `overflow-y-auto`** pour que les schémas très larges ne fassent pas exploser la carte.
 
 ## Fichiers de référence
 
