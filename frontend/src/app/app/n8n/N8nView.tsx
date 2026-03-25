@@ -449,9 +449,9 @@ export default function N8nView() {
               <>
                 <div className="rounded-lg border border-accent-violet/30 bg-accent-violet/10 p-3">
                   <p className="text-xs text-text-muted">
-                    L’exécution suit le déclencheur du workflow. Le bouton « Exécuter » envoie un appel MCP avec un
-                    déclencheur webhook et un corps vide par défaut ; pour un chat ou un formulaire, le workflow doit
-                    correspondre ou il faut passer des entrées typées via l’API.
+                    L’exécution suit le déclencheur du workflow. Le bouton « Exécuter » envoie un appel MCP (webhook, corps
+                    JSON vide dans webhookData) ; pour un chat ou un formulaire, le workflow doit correspondre ou il faut
+                    passer des entrées typées via l’API.
                   </p>
                 </div>
 

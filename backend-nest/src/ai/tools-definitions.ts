@@ -78,12 +78,14 @@ export const CHAT_TOOLS: ChatCompletionTool[] = [
     type: "function",
     function: {
       name: "n8n_search_workflows",
-      description: "Recherche les workflows n8n.",
+      description:
+        "Recherche les workflows n8n (aligné MCP : limit 1–200, filtre optionnel par projet).",
       parameters: {
         type: "object",
         properties: {
-          query: { type: "string" },
-          limit: { type: "number", default: 20 },
+          query: { type: "string", description: "Filtre par nom ou description" },
+          limit: { type: "number", description: "Nombre max de résultats (1–200, défaut 20 côté app)" },
+          projectId: { type: "string", description: "ID de projet n8n (optionnel)" },
         },
         additionalProperties: false,
       },
@@ -109,7 +111,7 @@ export const CHAT_TOOLS: ChatCompletionTool[] = [
     function: {
       name: "n8n_execute_workflow",
       description:
-        "Exécute un workflow n8n par son ID. inputs doit suivre le MCP n8n : discriminant type parmi webhook, form, chat (ex. { type: \"webhook\", body: {} } ou { type: \"chat\", chatInput: \"...\" }). Si omis, le serveur envoie un webhook vide.",
+        "Exécute un workflow n8n par son ID. inputs : type webhook → webhookData { method?, query?, body?, headers? } ; type form → formData ; type chat → chatInput. Si omis, le serveur envoie un webhook POST avec body vide.",
       parameters: {
         type: "object",
         properties: {

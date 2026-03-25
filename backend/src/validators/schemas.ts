@@ -80,6 +80,7 @@ export const n8nWorkflowIdParamsSchema = z.object({
 export const n8nWorkflowsQuerySchema = z.object({
   query: z.string().trim().optional(),
   limit: positiveInt(50, 200),
+  projectId: z.string().trim().min(1).optional(),
 });
 
 export const n8nExecuteBodySchema = z.object({

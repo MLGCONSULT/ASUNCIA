@@ -22,11 +22,13 @@ export function isN8nMcpConfigured(): boolean {
 }
 
 /**
- * Le MCP n8n (instance) attend `inputs` avec un discriminateur `type` parmi
- * `webhook` | `form` | `chat`. Sans cela, l’appel échoue (ex. Zod invalid_union_discriminator).
+ * Aligné sur le schéma officiel n8n : webhook → `webhookData`, form → `formData`, chat → `chatInput`.
  */
 export function normalizeExecuteWorkflowInputs(inputs: unknown): Record<string, unknown> {
-  const defaultWebhook = (): Record<string, unknown> => ({ type: "webhook", body: {} as Record<string, unknown> });
+  const defaultWebhook = (): Record<string, unknown> => ({
+    type: "webhook",
+    webhookData: { method: "POST", body: {} as Record<string, unknown> },
+  });
 
   if (inputs === null || inputs === undefined) {
     return defaultWebhook();
@@ -38,9 +40,31 @@ export function normalizeExecuteWorkflowInputs(inputs: unknown): Record<string, 
   const t = obj.type;
 
   if (t === "webhook") {
-    const out = { ...obj };
-    if (out.body === undefined) {
-      out.body = {};
+    const out = { ...obj } as Record<string, unknown>;
+    if (out.webhookData === undefined && out.body !== undefined) {
+      const rawBody = out.body;
+      delete out.body;
+      out.webhookData =
+        typeof rawBody === "object" && rawBody !== null && !Array.isArray(rawBody)
+          ? { method: "POST", body: rawBody as Record<string, unknown> }
+          : { method: "POST", body: {} };
+    }
+    if (out.webhookData === undefined) {
+      out.webhookData = { method: "POST", body: {} };
+    } else if (typeof out.webhookData === "object" && out.webhookData !== null && !Array.isArray(out.webhookData)) {
+      const wd = out.webhookData as Record<string, unknown>;
+      out.webhookData = {
+        ...(typeof wd.method === "string" ? { method: wd.method } : { method: "POST" }),
+        ...(typeof wd.query === "object" && wd.query !== null && !Array.isArray(wd.query)
+          ? { query: wd.query as Record<string, string> }
+          : {}),
+        ...(typeof wd.body === "object" && wd.body !== null && !Array.isArray(wd.body)
+          ? { body: wd.body as Record<string, unknown> }
+          : { body: {} }),
+        ...(typeof wd.headers === "object" && wd.headers !== null && !Array.isArray(wd.headers)
+          ? { headers: wd.headers as Record<string, string> }
+          : {}),
+      };
     }
     return out;
   }
@@ -55,10 +79,17 @@ export function normalizeExecuteWorkflowInputs(inputs: unknown): Record<string, 
     return out;
   }
   if (t === "form") {
-    return { ...obj };
+    const out = { ...obj };
+    if (out.formData === undefined || typeof out.formData !== "object" || out.formData === null) {
+      out.formData = {};
+    }
+    return out;
   }
 
-  return { type: "webhook", body: { ...obj } };
+  return {
+    type: "webhook",
+    webhookData: { method: "POST", body: { ...obj } },
+  };
 }
 
 export async function withN8nMcpClient<T>(fn: (client: Client) => Promise<T>): Promise<T> {

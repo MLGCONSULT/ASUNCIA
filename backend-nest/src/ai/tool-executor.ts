@@ -28,10 +28,13 @@ export async function executeTool(
         const toolArgs = (args.arguments as Record<string, unknown>) ?? {};
         if (!toolName) return "toolName requis.";
         if (!isN8nMcpConfigured()) return MCP_ERROR_MESSAGES.n8n;
-        const finalArgs =
-          toolName === "execute_workflow"
-            ? { ...toolArgs, inputs: normalizeExecuteWorkflowInputs(toolArgs.inputs) }
-            : toolArgs;
+        let finalArgs: Record<string, unknown> = toolArgs;
+        if (toolName === "execute_workflow") {
+          finalArgs = { ...toolArgs, inputs: normalizeExecuteWorkflowInputs(toolArgs.inputs) };
+        } else if (toolName === "get_workflow_details") {
+          const wid = String(toolArgs.workflowId ?? toolArgs.workflow_id ?? "").trim();
+          finalArgs = { workflowId: wid };
+        }
         const result = await callN8nMcpTool(toolName, finalArgs);
         return mcpResultToText(result);
       }
@@ -71,15 +74,22 @@ export async function executeTool(
       case "n8n_search_workflows": {
         if (!isN8nMcpConfigured()) return MCP_ERROR_MESSAGES.n8n;
         const query = typeof args.query === "string" ? args.query.trim() : undefined;
-        const limit = Math.min(Number(args.limit) || 20, 50);
-        const result = await callN8nMcpTool("search_workflows", { query, limit });
+        const rawLimit = Number(args.limit);
+        const limit = Number.isFinite(rawLimit) ? Math.min(200, Math.max(1, Math.floor(rawLimit))) : 20;
+        const projectId =
+          typeof args.projectId === "string" && args.projectId.trim() !== "" ? args.projectId.trim() : undefined;
+        const result = await callN8nMcpTool("search_workflows", {
+          ...(query !== undefined && query !== "" ? { query } : {}),
+          limit,
+          ...(projectId ? { projectId } : {}),
+        });
         return mcpResultToText(result);
       }
       case "n8n_get_workflow_details": {
         if (!isN8nMcpConfigured()) return MCP_ERROR_MESSAGES.n8n;
         const workflowId = String(args.workflowId ?? "").trim();
         if (!workflowId) return "workflowId requis.";
-        const result = await callN8nMcpTool("get_workflow_details", { workflow_id: workflowId });
+        const result = await callN8nMcpTool("get_workflow_details", { workflowId });
         return mcpResultToText(result);
       }
       case "n8n_execute_workflow": {

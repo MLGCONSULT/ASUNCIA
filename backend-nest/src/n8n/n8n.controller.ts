@@ -26,6 +26,7 @@ type AuthRequest = Request & { user?: { id: string } };
 type N8nWorkflowsQuery = {
   query?: string;
   limit?: number | string;
+  projectId?: string;
 };
 
 type N8nWorkflowIdParams = {
@@ -755,16 +756,22 @@ ${typeGuidance}`;
       throw new HttpException({ error: MCP_ERROR_MESSAGES.n8n }, HttpStatus.SERVICE_UNAVAILABLE);
     }
     try {
-      const { query, limit } = (req.query || {}) as N8nWorkflowsQuery;
+      const { query, limit, projectId } = (req.query || {}) as N8nWorkflowsQuery;
       const normalizedLimit =
         typeof limit === "number"
           ? limit
           : typeof limit === "string" && limit.trim() !== ""
             ? Number(limit)
             : undefined;
+      const clampedLimit =
+        Number.isFinite(normalizedLimit) && typeof normalizedLimit === "number"
+          ? Math.min(200, Math.max(1, Math.floor(normalizedLimit)))
+          : undefined;
+      const pid = typeof projectId === "string" && projectId.trim() !== "" ? projectId.trim() : undefined;
       const result = await callN8nMcpTool("search_workflows", {
-        query,
-        ...(Number.isFinite(normalizedLimit) ? { limit: normalizedLimit } : {}),
+        ...(typeof query === "string" && query.trim() !== "" ? { query: query.trim() } : {}),
+        ...(clampedLimit !== undefined ? { limit: clampedLimit } : {}),
+        ...(pid ? { projectId: pid } : {}),
       });
       const data = parseMcpResultJson<{ data?: unknown[]; count?: number } | unknown[]>(result);
       const workflows = Array.isArray(data)

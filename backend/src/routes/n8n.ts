@@ -26,8 +26,12 @@ export function n8nRouter(): Router {
       return;
     }
     try {
-      const { query, limit } = parseQuery(n8nWorkflowsQuerySchema, req);
-      const result = await callN8nMcpTool("search_workflows", { query, limit });
+      const { query, limit, projectId } = parseQuery(n8nWorkflowsQuerySchema, req);
+      const result = await callN8nMcpTool("search_workflows", {
+        ...(query ? { query } : {}),
+        limit,
+        ...(projectId ? { projectId } : {}),
+      });
       const data = parseMcpResultJson<{ workflows?: unknown[]; data?: unknown[] } | unknown[]>(result);
       const workflows = Array.isArray(data)
         ? data
@@ -50,7 +54,7 @@ export function n8nRouter(): Router {
     }
     try {
       const { id } = parseParams(n8nWorkflowIdParamsSchema, req);
-      const result = await callN8nMcpTool("get_workflow_details", { workflow_id: id, workflowId: id });
+      const result = await callN8nMcpTool("get_workflow_details", { workflowId: id });
       const data = parseMcpResultJson(result);
       res.json(data);
     } catch (err) {
