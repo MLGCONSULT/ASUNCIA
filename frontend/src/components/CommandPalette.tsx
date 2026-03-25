@@ -4,11 +4,10 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import NavIcon, { type IconName } from "@/components/NavIcon";
-import { buildAssistantPromptUrl, dashboardIntents } from "@/lib/assistant-intents";
 
+/** Navigation applicative uniquement (pas de prompts assistant). */
 type CommandItem = {
   id: string;
-  kind: "navigate" | "intent";
   href: string;
   label: string;
   hint: string;
@@ -16,19 +15,11 @@ type CommandItem = {
 };
 
 const COMMANDS: CommandItem[] = [
-  { id: "dashboard", kind: "navigate", href: "/app/dashboard", label: "Ouvrir le tableau de bord", hint: "Vue d’ensemble et assistant", icon: "chat" },
-  { id: "airtable", kind: "navigate", href: "/app/airtable", label: "Ouvrir Airtable", hint: "Bases et enregistrements", icon: "grid" },
-  { id: "chatbot", kind: "navigate", href: "/app/chatbot", label: "Ouvrir Chatbot", hint: "Trouver la stack idéale", icon: "chat" },
-  { id: "n8n", kind: "navigate", href: "/app/n8n", label: "Ouvrir n8n", hint: "Automatisations", icon: "workflow" },
-  { id: "supabase", kind: "navigate", href: "/app/supabase", label: "Ouvrir Supabase", hint: "Données et requêtes", icon: "database" },
-  ...dashboardIntents.map((intent) => ({
-    id: intent.id,
-    kind: "intent" as const,
-    href: buildAssistantPromptUrl(intent.prompt),
-    label: intent.title,
-    hint: intent.description,
-    icon: "chat" as IconName,
-  })),
+  { id: "dashboard", href: "/app/dashboard", label: "Tableau de bord", hint: "Vue d’ensemble", icon: "chat" },
+  { id: "airtable", href: "/app/airtable", label: "Airtable", hint: "Bases et enregistrements", icon: "grid" },
+  { id: "chatbot", href: "/app/chatbot", label: "Chatbot", hint: "Trouver la stack idéale", icon: "chat" },
+  { id: "n8n", href: "/app/n8n", label: "n8n", hint: "Automatisations", icon: "workflow" },
+  { id: "supabase", href: "/app/supabase", label: "Supabase", hint: "Données et requêtes", icon: "database" },
 ];
 
 /** Bas du header fixe (h-14 + safe area) + léger décalage sous la bordure */
@@ -190,7 +181,7 @@ export default function CommandPalette({ variant = "default" }: Props) {
           }}
           onFocus={onHeaderInputFocus}
           onBlur={scheduleCloseOnBlur}
-          placeholder="Rechercher une page ou une action…"
+          placeholder="Rechercher une page…"
           aria-expanded={open}
           aria-controls="command-palette-header-results"
           className="w-full rounded-xl border border-white/14 bg-surface2/95 py-2 pl-9 pr-[4.25rem] text-sm text-text-primary shadow-inner shadow-black/20 outline-none ring-0 placeholder:text-text-dim backdrop-blur-sm transition-[border-color,box-shadow] focus:border-accent-cyan/45 focus:shadow-[0_0_0_1px_rgba(34,211,238,0.2)] sm:py-2.5 sm:pl-10 sm:pr-[4.5rem]"
@@ -262,7 +253,7 @@ export default function CommandPalette({ variant = "default" }: Props) {
             />
             <motion.div
               role="dialog"
-              aria-label="Actions rapides"
+              aria-label="Navigation rapide"
               initial={{ opacity: 0, scale: 0.96 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.96 }}
@@ -284,7 +275,7 @@ export default function CommandPalette({ variant = "default" }: Props) {
                       setSearch(e.target.value);
                       setSelected(0);
                     }}
-                    placeholder="Aller à… ou demander une action"
+                    placeholder="Aller à une page…"
                     className="flex-1 min-w-0 rounded-lg border border-white/12 bg-void px-3 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none focus:border-accent-cyan/40 focus:ring-1 focus:ring-accent-cyan/30"
                     autoFocus
                   />
