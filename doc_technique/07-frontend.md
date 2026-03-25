@@ -1,72 +1,28 @@
-# 07 - Frontend
+# 07 — Frontend
 
-## Role du frontend
+## Rôle
 
-Le frontend sert a rendre le projet concret, utilisable et lisible. Il affiche l'interface, recupere la session utilisateur et dialogue avec le backend.
+Le **Next.js** rend l’application **visible et utilisable** : pages, navigation, session utilisateur, appels à l’API. La **logique métier lourde** reste volontairement côté serveur.
 
-Son role n'est pas de porter toute la logique metier. Cette logique reste volontairement concentree dans le backend.
+## Ce que couvre le front
 
-## Ce que gere le frontend
+Accueil public, connexion, inscription, zone connectée, **navigation** (dock en bas de l’app), pages **Airtable**, **Supabase**, **n8n**, **chatbot Stacky** (iframe), **dashboard**, **assistant**. Les **appels** vers ces outils passent par l’**API** (MCP côté backend, jetons serveur), pas par une connexion « compte personnel » dans le navigateur pour Airtable.
 
-- l'accueil public
-- la connexion et l'inscription
-- la zone protegee de l'application
-- la navigation
-- les pages metier
-- les flux OAuth lies aux integrations encore exposees (ex. Airtable)
+L’**accueil public** a été resserré pour tenir sur un écran laptop sans scroll excessif, tout en gardant l’identité visuelle du site — première impression compte.
 
-L'accueil public a ete compacte pour mieux tenir sur un ecran desktop sans scroll, tout en gardant les codes visuels du projet. C'est important car la premiere impression du produit doit etre plus immediate et plus moderne.
+## Dialogue avec l’API
 
-## Communication avec le backend
+Un **client HTTP** (`frontend/src/lib/api.ts`) ajoute le **JWT** Supabase quand c’est nécessaire. Le front **demande** ; le serveur **décide**.
 
-Le frontend utilise un client dedie pour appeler l'API backend. Ce client ajoute le JWT Supabase dans les headers quand c'est necessaire.
+## Pages principales (aperçu)
 
-Cela permet de garder une frontiere claire :
-
-- le frontend demande
-- le backend decide et execute
-
-## Pages principales
-
-Les pages importantes du frontend sont :
-
-- un accueil public
-- un dashboard
-- une vue `Airtable`
-- une vue `Supabase`
-- une vue `n8n` (workflows)
-- une page `Chatbot` (Stacky / Typebot en iframe)
-
-Le point fort du projet est que ces pages ne sont pas isolees. Elles sont progressivement repensees pour fonctionner comme un ensemble pilote par l'IA.
-
-La home publique joue maintenant un vrai role produit :
-
-- elle montre la promesse principale
-- elle affiche les integrations clefs
-- elle indique le parcours conseille pour demarrer
+Accueil marketing, **dashboard**, vues **Airtable**, **Supabase**, **n8n**, page **Chatbot** (Typebot). L’idée est que ces écrans ne soient pas des **îlots** : l’assistant et les **intentions** (cartes, raccourcis) aident à passer de l’un à l’autre.
 
 ## Navigation
 
-La navigation doit rester simple. Si elle devient trop orientee technique, l'utilisateur voit surtout une collection d'outils. Si elle est mieux pensee, il voit un assistant qui l'aide a atteindre un objectif.
+Si la navigation ressemble à une **liste de modules techniques**, l’utilisateur ne voit qu’un catalogue d’outils. Si elle est **guidée**, il voit plutôt un **parcours** vers un objectif — c’est le second cas que le projet vise.
 
-## Enjeu UX
-
-Le frontend porte une grande partie de la perception du projet. C'est donc ici que l'on doit faire apparaitre :
-
-- la promesse IA
-- les connexions actives
-- les actions utiles
-- la priorisation
-
-## Ce qu'il faut conserver
-
-- une interface lisible
-- une communication propre avec le backend
-- une bonne separation entre affichage et logique metier
-- une UX centre sur l'intention utilisateur
-- une home compacte et lisible sur laptop
-
-## Fichiers de reference
+## Fichiers de référence
 
 - `frontend/src/app/`
 - `frontend/src/app/page.tsx`

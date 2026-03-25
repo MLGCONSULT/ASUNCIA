@@ -15,14 +15,14 @@
 
 ---
 
-## Liens à mettre (très important pour le jury)
+## Liens à mettre (à ne pas oublier sur les slides)
 
 | Quoi | Lien |
 |------|------|
 | **Application (à tester)** | **https://asuncia.vercel.app** |
 | **API / backend (preuve que le serveur tourne)** | **https://asuncia-backend.vercel.app** |
 
-**Liens « santé »** (le jury peut les ouvrir dans un navigateur ; ce sont des réponses JSON) :
+**Liens « santé »** (ouvrables dans un navigateur ; réponses JSON) :
 
 | Vérification | URL complète |
 |--------------|----------------|
@@ -40,7 +40,7 @@
 ### Slide 1 — Titre
 
 **Titre proposé :** AsuncIA — un seul espace pour vos outils et l’IA  
-**Sous-titre :** Présentation / soutenance + [date] + [prénom]
+**Sous-titre :** Présentation + [date] + [prénom]
 
 **Visuel :** logo + capture du **tableau de bord** ou de la page d’accueil (`asuncia.vercel.app`).
 
@@ -101,7 +101,7 @@
 
 ---
 
-### Slide 7 — Preuve technique (pour le jury)
+### Slide 7 — Preuve technique
 
 **Titre :** « Le projet est en ligne et vérifiable »
 
@@ -117,7 +117,7 @@
 
 ### Slide 8 — Documentation & qualité
 
-**Idée :** Une **documentation technique** existe dans le dépôt (`doc_technique/DOC_TECHNIQUE.md`, guides MCP) pour **installer**, **configurer** et **tester**.
+**Idée :** Une **documentation technique** structurée existe dans le dépôt (`doc_technique/README.md` pour le plan de lecture, `DOC_TECHNIQUE.md` pour la fiche rapide, fiches MCP et architecture) pour **installer**, **configurer** et **tester**.
 
 **Visuel :** icône « doc » + checklist courte (3 cases cochées).
 
@@ -149,7 +149,7 @@
 
 | # | Quoi capturer | Conseil pratique |
 |---|----------------|------------------|
-| 1 | Page d’accueil ou écran **connexion** | Fenêtre navigateur en **paysage**, URL visible en haut si le jury doit vérifier le domaine ; éviter les infos personnelles (email flouté si besoin). |
+| 1 | Page d’accueil ou écran **connexion** | Fenêtre navigateur en **paysage**, URL visible en haut si besoin de montrer le domaine ; éviter les infos personnelles (email flouté si besoin). |
 | 2 | **Dashboard** | Vue montrant les **cartes d’outils** (mission control) ; cadrer pour que le titre / la zone centrale soit lisible. |
 | 3 | **Dock** (navigation bas) | Capture **largeur complète** du bas d’écran pour voir les 5 pastilles : Airtable, Chatbot, Dashboard, Workflows, Supabase. |
 | 4 | Un **outil métier** | Par ex. page **Workflows (n8n)** ou **Airtable** avec un contenu représentatif (pas une erreur vide). Alternative : page **Chatbot** avec l’iframe Stacky visible. |
@@ -166,10 +166,10 @@
 - [ ] Compte de démo ou compte personnel prêt pour la connexion  
 - [ ] Slides **8–10 max**, pas de murs de texte  
 - [ ] **Reprise orale** chronométrée (viser 8–12 min)  
-- [ ] Doc technique à jour : `doc_technique/DOC_TECHNIQUE.md`
+- [ ] Doc technique à jour : `doc_technique/README.md` + `doc_technique/DOC_TECHNIQUE.md`
 
 ---
 
 ## Fichier technique détaillé
 
-Pour le jury ou un développeur : **`doc_technique/DOC_TECHNIQUE.md`** (URLs, health checks, variables, périmètre de l’interface).
+Documentation technique : **`doc_technique/README.md`** (guide de lecture), puis **`doc_technique/DOC_TECHNIQUE.md`** (fiche rapide : URLs, health checks, périmètre).

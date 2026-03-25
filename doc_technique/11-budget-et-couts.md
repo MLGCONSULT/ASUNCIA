@@ -1,54 +1,19 @@
-# 11 - Budget et couts
+# 11 — Budget et coûts
 
-## Pourquoi parler du budget
+## À quoi sert ce chapitre
 
-Le budget n'est pas toujours l'element principal dans un projet d'alternance, mais il peut etre utile pour montrer que l'architecture retenue reste realiste.
+On n’a pas toujours besoin d’une **feuille de calcul** détaillée pour parler coûts. En revanche, montrer qu’on a **réfléchi** aux postes évite l’image d’une stack « gratuite magique » ou, à l’inverse, surdimensionnée.
 
-## Postes de cout possibles
+## Postes à avoir en tête
 
-### Supabase
+**Supabase** — Selon volume de données, trafic et options, le gratuit peut suffire longtemps ; un petit plan payant peut arriver vite si le projet grossit.
 
-`Supabase` peut avoir un cout selon :
+**Hébergement** — Front et API (souvent deux déploiements) : coût lié au **trafic** et au **temps de build**.
 
-- le volume de donnees
-- le trafic
-- l'usage des fonctions ou services avances
+**OpenAI (ou équivalent)** — Variable selon le **modèle**, la **longueur** des conversations et la **fréquence** d’usage. Souvent le poste le plus **sensible** si l’app est utilisée intensivement.
 
-Dans beaucoup de phases projet, un plan gratuit ou un petit plan payant peut suffire.
+**MCP / outils externes** — Selon les fournisseurs : coût direct, ou coût **indirect** (temps de maintenance, infra).
 
-### Hebergement
+## Comment en parler simplement
 
-Le frontend et le backend peuvent avoir un cout d'hebergement selon la plateforme retenue et le trafic.
-
-### OpenAI
-
-L'usage de l'IA peut avoir un cout variable selon :
-
-- le modele choisi
-- le volume de requetes
-- la taille des conversations
-- la frequence d'utilisation
-
-### Integrations MCP
-
-Selon les providers, il peut y avoir :
-
-- un cout de serveur
-- un cout indirect de maintenance
-- un cout d'exploitation si l'infrastructure grandit
-
-## Lecture raisonnable du budget
-
-Pour ce projet, le budget doit etre presente avec honnetete :
-
-- faible en phase de prototype ou de demonstration
-- variable selon la volumetrie
-- justifie si l'usage IA devient intensif
-
-## Conclusion
-
-Le projet peut etre defendu sans entrer dans un budget tres detaille, sauf si on te le demande explicitement. Dans ce cas, il faut surtout montrer que :
-
-- les choix techniques sont coherents
-- l'architecture n'est pas surdimensionnee
-- les couts restent comprehensibles et pilotables
+Rester **honnête** : en phase démo ou faible usage, les coûts restent **modestes** ; ils **montent** avec la volumétrie et l’usage IA. L’architecture choisie n’est pas là pour **gaspiller** : elle reste **compréhensible** et **pilotable**.

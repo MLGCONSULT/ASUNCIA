@@ -1,26 +1,14 @@
-# 02 - Architecture globale
+# 02 — Architecture globale
 
-## Vue d'ensemble
+## Vue d’ensemble
 
-Le projet est organise comme un monorepo avec deux applications principales :
+Le dépôt est un **monorepo** : une application **Next.js** (`frontend/`) et une API **NestJS** (`backend-nest/`). Le navigateur affiche l’interface et la session ; l’API concentre la logique métier, le chat IA, les appels aux outils externes et les validations.
 
-- un `frontend` en `Next.js`
-- un `backend` en **NestJS** (`backend-nest/`)
+## Rôle de chaque couche
 
-Le frontend affiche l'interface et gere la session utilisateur cote web. Le backend centralise ensuite la logique metier, les integrations, le chat IA, les validations et les connexions aux services externes.
+Le **backend NestJS** est le **point central** : le front reste léger et parle à une API HTTP claire. L’**authentification** des utilisateurs passe par **Supabase**. Les connexions **Airtable**, **n8n** et **Supabase MCP** sont pilotées par le serveur, pas improvisées dans le navigateur. Le **modèle de langage** utilisé pour l’assistant dialogue avec ce même backend, qui décide quels outils peuvent être appelés.
 
-## Principe architectural
-
-Le backend NestJS est la couche d'orchestration principale.
-
-Cela veut dire que :
-
-- le frontend reste simple et consomme une API claire
-- l'authentification applicative passe par `Supabase`
-- les appels vers `Airtable`, `n8n` ou `Supabase MCP` sont pilotes par le backend
-- l'IA dialogue avec le backend, qui decide ensuite quelles integrations appeler
-
-## Schema simplifie
+## Schéma simplifié
 
 ```mermaid
 flowchart TD
@@ -34,83 +22,37 @@ flowchart TD
     Backend --> N8nMCP["n8n MCP"]
 ```
 
-## Pourquoi ce choix d'architecture
+## Pourquoi séparer front et API ?
 
-Ce choix permet de garder plusieurs avantages :
+- Les **secrets** (clés IA, tokens serveur) restent côté serveur.
+- Un seul endroit pour **valider** les entrées et **gérer les erreurs**.
+- Le front peut **changer** d’aspect sans casser les règles métier.
+- Les **secrets** (jetons MCP, clés serveur) et les appels **MCP** restent **côté serveur**, plus simples à suivre et à auditer.
 
-- une interface frontend plus legere
-- une meilleure maitrise de la securite et des secrets
-- un point unique pour valider les donnees et gerer les erreurs
-- une integration plus propre des flux OAuth et MCP
-- une meilleure evolutivite si l'on ajoute de nouvelles integrations
+## Frontend : responsabilités
 
-## Couches principales
+Affichage, navigation, récupération de la session, envoi du **JWT** vers l’API. Fichiers utiles : `frontend/src/app/`, `frontend/src/lib/api.ts`, `frontend/src/lib/supabase/`.
 
-### Frontend
+## Backend : responsabilités
 
-Le frontend est responsable de :
+Routes HTTP, contrôle du JWT, **clients MCP**, **chat**, **health checks**. Fichiers utiles : `backend-nest/src/main.ts`, `backend-nest/src/app.module.ts`, `backend-nest/src/chat/`, `backend-nest/src/health/`, `backend-nest/src/mcp/`.
 
-- l'affichage
-- la navigation
-- la recuperation de la session utilisateur
-- l'envoi du JWT vers le backend
+## Supabase
 
-Fichiers de reference :
+Deux usages principaux : **Auth** pour les comptes, **base PostgreSQL** pour les données applicatives. Selon la config, certaines opérations passent aussi par le **MCP Supabase**.
 
-- `frontend/src/app/`
-- `frontend/src/lib/api.ts`
-- `frontend/src/lib/supabase/`
+## MCP (Model Context Protocol)
 
-### Backend
+Protocole qui **standardise** la façon dont le backend parle à des **serveurs MCP externes** (un par famille d’outil, en général). Le dépôt ne contient pas un « gros serveur MCP maison » : il contient **des clients** qui savent appeler ces serveurs, avec les bons jetons et la bonne config.
 
-Le backend NestJS est responsable de :
+## Flux typique d’une interaction avec l’assistant
 
-- l'API HTTP
-- le middleware d'authentification
-- les appels aux integrations
-- la logique du chat IA
-- les health checks
+1. L’utilisateur envoie un message depuis l’interface.  
+2. Le front transmet la requête à l’API avec le JWT.  
+3. L’API prépare le contexte (historique, outils disponibles).  
+4. Le modèle peut demander l’exécution d’un outil (MCP ou logique métier).  
+5. L’API exécute ce qui est autorisé et renvoie le résultat au front.
 
-Fichiers de reference :
+## Principes à ne pas casser
 
-- `backend-nest/src/main.ts`
-- `backend-nest/src/app.module.ts`
-- `backend-nest/src/chat/`
-- `backend-nest/src/health/`
-- `backend-nest/src/mcp/`
-
-### Supabase
-
-`Supabase` joue deux roles :
-
-- auth applicative
-- base de donnees principale
-
-Il sert aussi de support a certaines operations MCP, selon la configuration du projet.
-
-### MCP
-
-Le projet utilise MCP comme protocole de connexion a des outils externes. Dans cette architecture :
-
-- le backend est client MCP
-- il n'y a pas de serveur MCP interne dans le repo
-- chaque integration possede sa logique de configuration et son mode d'acces
-
-## Flux principal de l'IA
-
-1. L'utilisateur saisit une intention dans l'interface.
-2. Le frontend envoie la requete au backend.
-3. Le backend prepare le contexte, la conversation et les outils disponibles.
-4. Le modele peut appeler des outils metier ou MCP.
-5. Le backend execute l'action autorisee.
-6. Le resultat revient a l'interface sous forme de reponse utile.
-
-## Contraintes a ne pas casser
-
-Si l'architecture evolue, ces principes doivent rester vrais :
-
-- le backend reste la couche centrale
-- les secrets et appels sensibles ne remontent pas dans le frontend
-- l'IA ne devient pas une fonctionnalite annexe
-- les integrations MCP restent compatibles avec le projet
-- la documentation suit les changements d'architecture
+Si le projet bouge, il vaut mieux garder : **un seul endroit** pour les secrets et les appels sensibles, **le backend** comme autorité, et **l’IA** comme partie intégrante du produit — pas comme une option cachée.

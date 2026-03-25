@@ -1,62 +1,27 @@
-# 05 - Authentification
+# 05 — Authentification
 
-## Idee generale
+## Deux niveaux à ne pas confondre
 
-Le projet utilise plusieurs niveaux d'authentification. Il est important de bien les distinguer.
+**1. Compte sur l’application** — L’utilisateur se connecte via **Supabase Auth**. Le front envoie un **JWT** à l’API NestJS (`Authorization: Bearer <token>`). Le serveur vérifie ce jeton avant d’ouvrir les routes protégées.
 
-### Niveau 1 - Authentification applicative
+**2. Accès aux outils via MCP** — **Airtable**, **n8n** et **Supabase** sont utilisés **via MCP** dans ce projet. Les **jetons serveur** (Airtable, n8n, token MCP Supabase) sont **uniquement** dans le **backend** ; ils ne transitent pas par le navigateur. Il n’y a **pas** de parcours « connecter mon compte Airtable » côté utilisateur : tout passe par des **secrets serveur** et le **MCP**.
 
-L'utilisateur se connecte a l'application via `Supabase Auth`.
+## Flux principal (application)
 
-Le frontend recupere ensuite la session et transmet le `JWT` au backend NestJS dans le header `Authorization: Bearer <token>`.
+Connexion sur le front → Supabase crée la session → le front envoie le JWT au backend → les routes protégées deviennent accessibles.
 
-Le backend verifie ensuite ce token avant d'autoriser l'acces aux routes protegees.
+## Ce que ce mécanisme apporte
 
-### Niveau 2 - Authentification des integrations
+Le projet ne se réduit pas à un formulaire de login : **l’app** sait qui est l’utilisateur (Supabase), et **l’API** sait parler aux outils **en son nom** via MCP, **sans exposer** les secrets d’intégration dans le front.
 
-Certaines integrations ont leur propre logique d'acces :
+## Règles simples
 
-- `Airtable` via OAuth utilisateur ou token serveur
-- `n8n` via token serveur
+- **Secrets MCP et jetons serveur** : uniquement dans `backend-nest` (variables d’environnement), jamais dans le client.
+- **JWT** : transmis au backend pour les appels API, pas pour remplacer la config MCP.
 
-Cette separation est essentielle. Un utilisateur peut etre connecte a l'application sans pour autant avoir connecte tous les outils externes.
-
-## Flux applicatif principal
-
-1. L'utilisateur se connecte sur le frontend.
-2. `Supabase` cree la session.
-3. Le frontend envoie le `JWT` au backend.
-4. Le backend verifie le token.
-5. Les routes protegees deviennent accessibles.
-
-## Flux OAuth (Airtable)
-
-Le flux OAuth pour **Airtable** est gere par le backend NestJS, avec stockage des tokens dans `oauth_tokens` lorsque le mode utilisateur est actif.
-
-Les etats temporaires du flux ne reposent plus uniquement sur la memoire du processus. Ils sont persistes, ce qui rend le comportement plus fiable en environnement serverless.
-
-## Pourquoi c'est un point important
-
-Ce mecanisme montre que le projet ne se contente pas d'un simple login. Il gere :
-
-- une authentification applicative
-- des permissions utilisateur
-- des connexions a des services externes (selon le périmètre actuel)
-- la persistance et le rafraichissement de tokens
-- la persistance temporaire de l'etat OAuth quand une redirection externe est en cours
-
-## Bonnes pratiques a conserver
-
-- ne jamais exposer les secrets OAuth cote navigateur
-- garder le backend comme point de controle
-- documenter clairement les modes `oauth` et `server-token` pour Airtable
-- verifier que chaque nouvelle integration respecte la meme logique de securite
-
-## Fichiers de reference
+## Fichiers de référence
 
 - `frontend/src/lib/supabase/`
 - `frontend/src/lib/api.ts`
 - `backend-nest/src/middleware/auth-user.ts`
-- `backend-nest/src/auth/airtable-auth.controller.ts`
-- `backend-nest/src/services/oauth-state.ts`
-- `backend-nest/src/services/oauth-tokens.ts`
+- `backend-nest/src/config/mcp.ts`

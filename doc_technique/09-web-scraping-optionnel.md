@@ -1,54 +1,13 @@
-# 09 - Web scraping optionnel
+# 09 — Web scraping (hors périmètre actuel)
 
-## Pourquoi cette partie est optionnelle
+## Situation aujourd’hui
 
-Le coeur du projet repose deja sur :
+Le cœur du projet repose sur **l’IA**, **Supabase**, les **MCP** et l’**API NestJS**. **Aucun scraping web** n’est implémenté dans l’application telle qu’elle est décrite ici.
 
-- l'IA
-- `Supabase`
-- les integrations MCP
-- l'orchestration backend
+## Si on vous interroge sur le scraping
 
-Le `web scraping` peut enrichir certains usages, mais il n'est pas indispensable pour que le sujet reste pertinent.
+Réponse factuelle : le scraping aurait pu enrichir certains cas (veille, données publiques), mais il **n’a pas été retenu** pour éviter d’ajouter **complexité**, **risques légaux** (conditions d’usage des sites) et **maintenance** sans besoin métier clair.
 
-## Quand cela peut avoir du sens
+## Si un jour on l’ajoute
 
-Le scraping peut etre interessant si l'application doit :
-
-- recuperer des informations publiques
-- enrichir un contexte
-- preparer une veille ou une recherche
-- alimenter ensuite l'assistant avec des donnees externes
-
-## Points de vigilance
-
-Le scraping ne doit jamais etre ajoute sans cadre, car il pose plusieurs questions :
-
-- legalite selon les sites cibles
-- frequence des requetes
-- robustesse des parseurs
-- maintenance a long terme
-- risque de complexifier inutilement le projet
-
-## Recommandation
-
-Si cette fonctionnalite est retenue plus tard, elle doit rester :
-
-- clairement identifiee comme optionnelle
-- isolee dans une couche backend dediee
-- documentee techniquement et juridiquement
-- separee des integrations MCP existantes
-
-## Bonne approche pour le projet
-
-Dans le cadre d'une alternance, le plus pertinent est de justifier que le scraping n'est ajoute que s'il repond a un vrai cas d'usage, et non pour multiplier artificiellement les technologies.
-
-## Si cette option est implantee
-
-Il faudra ajouter dans `doc_technique` :
-
-- le cas d'usage vise
-- la source cible
-- la frequence d'execution
-- la politique de respect du site cible
-- la justification technique
+Il faudrait : un **cas d’usage** précis, une **couche serveur** dédiée, une **doc** sur la légalité et la fréquence des requêtes, et le **garder séparé** des flux MCP existants pour ne pas tout mélanger.

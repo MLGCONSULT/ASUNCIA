@@ -1,96 +1,54 @@
-# 03 - BDD Supabase
+# 03 — Base de données et Supabase
 
-## Role de Supabase dans le projet
+## Rôle de Supabase dans le projet
 
-`Supabase` est une brique centrale du projet. Il ne sert pas uniquement a stocker des donnees :
+**Supabase** n’est pas qu’une base : il gère l’**authentification**, stocke les **données métier**, l’**historique des conversations** avec l’assistant, et applique des règles de **sécurité au niveau des lignes** (RLS). Les **accès aux outils** (Airtable, n8n, données Supabase via MCP) sont assurés **côté API** avec des **jetons serveur** / MCP, pas par des jetons par utilisateur stockés en base pour ces intégrations dans la configuration documentée ici.
 
-- il gere l'authentification
-- il stocke les informations metier
-- il conserve l'historique de conversation IA
-- il conserve les tokens OAuth utilisateur
-- il applique des regles de securite via la `RLS`
+## Tables principales (d’après les migrations)
 
-## Tables principales
-
-D'apres les migrations presentes dans `frontend/supabase/migrations/`, les tables les plus importantes sont les suivantes.
+Les migrations sont dans `frontend/supabase/migrations/`.
 
 ### `profiles`
 
-Cette table contient les informations du profil utilisateur. Elle est liee a `auth.users`.
-
-Usage principal :
-
-- nom d'affichage
-- email
-- informations de presentation
+Profil utilisateur lié à `auth.users` : nom affiché, email, éléments de présentation.
 
 ### `leads`
 
-Cette table represente des leads avec un statut metier. Elle montre que le projet garde une dimension CRM, meme si l'interface actuelle met davantage en avant les integrations et l'IA.
+Données de type « lead » avec un statut métier. La table existe côté schéma ; **l’interface actuelle ne met pas cet écran en avant** — à garder en tête si l’on compare schéma SQL et écrans exposés dans l’app.
 
 ### `ai_memory`
 
-Cette table permet de stocker une memoire structuree par utilisateur. Elle peut servir a memoriser des informations utiles au comportement de l'assistant.
+Mémoire structurée par utilisateur pour l’assistant (selon usage).
 
-### `ai_conversations`
+### `ai_conversations` et `ai_messages`
 
-Cette table stocke les conversations entre l'utilisateur et l'assistant.
-
-### `ai_messages`
-
-Cette table stocke les messages d'une conversation :
-
-- role
-- contenu
-- eventuels appels d'outils
+Stockage des **conversations** et des **messages** (rôle, contenu, éventuels appels d’outils).
 
 ### `ai_action_logs`
 
-Cette table journalise des actions liees a l'IA. Elle peut etre utile pour analyser l'usage, verifier ce qui a ete demande ou faciliter le debug.
+Journalisation d’actions liées à l’IA (analyse d’usage, debug).
 
 ### `oauth_tokens`
 
-Cette table stocke les tokens OAuth par utilisateur et par provider. Elle est essentielle pour les integrations en mode OAuth utilisateur (par ex. **Airtable**).
+Table prévue pour stocker des **jetons par utilisateur et par fournisseur** (schéma historique / évolutions possibles). **Avec Airtable en MCP server-token**, les accès outil passent par le **jeton serveur** côté API, pas par des lignes utilisateur dans cette table. Elle peut rester pour d’autres usages futurs.
 
-## RLS et securite
+## Sécurité : RLS
 
-La migration `20250213000002_rls.sql` active la `Row Level Security` sur les tables principales. Le principe est simple :
+La migration `20250213000002_rls.sql` active la **Row Level Security** sur les tables concernées. En résumé : un utilisateur ne voit **que ses lignes** ; conversations et messages **isolés** par propriétaire.
 
-- un utilisateur ne voit que ses propres donnees
-- les conversations sont isolees par utilisateur
-- les messages sont accessibles via la conversation du bon proprietaire
-- les tokens OAuth sont eux aussi proteges par utilisateur
+## Profil automatique
 
-Ce point est important dans un projet d'alternance, car il montre une vraie attention a l'isolation des donnees.
+Une fonction SQL crée ou met à jour un profil quand un utilisateur apparaît dans `auth.users`.
 
-## Trigger utile
+## Pourquoi Supabase ici ?
 
-Une fonction SQL cree ou met a jour automatiquement un profil lors de la creation ou mise a jour d'un utilisateur dans `auth.users`.
+Auth + PostgreSQL + politiques de sécurité sans monter une stack serveur de base à la main. Ça laisse du temps pour l’**orchestration** et le **MCP**.
 
-Ce mecanisme evite d'avoir a creer le profil a la main dans le code applicatif.
+## Points de vigilance
 
-## Pourquoi Supabase est un bon choix ici
+Tenir la **doc** à jour quand les migrations changent ; ne pas contourner la RLS sans bonne raison.
 
-Dans ce projet, `Supabase` simplifie plusieurs sujets a la fois :
-
-- auth
-- base de donnees
-- politiques de securite
-- rapidite de mise en place
-- bonne compatibilite avec un frontend moderne
-
-Cela permet de se concentrer davantage sur la logique d'orchestration et l'IA.
-
-## Limites et vigilance
-
-Il faut rester attentif a plusieurs points :
-
-- garder la doc synchronisee avec les migrations
-- ne pas contourner la RLS sans raison
-- bien gerer les tokens OAuth et leur rafraichissement
-- garder une separation claire entre auth utilisateur et auth des integrations
-
-## Fichiers de reference
+## Fichiers de référence
 
 - `frontend/supabase/migrations/20250213000001_schema_initial.sql`
 - `frontend/supabase/migrations/20250213000002_rls.sql`

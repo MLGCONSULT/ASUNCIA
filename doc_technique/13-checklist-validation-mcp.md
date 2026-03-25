@@ -1,59 +1,39 @@
-# 13 - Checklist de validation MCP
+# 13 — Checklist avant démo ou mise en production (MCP)
 
-## Pourquoi cette page existe
+## Objectif
 
-Configurer des variables d'environnement ne suffit pas a prouver qu'une integration fonctionne vraiment.
+Des variables d’environnement **remplies** ne prouvent pas qu’une intégration **fonctionne**. Cette liste aide à vérifier **dans des conditions réalistes** : health check, route métier, puis **un cas concret** de bout en bout.
 
-Cette checklist sert a verifier les MCP dans des conditions proches du reel, avec une logique simple : s'assurer que le health check repond, que la route metier fonctionne, puis qu'un vrai cas d'usage passe de bout en bout.
+## Quand la passer
 
-## Regle simple
-
-Avant une demonstration importante, une recette de preproduction ou une mise en production, il faut passer cette checklist.
+Avant une **démonstration** importante, une recette de préproduction, ou une **mise en ligne** où vous voulez éviter les mauvaises surprises.
 
 ## Supabase MCP
 
-Verifier :
-
 - `SUPABASE_ACCESS_TOKEN`
-- `SUPABASE_PROJECT_REF` ou la deduction via `NEXT_PUBLIC_SUPABASE_URL`
+- `SUPABASE_PROJECT_REF` ou cohérence avec `NEXT_PUBLIC_SUPABASE_URL`
 - `GET /api/health/mcp-supabase`
 - `POST /api/mcp/call` avec `toolName: "list_tools"`
 
 ## n8n MCP
 
-Verifier :
-
 - `N8N_MCP_URL`
 - `N8N_MCP_ACCESS_TOKEN`
 - `GET /api/health/mcp-n8n`
 - `GET /api/n8n/workflows`
-- au moins une execution reelle de workflow sur un environnement de test
+- Au moins **une exécution réelle** de workflow sur un environnement de test
 
-## Airtable MCP
+## Airtable MCP (server-token)
 
-Verifier d'abord le mode retenu :
-
-- `AIRTABLE_RUNTIME_MODE=oauth`
-- ou `AIRTABLE_RUNTIME_MODE=server-token`
-
-Puis verifier :
-
+- `AIRTABLE_RUNTIME_MODE=server-token`
+- `AIRTABLE_MCP_URL` et jeton serveur (`AIRTABLE_MCP_TOKEN` ou `AIRTABLE_TOKEN`)
 - `GET /api/health/mcp-airtable`
-- la lecture d'une base de test
-- la lecture d'une table de test
-- une ecriture de test si le cas d'usage l'autorise
+- Lecture d’une **base** et d’une **table** de test, éventuellement une **écriture** de test si le cas le permet
 
-## Verification transverse
+## Vérifications transverses
 
-En plus des checks provider par provider, il faut aussi verifier :
+Les **états** affichés dans l’app restent **cohérents** après un **redéploiement** ; `npm run build` dans `backend-nest` **réussit** ; la doc **reflète** encore ce que vous venez de tester.
 
-- que les callbacks OAuth ne cassent pas apres redeploiement
-- que les etats de connexion visibles par l'utilisateur restent coherents
-- que `npm run build` dans `backend-nest` reussit avant un deploiement
-- que la documentation `doc_technique` raconte encore la verite
+## Lecture des résultats
 
-## Conclusion
-
-Si une integration passe les variables, le health check, la route metier et un cas reel, on peut commencer a dire qu'elle fonctionne vraiment.
-
-Si elle ne passe qu'un health check, elle est seulement "configuree", pas encore "fiable".
+Si une intégration passe **variables + health + route métier + cas réel**, vous pouvez dire qu’elle **tient la route**. Si elle ne passe que le health check, elle est **configurée**, pas encore **fiable** en production.

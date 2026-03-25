@@ -1,83 +1,46 @@
-# 01 - Projet et justification
+# 01 — Projet et justification
 
-## Le sujet
+## De quoi s’agit-il ?
 
-Ce projet vise a construire une application metier assistee par l'IA. L'utilisateur ne manipule pas seulement des donnees : il peut dialoguer avec un assistant qui l'aide a comprendre une situation, retrouver le bon contexte et agir dans des outils connectes.
+AsuncIA est une **application métier** où l’utilisateur ne se contente pas de consulter des données : il peut parler à un **assistant** qui l’aide à s’orienter, à comprendre un contexte et à agir dans des **outils déjà branchés** (Airtable, n8n, Supabase, etc.). Un **chatbot de recommandation** (Stacky / Typebot) et un **assistant** complètent la navigation classique.
 
-L'application relie plusieurs briques utiles au quotidien :
+## Le problème qu’on cherche à attaquer
 
-- `Airtable` pour les donnees structurees
-- `n8n` pour les automatisations
-- `Supabase` pour l'authentification, la base de donnees et certaines operations MCP
-- un chatbot de recommandation (Stacky / Typebot) et un assistant IA integre
+Dans beaucoup de contextes pro, l’info est **éclatée** entre plusieurs services. La difficulté n’est pas seulement de stocker des données, mais de savoir **par où commencer**, **quoi faire en priorité**, et **comment éviter les tâches répétitives** sans changer d’outil toutes les deux minutes.
 
-## Pourquoi ce sujet est pertinent
+L’IA n’est pas là pour faire joli : elle joue le rôle d’**aide à l’orchestration** — proposer une suite d’actions possibles et renvoyer vers le bon écran quand c’est pertinent.
 
-Dans beaucoup d'environnements professionnels, l'information est eparpillee entre plusieurs outils. Le vrai probleme n'est pas seulement de stocker des donnees, mais de savoir :
+## Pourquoi ce sujet tient la route en alternance
 
-- ou regarder en premier
-- quoi traiter en priorite
-- comment eviter les taches repetitives
-- comment garder une vue coherente de son activite
+Le projet touche à la fois :
 
-L'IA prend donc ici une place utile : elle sert de couche d'orchestration et d'assistance, pas seulement de gadget conversationnel.
+- à une **architecture web** actuelle (front + API + base) ;
+- à l’**authentification** et à la **persistance** des données ;
+- au **branchement d’outils externes** via **MCP** (jetons serveur) ;
+- à la **réflexion produit** (parcours, clarté) ;
+- à la **documentation** et à la capacité à **expliquer** ce qui a été fait.
 
-## Pourquoi ce sujet a du sens en alternance
+Ce n’est pas seulement une démo de code : c’est un **système qu’on peut expliquer** à quelqu’un qui n’est pas dans le détail du repo.
 
-Ce projet est interessant dans un cadre d'alternance parce qu'il montre plusieurs competences a la fois :
+## Ce que l’utilisateur gagne
 
-- conception d'une architecture web moderne
-- integration d'authentification et de base de donnees
-- connexion a des outils externes via MCP et OAuth
-- refactorisation et maintien de la qualite technique
-- reflexion produit et experience utilisateur
-- documentation et capacite a justifier des choix
+Au lieu de jongler à la main entre Airtable, n8n et Supabase, il peut :
 
-Autrement dit, ce projet ne montre pas uniquement la capacite a coder. Il montre aussi la capacite a structurer, expliquer et faire evoluer une application realiste.
+- **formuler** une intention (par exemple : « je veux automatiser une tâche ») ;
+- **s’appuyer** sur l’assistant pour structurer la réponse ou le chemin ;
+- **passer** à l’outil concerné quand il est prêt.
 
-## Le probleme que le projet cherche a resoudre
+## En quoi cette valeur se résume-t-elle ?
 
-Le projet cherche a reduire la friction entre l'intention de l'utilisateur et l'action technique. Au lieu de passer manuellement d'un outil a l'autre, l'utilisateur peut demander :
+- Une **expérience unique** qui regroupe plusieurs sources utiles.
+- Des **intégrations actionnables** depuis une interface lisible.
+- L’**assistant** comme fil conducteur, pas comme gadget isolé.
+- Une **base de code** assez claire pour évoluer sans tout reprendre à zéro.
 
-- une analyse de ses donnees (Airtable, Supabase)
-- un controle ou une execution de workflow n8n
-- une orientation vers le bon ecran ou la bonne demarche
+## À qui ça peut parler ?
 
-L'idee centrale est donc la suivante : l'utilisateur exprime un besoin, puis le systeme l'aide a comprendre et a agir.
+À toute personne qui **cumule plusieurs outils** au quotidien : commercial, opérationnel, chef de projet, indépendant, petite structure. Le dénominateur commun : **gagner du temps** pour retrouver l’info utile et lancer une action sans se perdre.
 
-## La valeur du projet
+## Où se situe le produit ?
 
-La valeur du projet repose sur quatre points :
-
-- centraliser plusieurs sources d'information dans une meme experience
-- rendre les integrations actionnables via une interface simple
-- remettre l'IA au centre comme copilote
-- garder une architecture suffisamment propre pour evoluer dans le temps
-
-## Public cible
-
-Le projet peut convenir a un utilisateur qui a besoin de jongler entre plusieurs outils numeriques :
-
-- un profil commercial
-- un profil operationnel
-- un profil gestion de projet
-- un independant ou une petite structure qui veut gagner du temps
-
-Le point commun est le besoin de retrouver rapidement l'information utile et de declencher des actions sans se perdre dans une interface trop technique.
-
-## Positionnement
-
-Ce projet n'est pas un simple tableau de bord. Ce n'est pas non plus une boite de chat isolee. Il se situe entre les deux :
-
-- un espace de travail oriente action
-- une interface guidee par l'IA
-- une architecture ouverte sur les integrations metier
-
-## Ce que le projet doit continuer a respecter
-
-Pour rester coherent avec son sujet, le projet doit toujours conserver :
-
-- une IA visible et utile
-- une architecture orientee orchestration
-- des integrations MCP fonctionnelles
-- une logique de maintenabilite, pas seulement de demonstration
+Ni un simple tableau de bord, ni une chatbox coupée du reste. Plutôt un **espace de travail** où l’IA et les outils métier sont **au même endroit**, avec une architecture qui laisse la porte ouverte à de nouvelles intégrations si le besoin métier le justifie.

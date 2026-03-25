@@ -78,8 +78,9 @@ Les **URLs de démonstration**, les **endpoints de santé** (`/api/health/...`) 
 
 | Document | Rôle |
 |----------|------|
-| [`doc_technique/DOC_TECHNIQUE.md`](doc_technique/DOC_TECHNIQUE.md) | Référence technique (prod, health checks, périmètre) |
-| [`doc_technique/`](doc_technique/) | Dossier détaillé (architecture, MCP, auth, etc.) |
+| [`doc_technique/README.md`](doc_technique/README.md) | **Guide de lecture** du dossier technique (table des matières, parcours suggéré) |
+| [`doc_technique/DOC_TECHNIQUE.md`](doc_technique/DOC_TECHNIQUE.md) | Fiche rapide : URLs, santé API, périmètre |
+| [`doc_technique/`](doc_technique/) | Fiches thématiques (architecture, MCP, auth, UX, budget, etc.) |
 | [`plan_slides.md`](plan_slides.md) | Plan pour un support de présentation (slides) |
 
 ---

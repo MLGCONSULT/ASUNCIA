@@ -1,78 +1,34 @@
-# 08 - UI, UX et IA au coeur
+# 08 — Interface, parcours et place de l’IA
 
-## Diagnostic
+## Point de départ
 
-L'application avait initialement une presentation assez classique :
+L’app a longtemps ressemblé à une **suite de pages** : accueil, dashboard avec cartes, vues séparées pour Airtable, Supabase, n8n, chatbot. Propre, mais parfois **froide** : on voyait un **catalogue d’outils** plus qu’un fil conducteur.
 
-- une page d'accueil minimaliste
-- un dashboard avec un chat et des cartes
-- des vues outils separees pour `Airtable`, `Supabase`, `n8n` et le chatbot Stacky
+## Ce que l’utilisateur doit comprendre vite
 
-Cette base etait propre, mais elle donnait parfois l'impression d'une collection de modules plus que d'un assistant central.
+À l’arrivée dans l’app : **ce qu’il peut faire**, **pourquoi l’IA aide**, **où regarder en premier**, **quels outils sont connectés**. Si ce n’est pas clair en quelques secondes, la valeur du projet se dilue.
 
-## Probleme principal
+## Direction prise
 
-Quand l'utilisateur entre dans l'application, il doit comprendre tres vite :
+Donner au dashboard un rôle de **« centre de contrôle »** : intentions visibles, pas seulement des liens. L’**assistant** est un **point d’entrée naturel**, pas une petite fenêtre cachée. Les **états de connexion** aux outils doivent être **compréhensibles** sans lire la doc technique.
 
-- ce qu'il peut faire
-- pourquoi l'IA est utile
-- ou trouver l'information prioritaire
-- quelles sources sont connectees
+## Refonte : ce qui a été visé
 
-Si cette lecture n'est pas immediate, le projet perd une partie de sa valeur percue.
+Accueil plus **lisible** sur la promesse, **compact** sur desktop, visuellement un peu **moins rigide** qu’un simple empilement de cartes. Dashboard plus **guidé**, navigation **plus claire**, **raccourcis** vers l’assistant depuis les pages métier quand ça a du sens.
 
-## Direction retenue
+## Principes à garder
 
-La direction UX retenue dans ce projet est la suivante :
+Commencer par une **intention**, pas par le nom d’un outil. Les actions IA **visibles** mais pas envahissantes. Les pages **utilisables** même sans être expert en automatisation. La navigation doit **aider**, pas seulement décorer.
 
-- faire du dashboard une `mission control`
-- faire de l'IA un point d'entree naturel
-- montrer l'etat des integrations
-- proposer des intentions concretes plutot qu'une simple navigation
-- enrichir chaque vue outil avec des actions IA contextuelles
+## Produit visé
 
-## Ce qui a ete vise dans la refonte
+Un **assistant opérationnel** : reformuler une demande, mobiliser les bonnes intégrations, proposer une suite d’étapes, et **renvoyer** vers le bon écran si l’utilisateur veut aller plus loin.
 
-- un accueil public plus clair sur la promesse du produit
-- un accueil public compact, lisible et sans scroll sur desktop
-- un accueil moins rectangulaire, plus organique et plus premium
-- un dashboard plus guide
-- des cartes d'outils plus utiles
-- une navigation plus lisible
-- une palette de commande plus orientee action
-- des raccourcis vers l'assistant depuis les pages metier
+## Piège à éviter
 
-## Principes UX a garder
+Réduire l’IA à **un widget de chat** dans un coin. Ici, elle doit **structurer** l’expérience (parcours, liens, intentions), pas seulement **habiller** une page.
 
-- l'utilisateur doit pouvoir commencer par une intention, pas par une page technique
-- les connexions etats outils doivent etre compréhensibles
-- les actions IA doivent etre visibles sans devenir envahissantes
-- les pages metier doivent rester exploitables meme sans expertise technique
-- la navigation doit aider, pas seulement decorer
-- l'accueil doit tenir dans le viewport sur desktop autant que possible
-- l'accueil doit donner une impression plus vivante qu'un simple tableau de bord a cartes
-
-## Idee produit cible
-
-Le projet doit se comporter comme un assistant operationnel :
-
-- il comprend une demande
-- il mobilise les bonnes integrations
-- il aide a prendre une decision
-- il peut ensuite guider vers la bonne vue si l'utilisateur veut aller plus loin
-
-Sur l'accueil, cela se traduit par une direction visuelle plus `organique premium` :
-
-- des volumes moins rigides
-- une hierarchie plus editoriale
-- un apercu produit plus immersif
-- des CTA plus evidents et plus desirables
-
-## Risque a eviter
-
-Le principal risque serait de retomber dans une logique ou l'IA est seulement un widget de chat. Ce projet doit continuer a montrer que l'IA structure l'experience, pas seulement l'habille.
-
-## Fichiers de reference
+## Fichiers de référence
 
 - `frontend/src/app/page.tsx`
 - `frontend/src/app/app/dashboard/page.tsx`
