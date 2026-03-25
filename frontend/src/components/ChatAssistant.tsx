@@ -644,15 +644,13 @@ export default function ChatAssistant({
                   className={`mt-5 flex flex-wrap justify-center gap-2 ${compact ? "max-w-sm" : "max-w-2xl"} mx-auto`}
                 >
                   {dashboardIntents.map((intent) => (
-                    <button
+                    <div
                       key={intent.id}
-                      type="button"
-                      onClick={() => submitPrompt(intent.prompt)}
-                      className="lava-text-safe px-3 py-2 rounded-full border border-white/10 bg-white/5 text-center text-xs leading-4 text-text-muted hover:text-text-primary hover:border-accent-cyan/30 hover:bg-accent-cyan/10 transition-colors"
+                      className="lava-text-safe px-3 py-2 rounded-full border border-white/10 bg-white/5 text-center text-xs leading-4 text-text-muted cursor-default select-none"
                       title={intent.description}
                     >
                       {intent.title}
-                    </button>
+                    </div>
                   ))}
                 </div>
                 <div className="mt-6 flex justify-center gap-1">
