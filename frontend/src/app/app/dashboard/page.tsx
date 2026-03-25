@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import PageMotion from "@/components/PageMotion";
 import ToolCards from "@/components/ToolCards";
 import DashboardToday from "@/components/DashboardToday";
+import DashboardGreetingClock from "@/components/DashboardGreetingClock";
 import DashboardOrbit, { DashboardAgentShell } from "@/components/DashboardOrbit";
 
 const orbitBubbles = [
@@ -38,10 +39,7 @@ const orbitBubbles = [
 
 export default async function DashboardPage() {
   const supabase = await createClient();
-  const [{ data: profile }, { count: convCount }] = await Promise.all([
-    supabase.from("profiles").select("nom_affichage").maybeSingle(),
-    supabase.from("ai_conversations").select("id", { count: "exact", head: true }),
-  ]);
+  const { data: profile } = await supabase.from("profiles").select("nom_affichage").maybeSingle();
 
   return (
     <PageMotion className="dashboard-scene relative isolate flex h-full min-h-0 flex-col gap-5 overflow-visible">
@@ -94,17 +92,7 @@ export default async function DashboardPage() {
       </section>
 
       <section className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-4">
-        <div className="glass-strong rounded-xl border border-white/10 p-4 card-glow transition-all duration-[420ms] ease-[cubic-bezier(0.22,1,0.36,1)] hover:border-white/[0.14] hover:shadow-[0_20px_50px_-28px_rgba(34,211,238,0.15)]">
-          <p className="text-xs uppercase tracking-[0.18em] text-text-dim">Conversations IA</p>
-          <p className="mt-2 text-2xl font-semibold text-text-primary">{convCount ?? 0}</p>
-          <p className="text-xs text-text-muted mt-1">historique avec l’assistant</p>
-          <Link
-            href="/app/dashboard?assistant=open"
-            className="inline-block mt-3 text-xs text-accent-cyan transition-colors duration-200 hover:underline"
-          >
-            Ouvrir l&apos;assistant
-          </Link>
-        </div>
+        <DashboardGreetingClock nomAffichage={profile?.nom_affichage ?? null} />
         <div className="glass-strong rounded-xl border border-white/10 p-4 card-glow transition-all duration-[420ms] ease-[cubic-bezier(0.22,1,0.36,1)] hover:border-white/[0.14] hover:shadow-[0_20px_50px_-28px_rgba(147,51,234,0.12)]">
           <p className="text-xs uppercase tracking-[0.18em] text-text-dim">Commencer ici</p>
           <p className="mt-2 text-sm text-text-primary">Choisis une action selon l&apos;outil le plus adapté.</p>
