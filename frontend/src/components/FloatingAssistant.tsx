@@ -21,6 +21,7 @@ export default function FloatingAssistant() {
       <AnimatePresence initial={false}>
         {open ? (
           <motion.div
+            id="assistant-panel"
             key="assistant-panel"
             className="pointer-events-auto mb-3 flex max-h-[min(32rem,calc(100dvh-10rem))] min-h-0 w-[min(27rem,calc(100vw-1.25rem))] flex-col assistant-panel-shell overflow-hidden"
             initial={{ opacity: 0, y: 18, scale: 0.96 }}
@@ -50,22 +51,31 @@ export default function FloatingAssistant() {
         ) : null}
       </AnimatePresence>
 
-      <motion.button
-        type="button"
-        onClick={() => setOpen((value) => !value)}
-        className="pointer-events-auto assistant-fab"
-        whileHover={{ scale: 1.03 }}
-        whileTap={{ scale: 0.98 }}
-      >
-        <span className="assistant-fab-core">
-          <span className="assistant-fab-logo-wrap">
-            <Image src="/logo.png" alt="Ouvrir l'assistant IA" width={58} height={36} className="object-contain" />
+      <div className="pointer-events-auto relative flex items-center justify-center">
+        <span className="assistant-fab-glow-ring" aria-hidden />
+        <span className="assistant-fab-glow-soft" aria-hidden />
+        <motion.button
+          type="button"
+          onClick={() => setOpen((value) => !value)}
+          aria-expanded={open}
+          aria-controls="assistant-panel"
+          title={open ? "Fermer l’assistant IA" : "Ouvrir l’assistant IA — pose une question sur tes outils"}
+          aria-label={open ? "Fermer l’assistant IA" : "Ouvrir l’assistant IA"}
+          className="assistant-fab relative z-[2] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent-cyan"
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.97 }}
+        >
+          <span className="assistant-fab-core">
+            <span className="assistant-fab-logo-wrap">
+              <Image src="/logo.png" alt="" width={52} height={32} className="object-contain drop-shadow-[0_2px_8px_rgba(34,211,238,0.35)]" />
+            </span>
+            <span className="assistant-fab-label">
+              <span className="assistant-fab-label-main">{open ? "Actif" : "Assistant"}</span>
+              <span className="assistant-fab-label-sub">{open ? "clique pour fermer" : "IA"}</span>
+            </span>
           </span>
-          <span className="text-[10px] uppercase tracking-[0.18em] text-text-dim">
-            {open ? "actif" : "ouvrir"}
-          </span>
-        </span>
-      </motion.button>
+        </motion.button>
+      </div>
     </div>
   );
 }

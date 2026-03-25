@@ -4,12 +4,22 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { usePathname } from "next/navigation";
 import CommandPalette from "@/components/CommandPalette";
 import { createClient } from "@/lib/supabase/client";
 import { fetchBackend } from "@/lib/api";
 
 export default function AppHeader() {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const pathname = usePathname();
+
+  const title = (() => {
+    if (pathname === "/app/dashboard") return "Dashboard";
+    if (pathname.startsWith("/app/airtable")) return "Airtable";
+    if (pathname.startsWith("/app/n8n")) return "Workflows";
+    if (pathname.startsWith("/app/supabase")) return "Supabase";
+    return "Espace outils";
+  })();
 
   function handleLogout(e: React.FormEvent) {
     e.preventDefault();
@@ -43,7 +53,7 @@ export default function AppHeader() {
             <span className="hidden font-display text-base font-semibold tracking-tight sm:inline">AsuncIA</span>
           </Link>
           <p className="hidden min-w-0 truncate text-center text-[10px] font-semibold uppercase tracking-[0.22em] text-accent-cyan/90 sm:block sm:max-w-[12rem] md:max-w-md">
-            Espace outils
+            {title}
           </p>
           <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
             <CommandPalette />
