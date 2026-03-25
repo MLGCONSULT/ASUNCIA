@@ -12,7 +12,7 @@ type ToolCard = {
   label: string;
   description: string;
   icon: IconName;
-  accent?: "cyan" | "violet" | "rose" | "fuchsia" | "amber";
+  accent?: "cyan" | "violet" | "rose" | "fuchsia" | "amber" | "stacky";
 };
 
 const TOOLS: ToolCard[] = [
@@ -40,6 +40,14 @@ const TOOLS: ToolCard[] = [
     icon: "workflow",
     accent: "amber",
   },
+  {
+    id: "stacky",
+    href: "/app/chatbot",
+    label: "Stacky",
+    description: "Questionnaire de stack.",
+    icon: "chat",
+    accent: "stacky",
+  },
 ];
 
 const accentClasses: Record<NonNullable<ToolCard["accent"]>, string> = {
@@ -48,6 +56,8 @@ const accentClasses: Record<NonNullable<ToolCard["accent"]>, string> = {
   rose: "hover:border-accent-rose/40 hover:bg-accent-rose/5 hover:shadow-[0_0_24px_-4px_rgba(251,113,133,0.2)]",
   fuchsia: "hover:border-accent-fuchsia/40 hover:bg-accent-fuchsia/5 hover:shadow-[0_0_24px_-4px_rgba(232,121,249,0.2)]",
   amber: "hover:border-accent-amber/40 hover:bg-accent-amber/5 hover:shadow-[0_0_24px_-4px_rgba(251,191,36,0.2)]",
+  stacky:
+    "hover:border-[#0047FF]/55 hover:bg-[#0047FF]/8 hover:shadow-[0_0_28px_-6px_rgba(0,71,255,0.35)]",
 };
 
 const iconAccentClasses: Record<NonNullable<ToolCard["accent"]>, string> = {
@@ -56,6 +66,7 @@ const iconAccentClasses: Record<NonNullable<ToolCard["accent"]>, string> = {
   rose: "text-accent-rose",
   fuchsia: "text-accent-fuchsia",
   amber: "text-accent-amber",
+  stacky: "text-blue-100",
 };
 
 export default function ToolCards() {
@@ -78,6 +89,7 @@ export default function ToolCards() {
           .then((response) => response.json())
           .then((data) => ["n8n", { connected: Boolean(data.ok), available: Boolean(data.ok) }] as const)
           .catch(() => ["n8n", { connected: false, available: false }] as const),
+        Promise.resolve(["stacky", { connected: true, available: true }] as const),
       ]);
 
       if (!active) return;
@@ -91,16 +103,16 @@ export default function ToolCards() {
   }, []);
 
   return (
-    <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-3">
+    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4 sm:gap-3">
       {TOOLS.map((tool, i) => (
         <motion.div
           key={tool.href}
           className="min-w-0"
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.35, delay: i * 0.06, ease: [0.22, 1, 0.36, 1] }}
+          transition={{ duration: 0.42, delay: i * 0.07, ease: [0.22, 1, 0.36, 1] }}
         >
-          <div className={`dashboard-tool-shard h-full p-3 sm:p-4 transition-all duration-300 ${accentClasses[tool.accent ?? "cyan"]}`}>
+          <div className={`dashboard-tool-shard h-full p-3 sm:p-4 transition-all duration-[380ms] ease-[cubic-bezier(0.22,1,0.36,1)] ${accentClasses[tool.accent ?? "cyan"]}`}>
             <div className={`flex items-center justify-between gap-2 ${iconAccentClasses[tool.accent ?? "cyan"]}`}>
               <span className="dashboard-tool-icon flex h-9 w-9 shrink-0 items-center justify-center border border-white/10 bg-white/5">
                 <NavIcon name={tool.icon} className="w-4 h-4" />
