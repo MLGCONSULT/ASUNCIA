@@ -10,7 +10,13 @@ import {
 } from "@nestjs/common";
 import type { Request } from "express";
 import OpenAI from "openai";
-import { callN8nMcpTool, getN8nEditorBaseUrl, isN8nMcpConfigured } from "../mcp/n8n-client";
+import {
+  callN8nMcpTool,
+  getN8nEditorBaseUrl,
+  isN8nMcpConfigured,
+  listN8nMcpTools,
+} from "../mcp/n8n-client";
+import { collectWorkflowValidationErrors } from "./workflow-validate";
 import { parseMcpResultJson } from "../mcp/result";
 import { MCP_ERROR_MESSAGES } from "../config/mcp";
 
@@ -63,6 +69,136 @@ export class N8nController {
       p.includes("latest");
     const mentionsTen = p.includes("10") || p.includes("dix");
     return mentionsMail && (mentionsRecent || mentionsTen);
+  }
+
+  /** Intent : emails récents + envoi vers une table Airtable (MCP / nœud Airtable). */
+  private isGmailAirtableIntent(prompt: string): boolean {
+    if (!this.isRecentEmailsIntent(prompt)) return false;
+    const p = prompt.toLowerCase();
+    return p.includes("airtable") || p.includes("table airtable");
+  }
+
+  private pickFallbackWorkflow(prompt: string): N8nWorkflowJson {
+    if (this.isGmailAirtableIntent(prompt)) {
+      return this.buildGmailToAirtableWorkflowTemplate(prompt);
+    }
+    if (this.isRecentEmailsIntent(prompt)) {
+      return this.buildRecentEmailsWorkflowTemplate(prompt);
+    }
+    return this.buildSafeImportableFallbackWorkflow(prompt);
+  }
+
+  private buildGmailToAirtableWorkflowTemplate(prompt: string): N8nWorkflowJson {
+    const title = prompt.trim().slice(0, 72) || "Gmail vers Airtable";
+    return {
+      name: `Gmail (10) → Airtable — ${title}`,
+      nodes: [
+        {
+          id: "manual_trigger_1",
+          name: "Déclenchement manuel",
+          type: "n8n-nodes-base.manualTrigger",
+          typeVersion: 1,
+          position: [240, 320],
+          parameters: {},
+        },
+        {
+          id: "gmail_1",
+          name: "Lister emails Gmail",
+          type: "n8n-nodes-base.gmail",
+          typeVersion: 2,
+          position: [480, 320],
+          parameters: {
+            resource: "message",
+            operation: "getAll",
+            returnAll: false,
+            limit: 10,
+            simple: true,
+          },
+        },
+        {
+          id: "set_map_1",
+          name: "Mapper champs pour Airtable",
+          type: "n8n-nodes-base.set",
+          typeVersion: 3.4,
+          position: [720, 320],
+          parameters: {
+            mode: "manual",
+            duplicateItem: false,
+            assignments: {
+              assignments: [
+                {
+                  id: "a1",
+                  name: "Subject",
+                  value: "={{ $json.subject }}",
+                  type: "string",
+                },
+                {
+                  id: "a2",
+                  name: "From",
+                  value: "={{ $json.from }}",
+                  type: "string",
+                },
+                {
+                  id: "a3",
+                  name: "Date",
+                  value: "={{ $json.date }}",
+                  type: "string",
+                },
+                {
+                  id: "a4",
+                  name: "Snippet",
+                  value: "={{ $json.snippet }}",
+                  type: "string",
+                },
+              ],
+            },
+            options: {},
+          },
+        },
+        {
+          id: "airtable_1",
+          name: "Créer ligne Airtable",
+          type: "n8n-nodes-base.airtable",
+          typeVersion: 2,
+          position: [960, 320],
+          parameters: {
+            operation: "create",
+            base: {
+              __rl: true,
+              mode: "list",
+              value: "",
+              cachedResultName: "Sélectionner la base dans n8n",
+            },
+            table: {
+              __rl: true,
+              mode: "name",
+              value: "YOUR_TABLE_NAME",
+            },
+            columns: {
+              mappingMode: "defineBelow",
+              value: {
+                Subject: "={{ $json.Subject }}",
+                From: "={{ $json.From }}",
+                Date: "={{ $json.Date }}",
+                Snippet: "={{ $json.Snippet }}",
+              },
+            },
+          },
+        },
+      ],
+      connections: {
+        "Déclenchement manuel": {
+          main: [[{ node: "Lister emails Gmail", type: "main", index: 0 }]],
+        },
+        "Lister emails Gmail": {
+          main: [[{ node: "Mapper champs pour Airtable", type: "main", index: 0 }]],
+        },
+        "Mapper champs pour Airtable": {
+          main: [[{ node: "Créer ligne Airtable", type: "main", index: 0 }]],
+        },
+      },
+      settings: {},
+    };
   }
 
   private buildRecentEmailsWorkflowTemplate(prompt: string): N8nWorkflowJson {
@@ -188,14 +324,110 @@ export class N8nController {
     return candidate;
   }
 
+  /** Best-effort : création temporaire du workflow sur l’instance n8n (MCP) puis suppression. */
+  private async trySmokeTestWorkflow(workflow: N8nWorkflowJson): Promise<string | null> {
+    if (!isN8nMcpConfigured()) return null;
+    try {
+      const listed = await listN8nMcpTools();
+      const toolNames = (listed.tools ?? [])
+        .map((t) => (typeof t.name === "string" ? t.name : ""))
+        .filter(Boolean);
+      const createName =
+        toolNames.find((n) => /^create_workflow$/i.test(n)) ??
+        toolNames.find((n) => /create_workflow/i.test(n) && !/dataset/i.test(n)) ??
+        toolNames.find((n) => n.toLowerCase().includes("create") && n.toLowerCase().includes("workflow"));
+      if (!createName) return null;
+
+      const payload: Record<string, unknown> = {
+        name: `[validation-${Date.now()}]`,
+        nodes: workflow.nodes,
+        connections: workflow.connections,
+        settings: workflow.settings ?? {},
+        active: false,
+      };
+
+      const result = await callN8nMcpTool(createName, payload);
+      let data: Record<string, unknown>;
+      try {
+        data = parseMcpResultJson<Record<string, unknown>>(result);
+      } catch {
+        return null;
+      }
+      const id =
+        typeof data?.id === "string"
+          ? data.id
+          : data?.workflow && typeof data.workflow === "object" && data.workflow !== null
+            ? typeof (data.workflow as { id?: unknown }).id === "string"
+              ? (data.workflow as { id: string }).id
+              : null
+            : null;
+
+      const deleteName =
+        toolNames.find((n) => /^delete_workflow$/i.test(n)) ??
+        toolNames.find((n) => /delete_workflow/i.test(n) && !/execution/i.test(n));
+      if (id && deleteName) {
+        try {
+          await callN8nMcpTool(deleteName, { workflowId: id, id });
+        } catch {
+          /* suppression best-effort */
+        }
+      }
+      return null;
+    } catch (err) {
+      return err instanceof Error ? err.message : String(err);
+    }
+  }
+
+  private async repairWorkflowJson(
+    openai: OpenAI,
+    model: string,
+    workflow: N8nWorkflowJson,
+    errors: string[],
+  ): Promise<Record<string, unknown>> {
+    const repair = await openai.chat.completions.create({
+      model,
+      max_tokens: 2000,
+      messages: [
+        {
+          role: "system",
+          content:
+            "Tu corriges un JSON de workflow n8n pour qu'il soit importable dans n8n. Réponds uniquement avec un objet JSON valide, sans texte avant ou après. Un seul objet JSON. Les clés de connections doivent être les noms exacts des noeuds sources.",
+        },
+        {
+          role: "user",
+          content: `Erreurs à corriger:\n${errors.join("\n")}\n\nJSON actuel:\n${JSON.stringify(workflow)}`,
+        },
+      ],
+    });
+    const repairedText = repair.choices?.[0]?.message?.content?.trim() ?? "";
+    if (!repairedText) {
+      throw new Error("Réparation JSON vide.");
+    }
+    const jsonText = this.extractFirstJsonObject(repairedText);
+    return JSON.parse(jsonText) as Record<string, unknown>;
+  }
+
+  private buildSystemPrompt(typeGuidance: string): string {
+    return `Tu génères un workflow n8n importable (n8n récent). Réponds uniquement avec un seul objet JSON valide, sans markdown ni commentaire.
+Le JSON doit contenir exactement: name (string), nodes (array), connections (object), settings (object).
+Règles obligatoires:
+- Un seul objet JSON (pas deux objets collés).
+- Si nodes contient au moins 2 noeuds, connections ne doit pas être {} : chaque enchaînement utilise connections[NomDuNoeudSource].main = [[{ "node": "NomDuNoeudCible", "type": "main", "index": 0 }]].
+- Les clés de connections sont les noms affichés des noeuds sources (exactement comme dans nodes[].name).
+- Pour lister des emails Gmail: type n8n-nodes-base.gmail, parameters: resource "message", operation "getAll", returnAll false, limit (nombre), simple true.
+- Pour Airtable: base/table à remplir dans l'UI n8n ; utilise des placeholders explicites si besoin.
+- Chaque noeud: name, type, typeVersion, position, parameters (objet, jamais vide si le type l'exige).
+- Pas de doublon de name entre noeuds.
+Si un service est incertain: n8n-nodes-base.httpRequest avec un nom explicite "(à configurer)".
+${typeGuidance}`;
+  }
+
   private async generateWorkflowJsonInternal(prompt: string) {
     const mcpRef = await this.buildMcpReferenceForPrompt(prompt);
 
     const apiKey = process.env.OPENAI_API_KEY?.trim();
     if (!apiKey) {
-      const fallback = this.isRecentEmailsIntent(prompt)
-        ? this.buildRecentEmailsWorkflowTemplate(prompt)
-        : this.buildSafeImportableFallbackWorkflow(prompt);
+      const fallback = this.pickFallbackWorkflow(prompt);
       return {
         json: fallback,
         prettyJson: JSON.stringify(fallback, null, 2),
@@ -214,22 +446,16 @@ export class N8nController {
     const mcpExamplesBlock = mcpRef.referenceSnippet
       ? `\n\nExemples réels issus de ton instance (via MCP n8n) — inspire-toi de la structure, des types et des versions:\n${mcpRef.referenceSnippet}`
       : "";
-    let lastErrorMessage = "Erreur génération JSON n8n";
+
     for (const model of modelCandidates) {
       try {
         const completion = await openai.chat.completions.create({
           model,
-          max_tokens: 1800,
+          max_tokens: 2000,
           messages: [
             {
               role: "system",
-              content:
-                `Tu génères un workflow n8n importable (n8n 2026). Réponds uniquement avec un objet JSON valide, sans explication.
-Le JSON doit contenir: name (string), nodes (array), connections (object), settings (object).
-Chaque noeud doit avoir au minimum: name, type, typeVersion, position, parameters.
-Si un service externe n'est pas certain, utilise un noeud core n8n compatible (notamment n8n-nodes-base.httpRequest) avec un nom explicite "(à configurer)".
-Quand des exemples MCP sont fournis, réutilise les mêmes types de nœuds et une structure proche quand c'est pertinent.
-${typeGuidance}`,
+              content: this.buildSystemPrompt(typeGuidance),
             },
             {
               role: "user",
@@ -243,48 +469,44 @@ ${typeGuidance}`,
           throw new Error("Réponse vide du modèle.");
         }
         const jsonText = this.extractFirstJsonObject(content);
-        const parsed = JSON.parse(jsonText) as Record<string, unknown>;
-        const firstPass = this.normalizeAndValidateWorkflow(parsed, knownNodeTypes);
-        let finalWorkflow = firstPass.workflow;
-        if (firstPass.errors.length > 0) {
-          const repair = await openai.chat.completions.create({
-            model,
-            max_tokens: 1800,
-            messages: [
-              {
-                role: "system",
-                content:
-                  "Corrige le JSON de workflow n8n pour qu'il soit importable. Réponds uniquement en JSON valide, sans texte.",
-              },
-              {
-                role: "user",
-                content: `Corrige ce JSON n8n.\nErreurs à corriger: ${firstPass.errors.join(" | ")}\nJSON:\n${JSON.stringify(firstPass.workflow)}`,
-              },
-            ],
-          });
-          const repairedText = repair.choices?.[0]?.message?.content?.trim() ?? "";
-          if (!repairedText) {
-            throw new Error("Réparation JSON vide.");
+        let parsed = JSON.parse(jsonText) as Record<string, unknown>;
+
+        const maxRepairRounds = 3;
+        for (let round = 0; round < maxRepairRounds; round++) {
+          const pass = this.normalizeAndValidateWorkflow(parsed, knownNodeTypes);
+          if (pass.errors.length === 0) {
+            let sanitized = this.sanitizeWorkflowForCompatibility(pass.workflow, knownNodeTypes);
+            const smokeErr = await this.trySmokeTestWorkflow(sanitized);
+            if (!smokeErr) {
+              return {
+                json: sanitized,
+                prettyJson: JSON.stringify(sanitized, null, 2),
+              };
+            }
+            if (round < maxRepairRounds - 1) {
+              parsed = await this.repairWorkflowJson(openai, model, sanitized, [
+                `Validation sur l'instance n8n (MCP): ${smokeErr}`,
+              ]);
+              continue;
+            }
+            return {
+              json: sanitized,
+              prettyJson: JSON.stringify(sanitized, null, 2),
+            };
           }
-          const repairedJson = JSON.parse(this.extractFirstJsonObject(repairedText)) as Record<string, unknown>;
-          const secondPass = this.normalizeAndValidateWorkflow(repairedJson, knownNodeTypes);
-          if (secondPass.errors.length > 0) {
-            throw new Error(`Workflow JSON invalide: ${secondPass.errors.join(" | ")}`);
+          if (round < maxRepairRounds - 1) {
+            parsed = await this.repairWorkflowJson(openai, model, pass.workflow, pass.errors);
+          } else {
+            break;
           }
-          finalWorkflow = secondPass.workflow;
         }
-        const sanitized = this.sanitizeWorkflowForCompatibility(finalWorkflow, knownNodeTypes);
-        return {
-          json: sanitized,
-          prettyJson: JSON.stringify(sanitized, null, 2),
-        };
-      } catch (err) {
-        lastErrorMessage = err instanceof Error ? err.message : "Erreur génération JSON n8n";
+        throw new Error("Workflow invalide après réparations.");
+      } catch {
+        /* essai modèle suivant */
       }
     }
-    const fallback = this.isRecentEmailsIntent(prompt)
-      ? this.buildRecentEmailsWorkflowTemplate(prompt)
-      : this.buildSafeImportableFallbackWorkflow(prompt, lastErrorMessage);
+
+    const fallback = this.pickFallbackWorkflow(prompt);
     return {
       json: fallback,
       prettyJson: JSON.stringify(fallback, null, 2),
@@ -398,6 +620,18 @@ ${typeGuidance}`,
       connections,
       settings,
     };
+    const structuralErrors = collectWorkflowValidationErrors(
+      {
+        nodes: nodes.map((n) => ({
+          name: typeof n.name === "string" ? n.name : "",
+          type: typeof n.type === "string" ? n.type : "",
+          parameters: n.parameters ?? {},
+        })),
+        connections,
+      },
+      knownNodeTypes,
+    );
+    errors.push(...structuralErrors);
     return { workflow, errors };
   }
 

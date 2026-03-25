@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import PageMotion from "@/components/PageMotion";
 import { fetchBackend } from "@/lib/api";
+
+type SchemaTable = { name: string; columns: { name: string; type: string }[] };
 
 function parseJsonSafely(text: string): unknown | null {
   try {
@@ -83,6 +85,11 @@ function parseMcpResultPayload(content: unknown): unknown {
   return cleaned;
 }
 
+function quoteTableSql(name: string): string {
+  const parts = name.split(".");
+  return parts.map((p) => `"${p.replace(/"/g, '""')}"`).join(".");
+}
+
 export default function SupabasePage() {
   const [sql, setSql] = useState("select now();");
   const [nlPrompt, setNlPrompt] = useState("Liste-moi les 5 premiers pays de France en PIB.");
@@ -91,6 +98,34 @@ export default function SupabasePage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [schemaTables, setSchemaTables] = useState<SchemaTable[]>([]);
+  const [tablesLoading, setTablesLoading] = useState(true);
+  const [tablesError, setTablesError] = useState<string | null>(null);
+
+  const loadSchemaTables = useCallback(async () => {
+    setTablesLoading(true);
+    setTablesError(null);
+    try {
+      const response = await fetchBackend("/api/supabase/tables");
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setSchemaTables([]);
+        setTablesError(typeof data?.error === "string" ? data.error : "Impossible de charger les tables.");
+        return;
+      }
+      const list = Array.isArray(data?.tables) ? (data.tables as SchemaTable[]) : [];
+      setSchemaTables(list);
+    } catch {
+      setSchemaTables([]);
+      setTablesError("Impossible de charger les tables.");
+    } finally {
+      setTablesLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadSchemaTables();
+  }, [loadSchemaTables]);
 
   function isReadOnlySql(query: string): boolean {
     const trimmed = query.trim().replace(/;+$/g, "");
@@ -295,9 +330,15 @@ export default function SupabasePage() {
     );
   }
 
+  function insertTableIntoEditor(tableName: string) {
+    const q = quoteTableSql(tableName);
+    setSql(`select * from ${q} limit 20`);
+  }
+
   return (
     <PageMotion className="h-full flex flex-col min-h-0 px-4 py-4">
-      <section className="mx-auto flex w-full max-w-4xl flex-col gap-4 rounded-3xl border border-white/8 bg-black/70 p-5 shadow-[0_18px_45px_rgba(0,0,0,0.85)] backdrop-blur-xl">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 lg:flex-row lg:items-start">
+        <section className="flex min-w-0 flex-1 flex-col gap-4 rounded-3xl border border-white/8 bg-black/70 p-5 shadow-[0_18px_45px_rgba(0,0,0,0.85)] backdrop-blur-xl">
         <header className="flex items-center justify-between gap-2">
           <h1 className="text-lg font-display font-semibold text-text-primary">Supabase SQL</h1>
           <span className="text-[11px] uppercase tracking-[0.2em] text-text-dim">Éditeur</span>
@@ -351,6 +392,66 @@ export default function SupabasePage() {
 
         {resultValue != null && renderResult()}
       </section>
+
+        <aside className="flex w-full shrink-0 flex-col rounded-3xl border border-white/8 bg-black/60 shadow-[0_12px_36px_rgba(0,0,0,0.75)] backdrop-blur-xl lg:sticky lg:top-4 lg:max-h-[calc(100vh-5rem)] lg:w-[280px]">
+          <div className="flex items-center justify-between gap-2 border-b border-white/10 px-3 py-2.5">
+            <h2 className="text-sm font-semibold text-text-primary">Tables</h2>
+            <button
+              type="button"
+              onClick={() => void loadSchemaTables()}
+              disabled={tablesLoading}
+              className="rounded-lg bg-white/10 px-2 py-1 text-[11px] text-text-muted hover:bg-white/15 disabled:opacity-50"
+            >
+              {tablesLoading ? "…" : "Actualiser"}
+            </button>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto p-2">
+            {tablesLoading && schemaTables.length === 0 ? (
+              <p className="px-2 py-3 text-xs text-text-muted">Chargement...</p>
+            ) : tablesError ? (
+              <p className="px-2 py-3 text-xs text-accent-rose/90">{tablesError}</p>
+            ) : schemaTables.length === 0 ? (
+              <p className="px-2 py-3 text-xs text-text-muted">Aucune table dans le schéma public.</p>
+            ) : (
+              <ul className="space-y-1">
+                {schemaTables.map((t) => (
+                  <li key={t.name}>
+                    <details className="group rounded-xl border border-white/10 bg-black/40">
+                      <summary className="cursor-pointer list-none px-2 py-2 text-xs font-mono text-accent-cyan hover:bg-white/5">
+                        <span className="inline text-text-primary">{t.name}</span>
+                      </summary>
+                      <div className="border-t border-white/5 px-2 pb-2 pt-1">
+                        {t.columns.length > 0 ? (
+                          <ul className="max-h-40 space-y-0.5 overflow-y-auto text-[10px] text-text-dim">
+                            {t.columns.map((c) => (
+                              <li key={`${t.name}-${c.name}`} className="flex justify-between gap-2">
+                                <span className="truncate text-text-muted">{c.name}</span>
+                                <span className="shrink-0 text-text-dim">{c.type}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="text-[10px] text-text-dim">(colonnes non listées)</p>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => insertTableIntoEditor(t.name)}
+                          className="mt-2 w-full rounded-lg bg-accent-cyan/15 py-1.5 text-[11px] text-accent-cyan hover:bg-accent-cyan/25"
+                        >
+                          Insérer SELECT dans l&apos;éditeur
+                        </button>
+                      </div>
+                    </details>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          <p className="border-t border-white/10 px-3 py-2 text-[10px] leading-snug text-text-dim">
+            Liste fournie par le MCP Supabase (schéma public). Les noms t’aident à écrire du SQL ou une demande en langage naturel.
+          </p>
+        </aside>
+      </div>
     </PageMotion>
   );
 }

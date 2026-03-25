@@ -204,20 +204,16 @@ export default function N8nView() {
       });
       const data = (await r.json().catch(() => ({}))) as Record<string, unknown>;
       if (!r.ok) {
-        throw new Error(
-          typeof data?.error === "string"
-            ? data.error
-            : `Impossible de générer le JSON du workflow (HTTP ${r.status}).`,
-        );
+        setError("La génération n'a pas pu aboutir. Réessaie dans un instant.");
+        return;
       }
       const pretty =
         typeof data?.prettyJson === "string"
           ? data.prettyJson
           : JSON.stringify(data?.json ?? {}, null, 2);
       setTemplateJson(pretty);
-      setNotice("JSON généré. Tu peux le copier-coller dans n8n.");
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Erreur réseau.");
+    } catch {
+      setError("La génération n'a pas pu aboutir. Réessaie dans un instant.");
     } finally {
       setGeneratingTemplate(false);
     }

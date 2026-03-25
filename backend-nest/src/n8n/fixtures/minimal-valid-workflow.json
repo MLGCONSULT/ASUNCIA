@@ -1,0 +1,21 @@
+{
+  "name": "Exemple minimal valide",
+  "nodes": [
+    {
+      "name": "Déclenchement manuel",
+      "type": "n8n-nodes-base.manualTrigger",
+      "parameters": {}
+    },
+    {
+      "name": "Suite",
+      "type": "n8n-nodes-base.set",
+      "parameters": {}
+    }
+  ],
+  "connections": {
+    "Déclenchement manuel": {
+      "main": [[{ "node": "Suite", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {}
+}

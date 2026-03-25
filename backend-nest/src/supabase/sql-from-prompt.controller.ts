@@ -1,4 +1,4 @@
-import { Body, Controller, HttpException, HttpStatus, Post, Req } from "@nestjs/common";
+import { Body, Controller, Get, HttpException, HttpStatus, Post, Req } from "@nestjs/common";
 import type { Request } from "express";
 import { withSupabaseMcpClient } from "../mcp/supabase-client";
 import { isSupabaseMcpConfigured } from "../mcp/supabase-client";
@@ -232,6 +232,24 @@ async function getPublicSchema(limitTables: number): Promise<{ name: string; col
 
 @Controller("supabase")
 export class SqlFromPromptController {
+  /** Liste les tables du schéma public (MCP list_tables), pour l’UI. */
+  @Get("tables")
+  async listTables(@Req() req: AuthRequest) {
+    if (!req.user) {
+      throw new HttpException({ error: "Non authentifié" }, HttpStatus.UNAUTHORIZED);
+    }
+    if (!isSupabaseMcpConfigured()) {
+      throw new HttpException({ error: "MCP Supabase non configuré" }, HttpStatus.SERVICE_UNAVAILABLE);
+    }
+    try {
+      const tables = await getPublicSchema(50);
+      return { tables };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      throw new HttpException({ error: message }, HttpStatus.BAD_GATEWAY);
+    }
+  }
+
   @Post("sql-from-prompt")
   async sqlFromPrompt(@Req() req: AuthRequest, @Body() body: SqlFromPromptBody) {
     try {
