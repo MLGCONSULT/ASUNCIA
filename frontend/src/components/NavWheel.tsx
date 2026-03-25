@@ -1,115 +1,172 @@
 "use client";
 
+import { Fragment, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import NavIcon from "@/components/NavIcon";
-import { NAV_WHEEL_ITEMS, type AppNavItem, isAppNavActive } from "@/lib/app-nav-config";
+import {
+  NAV_WHEEL_ITEMS,
+  NAV_WHEEL_ORBIT_TONE,
+  NAV_WHEEL_WIRE_RGB,
+  type AppNavItem,
+  isAppNavActive,
+} from "@/lib/app-nav-config";
 
-function NavPill({ item: nav, pathname }: { item: AppNavItem; pathname: string }) {
-  const active = isAppNavActive(pathname, nav.href);
+function wireState(
+  leftIdx: number,
+  rightIdx: number,
+  hovered: number | null,
+  active: number,
+): { opacity: number; glowRgb: string | null } {
+  if (hovered !== null) {
+    if (hovered === rightIdx) {
+      return { opacity: 1, glowRgb: NAV_WHEEL_WIRE_RGB[NAV_WHEEL_ITEMS[rightIdx].href] };
+    }
+    if (hovered === leftIdx) {
+      return { opacity: 1, glowRgb: NAV_WHEEL_WIRE_RGB[NAV_WHEEL_ITEMS[leftIdx].href] };
+    }
+    return { opacity: 0.22, glowRgb: null };
+  }
+  if (active === rightIdx || active === leftIdx) {
+    return {
+      opacity: 0.68,
+      glowRgb: NAV_WHEEL_WIRE_RGB[NAV_WHEEL_ITEMS[active].href],
+    };
+  }
+  return { opacity: 0.3, glowRgb: null };
+}
+
+function WireSegment({
+  leftNav,
+  rightNav,
+  leftIdx,
+  rightIdx,
+  hovered,
+  active,
+}: {
+  leftNav: AppNavItem;
+  rightNav: AppNavItem;
+  leftIdx: number;
+  rightIdx: number;
+  hovered: number | null;
+  active: number;
+}) {
+  const rgbL = NAV_WHEEL_WIRE_RGB[leftNav.href];
+  const rgbR = NAV_WHEEL_WIRE_RGB[rightNav.href];
+  const { opacity, glowRgb } = wireState(leftIdx, rightIdx, hovered, active);
+
   return (
-    <motion.div
-      whileTap={{ scale: 0.93 }}
-      transition={{ type: "spring", stiffness: 500, damping: 26 }}
-      className="min-w-0 w-full max-w-[4.2rem] sm:max-w-[4.65rem] justify-self-center"
-    >
-      <Link
-        href={nav.href}
-        title={nav.label}
-        aria-current={active ? "page" : undefined}
-        className={`relative overflow-hidden flex w-full flex-col items-center justify-center rounded-[1.25rem] py-1.5 px-1 sm:rounded-[1.4rem] sm:py-2 sm:px-1.5 transition-all duration-300 border ${
-          active
-            ? `bg-gradient-to-b ${nav.accentBg} border-white/25 ${nav.accentGlow} ${nav.accentText}`
-            : `bg-white/[0.03] border-white/5 text-text-muted ${nav.inactiveHover}`
-        }`}
-      >
-        {active && (
-          <>
-            <motion.span
-              layoutId="navwheel-active-pill"
-              className="absolute inset-0 rounded-[1.25rem] sm:rounded-[1.4rem] border border-white/25"
-              transition={{ type: "spring", bounce: 0.18, duration: 0.35 }}
-            />
-            <motion.span
-              className="absolute -top-4 left-1/2 h-12 w-12 -translate-x-1/2 rounded-full blur-xl bg-white/20"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 0.6 }}
-              aria-hidden
-            />
-          </>
-        )}
-        <span
-          className={`relative flex items-center justify-center rounded-xl px-1.5 py-0.8 sm:px-2 sm:py-1 ${active ? "bg-white/[0.1]" : ""}`}
-        >
-          <NavIcon name={nav.icon} className="h-5 w-5 shrink-0" />
-        </span>
-        <span className="relative mt-0.5 text-[9px] sm:text-[10px] leading-none font-semibold truncate max-w-full px-0.5 text-center">
-          {nav.label}
-        </span>
-        {active && (
-          <span className="absolute top-1 right-1 h-1 w-1 rounded-full bg-current sm:top-1.5 sm:right-1.5 sm:h-1.5 sm:w-1.5" aria-hidden />
-        )}
-      </Link>
-    </motion.div>
+    <div
+      className="nav-wheel-wire h-[2px] w-full max-w-[1.05rem] rounded-full transition-all duration-300 ease-out sm:max-w-[1.4rem]"
+      style={{
+        background: `linear-gradient(90deg, rgba(${rgbL},0.55), rgba(${rgbR},0.55))`,
+        opacity,
+        boxShadow: glowRgb ? `0 0 14px 1px rgba(${glowRgb},0.55), 0 0 28px -4px rgba(${glowRgb},0.32)` : undefined,
+      }}
+      aria-hidden
+    />
   );
 }
 
-function NavCenterPill({ item: nav, pathname }: { item: AppNavItem; pathname: string }) {
+function NavBubble({
+  nav,
+  pathname,
+  isCenter,
+}: {
+  nav: AppNavItem;
+  pathname: string;
+  isCenter: boolean;
+}) {
   const active = isAppNavActive(pathname, nav.href);
+  const tone = NAV_WHEEL_ORBIT_TONE[nav.href] ?? "dashboard-tool-bubble-cyan";
+
   return (
     <motion.div
-      whileTap={{ scale: 0.96 }}
-      transition={{ type: "spring", stiffness: 480, damping: 28 }}
-      className="relative z-[2] min-w-0 w-full max-w-[4.75rem] justify-self-center -mt-0 sm:mt-0 sm:max-w-[5.15rem]"
+      whileTap={{ scale: 0.94 }}
+      transition={{ type: "spring", stiffness: 520, damping: 28 }}
+      className={`relative z-[1] flex flex-col items-center ${isCenter ? "z-[3] -mx-0.5 sm:-mx-1" : ""}`}
     >
       <Link
         href={nav.href}
         title={nav.label}
         aria-current={active ? "page" : undefined}
-        className={`relative flex w-full flex-col items-center justify-center rounded-[1.35rem] border-2 py-2 px-2 shadow-lg transition-all duration-300 sm:rounded-[1.5rem] sm:py-2 sm:px-3 ${
-          active
-            ? `bg-gradient-to-b ${nav.accentBg} border-accent-cyan/50 ${nav.accentGlow} ${nav.accentText} scale-[1.04] sm:scale-[1.06]`
-            : `bg-gradient-to-b from-white/[0.08] to-white/[0.02] border-white/15 text-text-muted ${nav.inactiveHover}`
-        }`}
+        className={[
+          "dashboard-tool-bubble relative flex h-[3.25rem] w-[3.25rem] shrink-0 flex-col items-center justify-center rounded-full border text-text-primary backdrop-blur-xl",
+          "transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
+          tone,
+          isCenter ? "sm:h-[3.75rem] sm:w-[3.75rem] scale-[1.06] sm:scale-[1.08]" : "",
+          active ? "opacity-100 ring-2 ring-white/25" : "opacity-[0.82] hover:opacity-100",
+          active ? "" : "hover:-translate-y-0.5 hover:scale-[1.04]",
+        ].join(" ")}
       >
         {active && (
           <motion.span
-            layoutId="navwheel-center-ring"
-            className="absolute -inset-[2px] rounded-[1.15rem] border border-accent-cyan/40 opacity-80 sm:rounded-[1.25rem]"
-            transition={{ type: "spring", bounce: 0.2, duration: 0.4 }}
+            layoutId="navwheel-bubble-active"
+            className="pointer-events-none absolute inset-0 rounded-full border border-white/20"
+            transition={{ type: "spring", bounce: 0.2, duration: 0.38 }}
           />
         )}
-        <span className="relative flex items-center justify-center rounded-xl bg-white/[0.12] p-1.5 ring-1 ring-white/10 sm:p-2">
-          <NavIcon name={nav.icon} className="h-5 w-5 shrink-0 sm:h-6 sm:w-6" />
+        <span className="relative z-[1]">
+          <NavIcon name={nav.icon} className={`h-[1.15rem] w-[1.15rem] sm:h-5 sm:w-5 ${active ? nav.accentText : "text-text-primary"}`} />
         </span>
-        <span className="relative mt-1 text-[9px] font-bold uppercase tracking-wide sm:mt-1.5 sm:text-[10px]">{nav.label}</span>
       </Link>
+      <span
+        className={`mt-1.5 max-w-[4.5rem] text-center text-[9px] font-semibold leading-tight sm:text-[10px] ${
+          active ? nav.accentText : "text-text-muted"
+        }`}
+      >
+        {nav.label}
+      </span>
     </motion.div>
   );
 }
 
 export default function NavWheel() {
   const pathname = usePathname();
+  const [hovered, setHovered] = useState<number | null>(null);
+
+  const activeIndex = useMemo(() => {
+    const i = NAV_WHEEL_ITEMS.findIndex((n) => isAppNavActive(pathname, n.href));
+    return i >= 0 ? i : 0;
+  }, [pathname]);
 
   return (
     <footer
-      className="fixed bottom-0 left-0 right-0 z-50 pb-[max(0.35rem,env(safe-area-inset-bottom))] pt-0 px-1 sm:px-2 bg-gradient-to-t from-void via-void/95 to-transparent pointer-events-none overflow-hidden"
+      className="fixed bottom-0 left-0 right-0 z-50 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-1 px-2 sm:px-3 bg-gradient-to-t from-void via-void/90 to-transparent pointer-events-none"
       aria-label="Navigation"
     >
-      <div className="pointer-events-auto mx-auto max-w-[30rem] sm:max-w-[32rem]">
-        <nav
-          className="grid grid-cols-5 items-end gap-0.75 sm:gap-1 rounded-[2.15rem] sm:rounded-[2.35rem] border border-white/10 bg-gradient-to-r from-fuchsia-500/[0.1] via-cyan-500/12 to-[#0047FF]/[0.11] px-1 py-1 shadow-[0_8px_40px_-10px_rgba(34,211,238,0.22),inset_0_1px_0_0_rgba(255,255,255,0.07)] ring-1 ring-white/10 backdrop-blur-xl sm:px-2 sm:py-1.25"
-          aria-label="Navigation principale"
-        >
-          {NAV_WHEEL_ITEMS.map((nav, i) =>
-            i === 2 ? (
-              <NavCenterPill key={nav.href} item={nav} pathname={pathname} />
-            ) : (
-              <NavPill key={nav.href} item={nav} pathname={pathname} />
-            ),
-          )}
-        </nav>
+      <div className="pointer-events-auto mx-auto flex max-w-[26rem] flex-col items-center sm:max-w-[30rem]">
+        <p className="mb-1 text-[9px] font-medium uppercase tracking-[0.22em] text-text-dim/80">Navigation</p>
+        <div className="w-full pb-0.5" onMouseLeave={() => setHovered(null)}>
+          <nav
+            className="flex w-full items-center justify-center"
+            aria-label="Navigation principale"
+          >
+            {NAV_WHEEL_ITEMS.map((nav, i) => (
+              <Fragment key={nav.href}>
+                {i > 0 ? (
+                  <div
+                    className="flex h-11 min-w-0 flex-1 max-w-[1.5rem] cursor-default items-center justify-center sm:max-w-[1.85rem]"
+                    onMouseEnter={() => setHovered(i)}
+                  >
+                    <WireSegment
+                      leftNav={NAV_WHEEL_ITEMS[i - 1]}
+                      rightNav={nav}
+                      leftIdx={i - 1}
+                      rightIdx={i}
+                      hovered={hovered}
+                      active={activeIndex}
+                    />
+                  </div>
+                ) : null}
+                <div className="flex flex-col items-center" onMouseEnter={() => setHovered(i)}>
+                  <NavBubble nav={nav} pathname={pathname} isCenter={i === 2} />
+                </div>
+              </Fragment>
+            ))}
+          </nav>
+        </div>
       </div>
     </footer>
   );
