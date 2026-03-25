@@ -45,7 +45,7 @@ Ce qui est **mis en avant dans l’application** :
 - **Airtable** (bases / tables / enregistrements via MCP)
 - **n8n** (workflows / automatisation)
 - **Supabase** (données / requêtes guidées)
-- **Chatbot Stacky** (page `/app/chatbot`) : questionnaire Typebot embarqué pour aider à choisir une stack adaptée au projet — source publique : [typebot.co/stacky-asuncian](https://typebot.co/stacky-asuncian)
+- **Chatbot Stacky** (page `/app/chatbot`) : même expérience que la page publique [typebot.co/stacky-asuncian](https://typebot.co/stacky-asuncian), affichée dans l’app via **iframe** (évite les erreurs « bot introuvable » liées au slug vs ID interne Typebot).
 - **Assistant IA** intégré (chat, historique de conversation)
 
 Il n’y a **pas d’écran « Leads »** dans l’app actuelle ; l’assistant ne doit pas renvoyer vers une page Leads inexistante.
