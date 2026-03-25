@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { callN8nMcpTool, isN8nMcpConfigured, normalizeExecuteWorkflowInputs } from "../mcp/n8n-client.js";
-import { parseMcpResultJson } from "../mcp/result.js";
+import { mergeGetWorkflowDetailsMcpPayload, parseMcpResultJson } from "../mcp/result.js";
 import { MCP_ERROR_MESSAGES } from "../config/mcp.js";
 import { callFirstAvailableTool } from "../services/integrations/n8n.js";
 import { parseBody, parseParams, parseQuery } from "../validators/http.js";
@@ -55,7 +55,11 @@ export function n8nRouter(): Router {
     try {
       const { id } = parseParams(n8nWorkflowIdParamsSchema, req);
       const result = await callN8nMcpTool("get_workflow_details", { workflowId: id });
-      const data = parseMcpResultJson(result);
+      const parsed = parseMcpResultJson<Record<string, unknown>>(result);
+      const data =
+        parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)
+          ? mergeGetWorkflowDetailsMcpPayload(result, parsed)
+          : parsed;
       res.json(data);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Erreur n8n";

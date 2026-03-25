@@ -30,50 +30,100 @@ const toPrettyJson = (value: unknown) => {
   }
 };
 
+function normalizeConnections(raw: unknown): Record<string, unknown> {
+  if (raw && typeof raw === "object" && !Array.isArray(raw)) return raw as Record<string, unknown>;
+  return {};
+}
+
+function connectionSourceCount(conn: Record<string, unknown>): number {
+  return Object.keys(conn).length;
+}
+
+/** Accepte un objet ou une chaîne JSON (certains proxys). */
+function parseMaybeObject(v: unknown): Record<string, unknown> | null {
+  if (v == null) return null;
+  if (typeof v === "string") {
+    try {
+      const o = JSON.parse(v) as unknown;
+      return o && typeof o === "object" && !Array.isArray(o) ? (o as Record<string, unknown>) : null;
+    } catch {
+      return null;
+    }
+  }
+  if (typeof v === "object" && !Array.isArray(v)) return v as Record<string, unknown>;
+  return null;
+}
+
 /**
- * Le MCP renvoie souvent le brouillon dans `workflow.nodes` / `connections` et le graphe
- * réellement publié (exécution / export) dans `activeVersion`. On reconstruit un JSON proche
- * d’un export n8n : nodes, connections, pinData, meta.
+ * Récupère le blob `activeVersion` depuis le workflow et éventuellement l’enveloppe API brute.
  */
-function buildEffectiveWorkflowGraph(wf: Record<string, unknown> | null): Record<string, unknown> | null {
+function coalesceActiveVersionBlob(
+  wf: Record<string, unknown>,
+  envelope: Record<string, unknown> | null | undefined,
+): Record<string, unknown> | null {
+  const candidates: unknown[] = [
+    wf.activeVersion,
+    wf.active_version,
+    envelope?.activeVersion,
+    envelope?.active_version,
+  ];
+  for (const c of candidates) {
+    const o = parseMaybeObject(c);
+    if (!o) continue;
+    const nodes = o.nodes;
+    const conn = normalizeConnections(o.connections);
+    const hasNodes = Array.isArray(nodes) && nodes.length > 0;
+    const hasConn = connectionSourceCount(conn) > 0;
+    if (hasNodes || hasConn) return o;
+  }
+  return null;
+}
+
+/**
+ * Brouillon = racine `workflow` ; publié = `activeVersion` (souvent plus complet).
+ * On choisit le graphe le plus riche (nombre de nœuds, puis de connexions).
+ */
+function buildEffectiveWorkflowGraph(
+  wf: Record<string, unknown> | null,
+  envelope: Record<string, unknown> | null | undefined,
+): Record<string, unknown> | null {
   if (!wf || typeof wf !== "object") return null;
-  const av = wf.activeVersion;
-  if (av && typeof av === "object" && !Array.isArray(av) && Array.isArray((av as Record<string, unknown>).nodes)) {
-    const active = av as Record<string, unknown>;
-    const pinData =
-      wf.pinData !== undefined && typeof wf.pinData === "object" && wf.pinData !== null
-        ? wf.pinData
-        : active.pinData !== undefined && typeof active.pinData === "object" && active.pinData !== null
-          ? active.pinData
-          : {};
-    const out: Record<string, unknown> = {
-      nodes: active.nodes,
-      connections:
-        typeof active.connections === "object" && active.connections !== null && !Array.isArray(active.connections)
-          ? active.connections
-          : {},
-      pinData,
-    };
-    const meta =
-      wf.meta !== undefined && typeof wf.meta === "object" && wf.meta !== null
-        ? wf.meta
-        : active.meta !== undefined && typeof active.meta === "object" && active.meta !== null
-          ? active.meta
-          : undefined;
-    if (meta !== undefined) out.meta = meta;
-    return out;
-  }
-  const out: Record<string, unknown> = {
-    nodes: Array.isArray(wf.nodes) ? wf.nodes : [],
-    connections:
-      typeof wf.connections === "object" && wf.connections !== null && !Array.isArray(wf.connections)
-        ? wf.connections
-        : {},
-    pinData: typeof wf.pinData === "object" && wf.pinData !== null ? wf.pinData : {},
-  };
-  if (wf.meta !== undefined && typeof wf.meta === "object" && wf.meta !== null) {
-    out.meta = wf.meta;
-  }
+
+  const rootNodes = Array.isArray(wf.nodes) ? wf.nodes : [];
+  const rootConn = normalizeConnections(wf.connections);
+
+  const activeBlob = coalesceActiveVersionBlob(wf, envelope);
+  const activeNodes = activeBlob && Array.isArray(activeBlob.nodes) ? activeBlob.nodes : [];
+  const activeConn = activeBlob ? normalizeConnections(activeBlob.connections) : {};
+
+  const rn = rootNodes.length;
+  const an = activeNodes.length;
+  const rc = connectionSourceCount(rootConn);
+  const ac = connectionSourceCount(activeConn);
+
+  const preferActive =
+    an > rn || (an === rn && ac > rc) || (rc === 0 && ac > 0 && an > 0);
+
+  const useActive = preferActive && (an > 0 || ac > 0);
+  const nodes = useActive && an > 0 ? activeNodes : rootNodes;
+  const connections = useActive ? activeConn : rootConn;
+
+  const pinData =
+    wf.pinData !== undefined && typeof wf.pinData === "object" && wf.pinData !== null
+      ? wf.pinData
+      : activeBlob?.pinData !== undefined && typeof activeBlob.pinData === "object" && activeBlob.pinData !== null
+        ? activeBlob.pinData
+        : {};
+
+  const metaRoot = wf.meta && typeof wf.meta === "object" && wf.meta !== null ? { ...(wf.meta as Record<string, unknown>) } : {};
+  const metaActive =
+    activeBlob?.meta && typeof activeBlob.meta === "object" && activeBlob.meta !== null
+      ? (activeBlob.meta as Record<string, unknown>)
+      : {};
+  const meta = { ...metaRoot, ...metaActive };
+
+  const out: Record<string, unknown> = { nodes, connections, pinData };
+  if (Object.keys(meta).length > 0) out.meta = meta;
   return out;
 }
 
@@ -115,6 +165,8 @@ export default function N8nView() {
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [workflowObject, setWorkflowObject] = useState<Record<string, unknown> | null>(null);
+  /** Réponse brute `GET /workflows/:id` (workflow + triggerInfo + champs racine) pour retrouver activeVersion. */
+  const [workflowDetailEnvelope, setWorkflowDetailEnvelope] = useState<Record<string, unknown> | null>(null);
   /** JSON affiché : graphe publié (effectif) ou réponse MCP brute (métadonnées + brouillon). */
   const [detailJsonMode, setDetailJsonMode] = useState<"effective" | "mcp">("effective");
   const [templateJson, setTemplateJson] = useState<string>(defaultWorkflowTemplate);
@@ -154,6 +206,7 @@ export default function N8nView() {
       if (autoPickFirst && list.length === 0) {
         setSelectedId(null);
         setWorkflowObject(null);
+        setWorkflowDetailEnvelope(null);
         setNotice("Aucun workflow disponible pour le moment.");
       }
     } catch (e) {
@@ -177,11 +230,14 @@ export default function N8nView() {
         );
       }
       if (typeof data.editorBaseUrl === "string") setEditorBaseUrl(data.editorBaseUrl);
+      const envelope = data as Record<string, unknown>;
+      setWorkflowDetailEnvelope(envelope);
       const wf = (data.workflow && typeof data.workflow === "object" ? data.workflow : data) as Record<string, unknown>;
       setWorkflowObject(wf);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erreur réseau.");
       setWorkflowObject(null);
+      setWorkflowDetailEnvelope(null);
     } finally {
       setLoadingDetail(false);
     }
@@ -200,7 +256,10 @@ export default function N8nView() {
     setExecutionError(null);
   }, [selectedId]);
 
-  const effectiveWorkflowGraph = useMemo(() => buildEffectiveWorkflowGraph(workflowObject), [workflowObject]);
+  const effectiveWorkflowGraph = useMemo(
+    () => buildEffectiveWorkflowGraph(workflowObject, workflowDetailEnvelope),
+    [workflowObject, workflowDetailEnvelope],
+  );
 
   const mcpWorkflowJson = useMemo(() => (workflowObject ? toPrettyJson(workflowObject) : ""), [workflowObject]);
 

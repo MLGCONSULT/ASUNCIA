@@ -44,7 +44,9 @@ L’objet `workflow` renvoyé par le MCP contient souvent :
 - à la **racine** : `nodes` / `connections` correspondant au **brouillon** en édition ;
 - dans **`activeVersion`** : le graphe **publié** (celui exécuté en production quand le workflow est actif).
 
-L’**interface** Workflows de l’app affiche par défaut un JSON **effectif** reconstruit à partir de `activeVersion` (voir [`07-frontend.md`](07-frontend.md)).
+Le **SDK MCP** peut dupliquer le payload dans **`structuredContent`** en plus du JSON texte. Le backend fusionne les deux et conserve le **`activeVersion` le plus riche** (plus de nœuds ou plus de connexions), pour éviter de perdre le graphe publié.
+
+L’**interface** Workflows choisit ensuite le graphe **effectif** en comparant racine et `activeVersion` (et l’enveloppe complète de la réponse API), de façon à afficher le JSON le plus proche d’un export n8n (voir [`07-frontend.md`](07-frontend.md)).
 
 ## Fiabilité
 

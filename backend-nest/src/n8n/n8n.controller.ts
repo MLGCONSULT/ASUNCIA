@@ -18,7 +18,7 @@ import {
   normalizeExecuteWorkflowInputs,
 } from "../mcp/n8n-client";
 import { collectWorkflowValidationErrors } from "./workflow-validate";
-import { parseMcpResultJson } from "../mcp/result";
+import { mergeGetWorkflowDetailsMcpPayload, parseMcpResultJson } from "../mcp/result";
 import { MCP_ERROR_MESSAGES } from "../config/mcp";
 
 type AuthRequest = Request & { user?: { id: string } };
@@ -695,13 +695,20 @@ ${typeGuidance}`;
       for (const id of ids) {
         try {
           const detailResult = await callN8nMcpTool("get_workflow_details", { workflowId: id });
-          const detail = parseMcpResultJson<Record<string, unknown>>(detailResult);
+          const parsedDetail = parseMcpResultJson<Record<string, unknown>>(detailResult);
+          const detail = mergeGetWorkflowDetailsMcpPayload(detailResult, parsedDetail);
           const workflowObj =
             detail && typeof detail === "object" && detail.workflow && typeof detail.workflow === "object"
               ? (detail.workflow as Record<string, unknown>)
               : detail;
           if (!workflowObj || typeof workflowObj !== "object") continue;
-          const nodes = Array.isArray(workflowObj.nodes) ? workflowObj.nodes : [];
+          const av = workflowObj.activeVersion;
+          const rootNodes = Array.isArray(workflowObj.nodes) ? workflowObj.nodes : [];
+          const activeNodes =
+            av && typeof av === "object" && !Array.isArray(av) && Array.isArray((av as Record<string, unknown>).nodes)
+              ? ((av as Record<string, unknown>).nodes as unknown[])
+              : [];
+          const nodes = activeNodes.length > rootNodes.length ? activeNodes : rootNodes;
           for (const node of nodes) {
             if (!node || typeof node !== "object") continue;
             const type = (node as { type?: unknown }).type;
@@ -794,7 +801,11 @@ ${typeGuidance}`;
     try {
       const { id } = params;
       const result = await callN8nMcpTool("get_workflow_details", { workflowId: id });
-      const data = parseMcpResultJson(result);
+      const parsed = parseMcpResultJson<Record<string, unknown>>(result);
+      const data =
+        parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)
+          ? mergeGetWorkflowDetailsMcpPayload(result, parsed)
+          : parsed;
       const editorBaseUrl = getN8nEditorBaseUrl();
       if (data !== null && typeof data === "object" && !Array.isArray(data)) {
         return { ...(data as Record<string, unknown>), editorBaseUrl };

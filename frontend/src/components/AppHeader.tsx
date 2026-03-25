@@ -43,21 +43,28 @@ export default function AppHeader() {
     <>
       <header className="fixed top-0 left-0 right-0 z-[60] border-b border-white/10 bg-void/80 pt-[env(safe-area-inset-top,0px)] backdrop-blur-xl shadow-[0_8px_32px_-12px_rgba(34,211,238,0.15)]">
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-accent-cyan/50 to-transparent" aria-hidden />
-        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-3 px-3 sm:px-5">
+        <div className="mx-auto flex h-14 max-w-6xl items-center gap-2 px-3 sm:gap-3 sm:px-5">
           <Link
             href="/app/dashboard"
-            className="flex min-w-0 items-center gap-2 text-text-primary transition-colors hover:text-accent-cyan"
+            className="flex min-w-0 shrink-0 items-center gap-2 text-text-primary transition-colors hover:text-accent-cyan"
           >
             <span className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-white/15 bg-white/[0.06] shadow-[0_0_24px_-8px_rgba(34,211,238,0.45)]">
               <Image src="/logo.png" alt="" width={36} height={22} className="object-contain" />
             </span>
             <span className="hidden font-display text-base font-semibold tracking-tight sm:inline">AsuncIA</span>
+            <span
+              className="hidden max-w-[7rem] truncate border-l border-white/10 pl-2 text-[10px] font-medium uppercase tracking-[0.18em] text-accent-cyan/80 xl:inline xl:max-w-[10rem]"
+              title={title}
+            >
+              {title}
+            </span>
           </Link>
-          <p className="hidden min-w-0 truncate text-center text-[10px] font-semibold uppercase tracking-[0.22em] text-accent-cyan/90 sm:block sm:max-w-[12rem] md:max-w-md">
-            {title}
-          </p>
-          <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
-            <CommandPalette />
+
+          <div className="min-w-0 flex-1 flex justify-center">
+            <CommandPalette variant="header" />
+          </div>
+
+          <div className="flex shrink-0 items-center gap-1 sm:gap-2">
             <form onSubmit={handleLogout}>
               <button
                 type="submit"
