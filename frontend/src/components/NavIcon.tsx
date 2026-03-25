@@ -4,7 +4,7 @@
  * Icônes de navigation au style lofi cyberpunk : contours nets, léger glow, géométrique.
  * Utiliser className pour la couleur (ex. text-accent-cyan, text-text-muted).
  */
-type IconName = "chat" | "mail" | "user" | "grid" | "document" | "workflow" | "database";
+type IconName = "chat" | "dashboard" | "mail" | "user" | "grid" | "document" | "workflow" | "database";
 
 const iconClass = "w-full h-full drop-shadow-[0_0_4px_currentColor]";
 const stroke = 2;
@@ -16,6 +16,15 @@ const icons: Record<IconName, () => React.ReactNode> = {
     <svg className={iconClass} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={stroke} strokeLinecap={cap} strokeLinejoin={join} aria-hidden>
       <path d="M21 11.5a2.5 2.5 0 0 1-2.5 2.5H7l-4 3v-3a2.5 2.5 0 0 1-2-2.5v-8A2.5 2.5 0 0 1 3.5 1h15A2.5 2.5 0 0 1 21 3.5v8z" />
       <path d="M7 7.5h10M7 11h6" />
+    </svg>
+  ),
+  /** Panneaux type « widgets » (bento), distinct de la grille Airtable et de la bulle chat. */
+  dashboard: () => (
+    <svg className={iconClass} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={stroke} strokeLinecap={cap} strokeLinejoin={join} aria-hidden>
+      <rect x="2.5" y="2.5" width="8.25" height="8.25" rx="1.75" />
+      <rect x="12.25" y="2.5" width="9.25" height="8.25" rx="1.75" />
+      <rect x="2.5" y="12.25" width="19" height="9.25" rx="1.75" />
+      <circle cx="6.6" cy="6.6" r="1.1" fill="currentColor" stroke="none" className="opacity-85" />
     </svg>
   ),
   mail: () => (

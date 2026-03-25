@@ -15,7 +15,7 @@ type CommandItem = {
 };
 
 const COMMANDS: CommandItem[] = [
-  { id: "dashboard", href: "/app/dashboard", label: "Tableau de bord", hint: "Vue d’ensemble", icon: "chat" },
+  { id: "dashboard", href: "/app/dashboard", label: "Tableau de bord", hint: "Vue d’ensemble", icon: "dashboard" },
   { id: "airtable", href: "/app/airtable", label: "Airtable", hint: "Bases et enregistrements", icon: "grid" },
   { id: "chatbot", href: "/app/chatbot", label: "Chatbot", hint: "Trouver la stack idéale", icon: "chat" },
   { id: "n8n", href: "/app/n8n", label: "n8n", hint: "Automatisations", icon: "workflow" },

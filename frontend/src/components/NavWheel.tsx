@@ -50,7 +50,7 @@ const NAV_SIDE: NavItem[] = [
 const NAV_CENTER: NavItem = item(
   "/app/dashboard",
   "Dashboard",
-  "chat",
+  "dashboard",
   "text-accent-cyan",
   "shadow-[0_0_28px_-4px_rgba(34,211,238,0.95)]",
   "from-cyan-400/35 to-cyan-400/10",

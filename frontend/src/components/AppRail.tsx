@@ -12,7 +12,7 @@ import { fetchBackend } from "@/lib/api";
 type NavItem = { href: string; label: string; icon: IconName };
 
 const NAV_ITEMS: NavItem[] = [
-  { href: "/app/dashboard", label: "Dashboard", icon: "chat" },
+  { href: "/app/dashboard", label: "Dashboard", icon: "dashboard" },
   { href: "/app/airtable", label: "Airtable", icon: "grid" },
   { href: "/app/n8n", label: "Workflows", icon: "workflow" },
   { href: "/app/supabase", label: "Supabase", icon: "database" },
