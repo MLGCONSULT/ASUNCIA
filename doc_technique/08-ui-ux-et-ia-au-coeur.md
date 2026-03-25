@@ -6,7 +6,7 @@ L'application avait initialement une presentation assez classique :
 
 - une page d'accueil minimaliste
 - un dashboard avec un chat et des cartes
-- des vues outils separees pour `Gmail`, `Airtable`, `Notion` et `n8n`
+- des vues outils separees pour `Airtable`, `Supabase`, `n8n` et le chatbot Stacky
 
 Cette base etait propre, mais elle donnait parfois l'impression d'une collection de modules plus que d'un assistant central.
 

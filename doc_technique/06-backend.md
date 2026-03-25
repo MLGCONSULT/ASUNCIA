@@ -1,18 +1,18 @@
-# 06 - Backend
+# 06 - Backend (NestJS)
 
 ## Role du backend
 
-Le backend est le centre de gravite technique du projet.
+Le backend NestJS (`backend-nest/`) est le centre de gravite technique du projet.
 
 Il gere :
 
-- l'API HTTP
-- la verification du JWT
+- l'API HTTP (`/api/...`)
+- la verification du JWT Supabase
 - les integrations metier
 - les clients MCP
 - la logique du chat IA
 - les validations d'entree
-- les health checks et les tests de fumee
+- les health checks
 
 ## Pourquoi ce role est important
 
@@ -22,31 +22,30 @@ Le choix retenu ici est donc bon pour un projet d'alternance : il montre une arc
 
 ## Organisation actuelle
 
-Le backend est structure autour de plusieurs briques :
+Le backend est structure en modules NestJS typiques :
 
-- `routes` pour les entrees HTTP
+- `controllers` pour les entrees HTTP
 - `services` pour la logique reutilisable
 - `mcp` pour les clients MCP
-- `validators` pour les schemas de validation
-- `middleware` pour les controles transverses
+- middleware d'authentification utilisateur
+- persistance OAuth pour fiabiliser les flux en serverless
 
-Un point important de la version actuelle est l'ajout de services dedies a la fiabilisation OAuth, notamment pour persister les etats temporaires et stabiliser certains clients providers.
+La reference de deploiement est **`backend-nest`** (pas l'ancienne API Express du dossier `backend/`, si elle est encore presente dans le depot).
 
 ## Routes importantes
 
 Quelques familles de routes ressortent particulierement :
 
-- `chat`
-- `gmail`
+- `chat` (assistant IA)
+- `conversation` / `conversations`
 - `airtable`
-- `notion`
 - `n8n`
 - `mcp`
 - `health`
 
 ## Validation
 
-Le backend utilise des schemas pour fiabiliser les entrees. C'est un point fort important, car il reduit les erreurs runtime et rend les contrats d'API plus clairs.
+Le backend utilise des DTO et validateurs pour fiabiliser les entrees. C'est un point fort important, car il reduit les erreurs runtime et rend les contrats d'API plus clairs.
 
 ## IA et orchestration
 
@@ -54,13 +53,11 @@ Le backend prepare les messages, la conversation, les outils disponibles et exec
 
 ## Qualites techniques deja visibles
 
-- separation routes / services / validateurs
+- separation modules / services / controleurs
 - prise en charge de MCP
 - health checks
-- smoke tests
-- scripts de verification
 - persistance OAuth compatible serverless
-- modes de runtime explicites pour `Notion` et `Airtable`
+- mode de runtime explicite pour `Airtable` (`oauth` vs `server-token`)
 
 ## Vigilance pour la suite
 
@@ -71,14 +68,13 @@ Le backend doit toujours rester :
 - le point de gestion des erreurs
 - la couche qui protege les secrets et les appels sensibles
 
-Il doit aussi rester le point qui decide du mode runtime retenu pour chaque integration. Le frontend ne doit pas deviner si `Airtable` ou `Notion` tournent en `oauth` ou en `server-token`.
+Il doit aussi rester le point qui decide du mode runtime retenu pour chaque integration. Le frontend ne doit pas deviner si `Airtable` tourne en `oauth` ou en `server-token`.
 
 ## Fichiers de reference
 
-- `backend/src/index.ts`
-- `backend/src/server.ts`
-- `backend/src/routes/`
-- `backend/src/services/`
-- `backend/src/services/oauth-state.ts`
-- `backend/src/validators/schemas.ts`
-- `backend/scripts/smoke.mjs`
+- `backend-nest/src/main.ts`
+- `backend-nest/src/app.module.ts`
+- `backend-nest/src/chat/chat.controller.ts`
+- `backend-nest/src/health/health-mcp.controller.ts`
+- `backend-nest/src/services/oauth-state.ts`
+- `backend-nest/src/config/mcp.ts`

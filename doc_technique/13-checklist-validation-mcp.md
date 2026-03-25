@@ -29,33 +29,6 @@ Verifier :
 - `GET /api/n8n/workflows`
 - au moins une execution reelle de workflow sur un environnement de test
 
-## Gmail MCP
-
-Verifier :
-
-- `GMAIL_MCP_URL`
-- `GOOGLE_CLIENT_ID`
-- `GOOGLE_CLIENT_SECRET`
-- le callback frontend exact : `https://<frontend-domain>/api/auth/gmail/callback`
-- `GET /api/health/mcp-gmail`
-- une connexion OAuth complete
-- la lecture d'au moins un message
-- l'envoi d'un mail de test, car le mode retenu est `lecture + envoi`
-
-## Notion MCP
-
-Verifier d'abord le mode retenu :
-
-- `NOTION_RUNTIME_MODE=oauth`
-- ou `NOTION_RUNTIME_MODE=server-token`
-
-Puis verifier :
-
-- `GET /api/health/mcp-notion`
-- une recherche reelle
-- une lecture ou requete de base reelle
-- si mode `oauth`, un redeploiement ou un cold start pour confirmer que le client OAuth reste stable
-
 ## Airtable MCP
 
 Verifier d'abord le mode retenu :
@@ -76,7 +49,7 @@ En plus des checks provider par provider, il faut aussi verifier :
 
 - que les callbacks OAuth ne cassent pas apres redeploiement
 - que les etats de connexion visibles par l'utilisateur restent coherents
-- que `npm run smoke -w backend` passe toujours
+- que `npm run build` dans `backend-nest` reussit avant un deploiement
 - que la documentation `doc_technique` raconte encore la verite
 
 ## Conclusion

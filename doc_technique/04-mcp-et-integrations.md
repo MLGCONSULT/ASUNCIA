@@ -4,17 +4,15 @@
 
 `MCP` signifie `Model Context Protocol`. Dans ce projet, il sert de pont standardise entre le backend et plusieurs outils externes.
 
-Concretement, le backend ne parle pas directement a tous les services de maniere artisanale. Il passe par des clients MCP quand cela est pertinent.
+Concretement, le backend NestJS ne parle pas directement a tous les services de maniere artisanale. Il passe par des clients MCP quand cela est pertinent.
 
 ## Idee generale
 
-Le backend est client MCP pour :
+Le backend (`backend-nest`) est client MCP pour :
 
 - `Supabase`
 - `n8n`
-- `Gmail`
 - `Airtable`
-- `Notion`
 
 Cela permet d'avoir une couche d'acces plus uniforme et plus simple a faire evoluer.
 
@@ -47,23 +45,6 @@ Variables importantes :
 - `N8N_MCP_URL`
 - `N8N_MCP_ACCESS_TOKEN`
 
-### Gmail MCP
-
-`Gmail` combine deux dimensions :
-
-- un serveur MCP pour les outils
-- un token OAuth utilisateur pour l'acces au compte
-
-Le mode retenu pour la production est desormais clair : `lecture + envoi`.
-
-Autrement dit, si l'application propose `send_email` dans le backend, le scope OAuth demande doit couvrir a la fois la lecture et l'envoi. Cela evite un ecart entre ce que l'interface promet et ce que Google autorise reellement.
-
-Variables importantes :
-
-- `GMAIL_MCP_URL`
-- `GOOGLE_CLIENT_ID`
-- `GOOGLE_CLIENT_SECRET`
-
 ### Airtable MCP
 
 `Airtable` supporte deux modes dans le projet :
@@ -73,26 +54,13 @@ Variables importantes :
 
 Cela permet de s'adapter a plusieurs contextes d'usage, mais cela oblige a bien documenter le mode retenu.
 
-En pratique, le projet sait maintenant figer ce choix avec `AIRTABLE_RUNTIME_MODE` :
+En pratique, le projet sait figer ce choix avec `AIRTABLE_RUNTIME_MODE` :
 
 - `oauth`
 - `server-token`
 - `auto` pour le developpement
 
 En production, il vaut mieux choisir explicitement `oauth` ou `server-token` pour eviter tout comportement ambigu.
-
-### Notion MCP
-
-`Notion` supporte lui aussi deux modes :
-
-- serveur officiel avec `OAuth`
-- serveur alternatif ou open-source avec token serveur
-
-Le point important est de ne jamais melanger les deux sans le dire clairement.
-
-La meme logique de clarification existe maintenant avec `NOTION_RUNTIME_MODE`.
-
-De plus, le projet ne depend plus uniquement de la memoire du serveur pour le flux OAuth temporaire. Les etats en attente sont persistes, et le client OAuth Notion peut etre stabilise d'un redeploiement a l'autre.
 
 ## Health checks
 
@@ -102,20 +70,16 @@ Exemples :
 
 - `/api/health/mcp-supabase`
 - `/api/health/mcp-n8n`
-- `/api/health/mcp-gmail`
 - `/api/health/mcp-airtable`
-- `/api/health/mcp-notion`
 
-Les reponses indiquent aussi le `selectedMode` retenu pour `Airtable` et `Notion`, ce qui aide a comprendre rapidement comment le runtime est cense fonctionner.
+Les reponses indiquent aussi le `selectedMode` retenu pour `Airtable` quand c'est pertinent, ce qui aide a comprendre rapidement comment le runtime est cense fonctionner.
 
 ## Ce qui a ete durci pour la production
 
 Pour rendre les MCP plus fiables, plusieurs garde-fous ont ete ajoutes :
 
 - persistance Supabase des etats OAuth temporaires au lieu d'un simple store memoire
-- persistance du client OAuth `Notion` pour mieux supporter les cold starts
-- mode `Gmail` aligne entre la lecture et l'envoi
-- modes explicites `oauth` ou `server-token` pour `Airtable` et `Notion`
+- modes explicites `oauth` ou `server-token` pour `Airtable`
 - checklist reelle de validation a suivre avant demonstration ou mise en production
 
 ## Ce qu'il faut toujours preserver
@@ -124,15 +88,15 @@ Si l'architecture evolue, il faut garder :
 
 - la compatibilite `n8n` via MCP
 - la compatibilite `Supabase` via MCP
-- la possibilite d'orchestrer `Gmail`, `Notion` et `Airtable`
+- la compatibilite `Airtable` via MCP
 - des checks d'etat lisibles
 - une documentation claire du mode de connexion retenu
 
 ## Fichiers de reference
 
-- `backend/src/config/mcp.ts`
-- `backend/docs/MCP.md`
-- `backend/src/mcp/`
-- `backend/src/routes/health.ts`
-- `backend/src/services/oauth-state.ts`
+- `backend-nest/src/config/mcp.ts`
+- `backend-nest/src/mcp/`
+- `backend-nest/src/health/health-mcp.controller.ts`
+- `backend-nest/src/services/oauth-state.ts`
 - `doc_technique/13-checklist-validation-mcp.md`
+- `doc_technique/14-guide-configuration-mcp.md`

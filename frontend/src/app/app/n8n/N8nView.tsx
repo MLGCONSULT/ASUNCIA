@@ -43,6 +43,20 @@ const buildN8nWorkflowUrl = (base: string | null, workflowId?: string) => {
   return `${b}/workflow/${encodeURIComponent(workflowId)}`;
 };
 
+/** Erreur métier renvoyée par le MCP même en HTTP 200. */
+function extractExecutionLogicalError(obj: Record<string, unknown> | null | undefined): string | null {
+  if (!obj || typeof obj !== "object") return null;
+  if (obj.success === false) {
+    if (typeof obj.error === "string") return obj.error;
+    if (obj.error != null) return JSON.stringify(obj.error);
+    return "Exécution signalée en échec par n8n.";
+  }
+  if (obj.error != null && obj.success !== true) {
+    return typeof obj.error === "string" ? obj.error : JSON.stringify(obj.error);
+  }
+  return null;
+}
+
 export default function N8nView() {
   const [loadingList, setLoadingList] = useState(true);
   const [refreshingList, setRefreshingList] = useState(false);
@@ -61,6 +75,8 @@ export default function N8nView() {
   const [executionResult, setExecutionResult] = useState<unknown>(null);
   const [executionResultJson, setExecutionResultJson] = useState("");
   const [executionViewMode, setExecutionViewMode] = useState<"summary" | "raw">("summary");
+  /** Erreur MCP / exécution uniquement (carte debug dédiée, pas la bannière générale). */
+  const [executionError, setExecutionError] = useState<string | null>(null);
 
   const selectedWorkflow = useMemo(
     () => workflows.find((w) => w.id === selectedId) ?? null,
@@ -135,10 +151,14 @@ export default function N8nView() {
     loadDetails(selectedId);
   }, [selectedId, loadDetails]);
 
+  useEffect(() => {
+    setExecutionError(null);
+  }, [selectedId]);
+
   const handleExecute = useCallback(async () => {
     if (!selectedId) return;
     setExecuting(true);
-    setError(null);
+    setExecutionError(null);
     setNotice(null);
     try {
       const r = await fetchBackend("/api/n8n/workflows/" + encodeURIComponent(selectedId) + "/execute", {
@@ -148,17 +168,30 @@ export default function N8nView() {
       });
       const data = await r.json().catch(() => ({}));
       if (!r.ok) {
-        throw new Error(
-          typeof data?.error === "string" ? data.error : `Impossible d'executer le workflow (HTTP ${r.status}).`,
-        );
+        const msg =
+          typeof (data as { error?: string })?.error === "string"
+            ? (data as { error: string }).error
+            : `Impossible d'exécuter le workflow (HTTP ${r.status}).`;
+        setExecutionResult(null);
+        setExecutionResultJson("");
+        setExecutionError(msg);
+        return;
       }
       setExecutionResult(data);
       setExecutionResultJson(JSON.stringify(data, null, 2));
-      setNotice("Workflow exécuté.");
+      const obj = data as Record<string, unknown> | null;
+      const logicalErr = extractExecutionLogicalError(obj);
+      if (logicalErr) {
+        setExecutionError(logicalErr);
+        setNotice(null);
+      } else {
+        setExecutionError(null);
+        setNotice("Workflow exécuté.");
+      }
     } catch (e) {
       setExecutionResult(null);
       setExecutionResultJson("");
-      setError(e instanceof Error ? e.message : "Erreur réseau.");
+      setExecutionError(e instanceof Error ? e.message : "Erreur réseau.");
     } finally {
       setExecuting(false);
     }
@@ -241,6 +274,16 @@ export default function N8nView() {
       setError("Impossible de copier le résultat.");
     }
   }, [executionResultJson]);
+
+  const handleCopyExecutionError = useCallback(async () => {
+    if (!executionError) return;
+    try {
+      await navigator.clipboard.writeText(executionError);
+      setNotice("Message d'erreur copié.");
+    } catch {
+      setError("Impossible de copier l'erreur.");
+    }
+  }, [executionError]);
 
   const executionMeta = useMemo(() => {
     if (!executionResult || typeof executionResult !== "object") return null;
@@ -410,6 +453,34 @@ export default function N8nView() {
                     supplémentaire depuis l’app).
                   </p>
                 </div>
+
+                {executionError ? (
+                  <div
+                    className="rounded-xl border border-accent-rose/45 bg-gradient-to-br from-accent-rose/15 to-black/30 p-3 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)]"
+                    role="alert"
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-accent-rose/95">
+                          Erreur d&apos;exécution (debug)
+                        </p>
+                        <p className="text-[11px] text-text-muted mt-0.5">
+                          Détail renvoyé par le serveur ou le MCP n8n — utile pour corriger le workflow ou les paramètres.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => void handleCopyExecutionError()}
+                        className="shrink-0 px-2.5 py-1 rounded-lg bg-white/10 text-text-primary text-xs font-medium hover:bg-white/15 border border-white/15"
+                      >
+                        Copier l&apos;erreur
+                      </button>
+                    </div>
+                    <pre className="max-h-[min(40vh,16rem)] overflow-auto rounded-lg border border-accent-rose/25 bg-black/40 p-3 text-[11px] font-mono text-text-primary whitespace-pre-wrap break-words [scrollbar-width:thin]">
+                      {executionError}
+                    </pre>
+                  </div>
+                ) : null}
 
                 {selectedWorkflow && (
                   <div className="rounded-lg border border-white/10 bg-white/5 p-3">

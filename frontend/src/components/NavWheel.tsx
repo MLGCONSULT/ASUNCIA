@@ -57,14 +57,15 @@ const NAV_CENTER: NavItem = item(
   "hover:border-cyan-400/50 hover:bg-gradient-to-b hover:from-cyan-400/20 hover:to-cyan-600/10 hover:text-cyan-50",
 );
 
+/** Bleu hover demandé (#0047FF) */
 const NAV_CHATBOT: NavItem = item(
   "/app/chatbot",
   "Chatbot",
   "chat",
-  "text-sky-50",
-  "shadow-[0_0_22px_-6px_rgba(56,189,248,0.95)]",
-  "from-sky-500/30 to-cyan-400/10",
-  "hover:border-sky-400/55 hover:bg-gradient-to-b hover:from-sky-500/20 hover:to-blue-600/5 hover:text-sky-50 hover:shadow-[0_0_26px_-10px_rgba(56,189,248,0.7)]",
+  "text-blue-50",
+  "shadow-[0_0_22px_-6px_rgba(0,71,255,0.9)]",
+  "from-[#0047FF]/35 to-[#0047FF]/8",
+  "hover:border-[#0047FF]/70 hover:bg-gradient-to-b hover:from-[#0047FF]/30 hover:to-[#0047FF]/12 hover:text-white hover:shadow-[0_0_28px_-10px_rgba(0,71,255,0.75)]",
 );
 
 const NAV_WORKFLOWS: NavItem = item(

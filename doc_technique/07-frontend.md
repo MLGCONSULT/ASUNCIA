@@ -13,7 +13,7 @@ Son role n'est pas de porter toute la logique metier. Cette logique reste volont
 - la zone protegee de l'application
 - la navigation
 - les pages metier
-- certains points de passage OAuth cote web, notamment Gmail
+- les flux OAuth lies aux integrations encore exposees (ex. Airtable)
 
 L'accueil public a ete compacte pour mieux tenir sur un ecran desktop sans scroll, tout en gardant les codes visuels du projet. C'est important car la premiere impression du produit doit etre plus immediate et plus moderne.
 
@@ -32,10 +32,10 @@ Les pages importantes du frontend sont :
 
 - un accueil public
 - un dashboard
-- une vue `Mails`
 - une vue `Airtable`
-- une vue `Notion`
-- une vue `n8n`
+- une vue `Supabase`
+- une vue `n8n` (workflows)
+- une page `Chatbot` (Stacky / Typebot en iframe)
 
 Le point fort du projet est que ces pages ne sont pas isolees. Elles sont progressivement repensees pour fonctionner comme un ensemble pilote par l'IA.
 

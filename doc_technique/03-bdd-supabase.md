@@ -50,7 +50,7 @@ Cette table journalise des actions liees a l'IA. Elle peut etre utile pour analy
 
 ### `oauth_tokens`
 
-Cette table stocke les tokens OAuth par utilisateur et par provider. Elle est essentielle pour `Gmail`, `Notion` et `Airtable` en mode OAuth utilisateur.
+Cette table stocke les tokens OAuth par utilisateur et par provider. Elle est essentielle pour les integrations en mode OAuth utilisateur (par ex. **Airtable**).
 
 ## RLS et securite
 
@@ -95,4 +95,4 @@ Il faut rester attentif a plusieurs points :
 - `frontend/supabase/migrations/20250213000001_schema_initial.sql`
 - `frontend/supabase/migrations/20250213000002_rls.sql`
 - `frontend/supabase/migrations/20250213100000_oauth_tokens.sql`
-- `backend/src/lib/supabase.ts`
+- `backend-nest/src/lib/supabase.ts`

@@ -44,7 +44,7 @@ Les futures modifications ne doivent pas casser sans decision explicite :
 
 - la connexion MCP `n8n`
 - la connexion MCP `Supabase`
-- les automatisations MCP comme `Gmail`, `Notion`, `Airtable`
+- les automatisations MCP comme `Airtable`, `n8n`, `Supabase`
 - le role central du backend
 - la place centrale de l'IA dans l'experience utilisateur
 - la recette de validation reelle des MCP avant mise en demonstration ou en production

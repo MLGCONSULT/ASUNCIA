@@ -73,7 +73,7 @@
 **Texte type :**
 
 1. L’utilisateur se **connecte** (compte sécurisé).
-2. Il choisit un **outil** dans le menu du bas (Airtable, Chatbot Stacky, Dashboard, Workflows, Supabase…).
+2. Il choisit un **outil** dans le dock du bas (ordre : Airtable → Chatbot → Dashboard → Workflows → Supabase).
 3. L’**assistant IA** peut répondre en langage naturel et **orienter** vers le bon écran ; le **chatbot Stacky** propose un **questionnaire** pour suggérer une stack adaptée.
 
 **Visuel :** schéma **Utilisateur → Site web → Serveur → Outils connectés** (4 blocs).
@@ -147,12 +147,16 @@
 
 ## Liste de captures d’écran à prévoir
 
-1. Page d’accueil / connexion  
-2. **Dashboard** avec les bulles ou cartes d’outils  
-3. **Barre de navigation** bas (dock coloré)  
-4. Un **outil** ouvert (ex. Airtable, n8n) ou la page **Chatbot Stacky**  
-5. **Assistant IA** ouvert avec une conversation  
-6. (Option) Page **santé** du backend dans le navigateur (JSON)
+| # | Quoi capturer | Conseil pratique |
+|---|----------------|------------------|
+| 1 | Page d’accueil ou écran **connexion** | Fenêtre navigateur en **paysage**, URL visible en haut si le jury doit vérifier le domaine ; éviter les infos personnelles (email flouté si besoin). |
+| 2 | **Dashboard** | Vue montrant les **cartes d’outils** (mission control) ; cadrer pour que le titre / la zone centrale soit lisible. |
+| 3 | **Dock** (navigation bas) | Capture **largeur complète** du bas d’écran pour voir les 5 pastilles : Airtable, Chatbot, Dashboard, Workflows, Supabase. |
+| 4 | Un **outil métier** | Par ex. page **Workflows (n8n)** ou **Airtable** avec un contenu représentatif (pas une erreur vide). Alternative : page **Chatbot** avec l’iframe Stacky visible. |
+| 5 | **Assistant IA** (bulle) | Panneau ouvert : montrer le **bandeau « Historique »** + **au moins une question et une réponse** (pas un chat vide). |
+| 6 | (Option) **Backend santé** | Onglet navigateur sur `…/api/health/mcp-n8n` (ou racine du backend) avec le **JSON** lisible — preuve « technique » pour la slide 7. |
+
+**Réglages utiles :** zoom navigateur 90–100 %, thème sombre cohérent avec les slides, pas de barre de favoris surchargée (ou fenêtre privée).
 
 ---
 

@@ -5,19 +5,19 @@
 Le projet est organise comme un monorepo avec deux applications principales :
 
 - un `frontend` en `Next.js`
-- un `backend` en `Express`
+- un `backend` en **NestJS** (`backend-nest/`)
 
 Le frontend affiche l'interface et gere la session utilisateur cote web. Le backend centralise ensuite la logique metier, les integrations, le chat IA, les validations et les connexions aux services externes.
 
 ## Principe architectural
 
-Le backend est la couche d'orchestration principale.
+Le backend NestJS est la couche d'orchestration principale.
 
 Cela veut dire que :
 
 - le frontend reste simple et consomme une API claire
 - l'authentification applicative passe par `Supabase`
-- les appels vers `Gmail`, `Notion`, `Airtable`, `n8n` ou `Supabase MCP` sont pilotes par le backend
+- les appels vers `Airtable`, `n8n` ou `Supabase MCP` sont pilotes par le backend
 - l'IA dialogue avec le backend, qui decide ensuite quelles integrations appeler
 
 ## Schema simplifie
@@ -26,13 +26,11 @@ Cela veut dire que :
 flowchart TD
     User["Utilisateur"] --> Frontend["Frontend Next.js"]
     Frontend --> SupabaseAuth["Supabase Auth"]
-    Frontend --> Backend["Backend Express"]
+    Frontend --> Backend["Backend NestJS"]
     Backend --> SupabaseDB["Supabase DB"]
     Backend --> OpenAI["OpenAI"]
     Backend --> SupabaseMCP["Supabase MCP"]
-    Backend --> GmailMCP["Gmail MCP"]
     Backend --> AirtableMCP["Airtable MCP"]
-    Backend --> NotionMCP["Notion MCP"]
     Backend --> N8nMCP["n8n MCP"]
 ```
 
@@ -56,7 +54,6 @@ Le frontend est responsable de :
 - la navigation
 - la recuperation de la session utilisateur
 - l'envoi du JWT vers le backend
-- les redirections utilisateur, notamment une partie du flux Gmail
 
 Fichiers de reference :
 
@@ -66,21 +63,21 @@ Fichiers de reference :
 
 ### Backend
 
-Le backend est responsable de :
+Le backend NestJS est responsable de :
 
 - l'API HTTP
-- la validation des requetes
 - le middleware d'authentification
 - les appels aux integrations
 - la logique du chat IA
-- les health checks et les smoke tests
+- les health checks
 
 Fichiers de reference :
 
-- `backend/src/index.ts`
-- `backend/src/routes/`
-- `backend/src/services/`
-- `backend/src/validators/schemas.ts`
+- `backend-nest/src/main.ts`
+- `backend-nest/src/app.module.ts`
+- `backend-nest/src/chat/`
+- `backend-nest/src/health/`
+- `backend-nest/src/mcp/`
 
 ### Supabase
 

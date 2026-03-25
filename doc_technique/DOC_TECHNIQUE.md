@@ -34,7 +34,7 @@ Remplace `BASE` par `https://asuncia-backend.vercel.app`.
 
 ## Variables d’environnement essentielles
 
-- **Backend** : `OPENAI_API_KEY`, `NEXT_PUBLIC_SUPABASE_URL`, clés Supabase serveur, `FRONTEND_URL` / `ALLOWED_ORIGINS`, variables MCP par connecteur (voir `backend-nest/.env.example` et `backend/docs/MCP.md`).
+- **Backend** : `OPENAI_API_KEY`, `NEXT_PUBLIC_SUPABASE_URL`, clés Supabase serveur, `FRONTEND_URL` / `ALLOWED_ORIGINS`, variables MCP par connecteur (voir `doc_technique/04-mcp-et-integrations.md` et `14-guide-configuration-mcp.md` pour la liste des variables).
 - **Frontend** : `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_BACKEND_URL` = URL du backend (ex. `https://asuncia-backend.vercel.app`).
 
 ## Périmètre fonctionnel (interface)
@@ -46,16 +46,16 @@ Ce qui est **mis en avant dans l’application** :
 - **n8n** (workflows / automatisation)
 - **Supabase** (données / requêtes guidées)
 - **Chatbot Stacky** (page `/app/chatbot`) : même expérience que la page publique [typebot.co/stacky-asuncian](https://typebot.co/stacky-asuncian), affichée dans l’app via **iframe** (évite les erreurs « bot introuvable » liées au slug vs ID interne Typebot).
-- **Assistant IA** intégré (chat, historique de conversation)
+- **Assistant IA** intégré (chat avec **un seul fil d’historique** par utilisateur, pas de liste de conversations)
 
 Il n’y a **pas d’écran « Leads »** dans l’app actuelle ; l’assistant ne doit pas renvoyer vers une page Leads inexistante.
 
 ## Documentation complémentaire
 
-- `backend/docs/MCP.md` — détail des MCP
-- `doc_technique/14-guide-configuration-mcp.md` — checklist configuration
-- `backend/` (Express) — ancienne API en parallèle possible selon le dépôt ; le déploiement Vercel décrit ici suit le backend **NestJS**.
+- `doc_technique/04-mcp-et-integrations.md` — rôle des MCP dans le projet
+- `doc_technique/14-guide-configuration-mcp.md` — variables et ordre de configuration
+- Code source du backend : **`backend-nest/`** (NestJS). Un dossier `backend/` (Express) peut exister dans le dépôt à titre historique ; **la référence de déploiement et de documentation est NestJS.**
 
 ---
 
-*Dernière mise à jour : alignée sur les URLs de production ci-dessus et le dossier `doc_technique/`.*
+*Dernière mise à jour : alignée sur les URLs de production ci-dessus et sur `backend-nest/`.*

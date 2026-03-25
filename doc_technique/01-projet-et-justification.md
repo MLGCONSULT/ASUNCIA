@@ -6,11 +6,10 @@ Ce projet vise a construire une application metier assistee par l'IA. L'utilisat
 
 L'application relie plusieurs briques utiles au quotidien :
 
-- `Gmail` pour les mails
 - `Airtable` pour les donnees structurees
-- `Notion` pour la connaissance et la documentation
 - `n8n` pour les automatisations
 - `Supabase` pour l'authentification, la base de donnees et certaines operations MCP
+- un chatbot de recommandation (Stacky / Typebot) et un assistant IA integre
 
 ## Pourquoi ce sujet est pertinent
 
@@ -40,10 +39,9 @@ Autrement dit, ce projet ne montre pas uniquement la capacite a coder. Il montre
 
 Le projet cherche a reduire la friction entre l'intention de l'utilisateur et l'action technique. Au lieu de passer manuellement d'un outil a l'autre, l'utilisateur peut demander :
 
-- un resume de ses mails
-- une analyse de ses donnees
-- un rappel du contexte dans Notion
+- une analyse de ses donnees (Airtable, Supabase)
 - un controle ou une execution de workflow n8n
+- une orientation vers le bon ecran ou la bonne demarche
 
 L'idee centrale est donc la suivante : l'utilisateur exprime un besoin, puis le systeme l'aide a comprendre et a agir.
 
