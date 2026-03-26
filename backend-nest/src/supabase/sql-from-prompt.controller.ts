@@ -35,6 +35,38 @@ function isReadOnlySql(sql: string): boolean {
   return /^(select|with|show|explain|describe)\b/i.test(s);
 }
 
+function validateSqlReferencesAgainstTable(
+  sql: string,
+  table: { name: string; columns: { name: string; type: string }[] },
+): { ok: true } | { ok: false; reason: string } {
+  const normalized = normalizeSql(sql);
+  const normalizedLower = normalized.toLowerCase();
+  const safeTable = quoteTableSql(table.name).toLowerCase();
+
+  // Garde-fou table: la requête doit cibler la table résolue via MCP.
+  if (!normalizedLower.includes(`from ${safeTable}`)) {
+    return { ok: false, reason: `La requête ne cible pas la table attendue (${table.name}).` };
+  }
+
+  const allowedCols = new Set(table.columns.map((c) => c.name.toLowerCase()));
+  const tableParts = table.name.split(".").map((p) => p.toLowerCase());
+
+  // Garde-fou colonnes: tous les identifiants SQL quotés (hors nom de table/schema)
+  // doivent correspondre à des colonnes existantes de la table.
+  const quoted = Array.from(normalized.matchAll(/"([^"]+)"/g)).map((m) => m[1].trim());
+  for (const identRaw of quoted) {
+    const ident = identRaw.toLowerCase();
+    if (tableParts.includes(ident)) continue; // schema/table
+    if (allowedCols.has(ident)) continue; // colonne valide
+    return {
+      ok: false,
+      reason: `La colonne "${identRaw}" n'existe pas dans ${table.name} (validation MCP).`,
+    };
+  }
+
+  return { ok: true };
+}
+
 function tryParseJson(raw: string): unknown | null {
   try {
     return JSON.parse(raw);
@@ -283,6 +315,26 @@ function parseAndClausesFromText(
       } else {
         const val = raw.replace(/'/g, "''");
         clauses.push(`${quoteSqlIdentifier(col.name)} = '${val}'`);
+      }
+    }
+  }
+
+  // Cas 1c: langage naturel "colonne est valeur" (ex: payment_method est "insurance")
+  const isEq = p.match(/\b([a-z0-9_]+)\s+est\s+["']?([^,"'\n]+)["']?/i);
+  if (isEq?.[1] && isEq?.[2]) {
+    const col = byLower.get(isEq[1].toLowerCase());
+    if (col) {
+      const raw = isEq[2].trim();
+      if (/^(true|vrai)$/i.test(raw) && /bool/i.test(col.type)) {
+        clauses.push(`${quoteSqlIdentifier(col.name)} = true`);
+      } else if (/^(false|faux)$/i.test(raw) && /bool/i.test(col.type)) {
+        clauses.push(`${quoteSqlIdentifier(col.name)} = false`);
+      } else if (/^(null|vide|none)$/i.test(raw)) {
+        clauses.push(`${quoteSqlIdentifier(col.name)} is null`);
+      } else if (isNumericColumnType(col.type) && /^-?\d+(?:[.,]\d+)?$/.test(raw)) {
+        clauses.push(`${quoteSqlIdentifier(col.name)} = ${raw.replace(",", ".")}`);
+      } else {
+        clauses.push(`${quoteSqlIdentifier(col.name)} = '${raw.replace(/'/g, "''")}'`);
       }
     }
   }
@@ -862,7 +914,7 @@ export class SqlFromPromptController {
 
       const table = schemaTables.find((t) => t.name === resolved.table)!;
       const generated = buildDeterministicReadOnlySql(prompt, table);
-      const sql = normalizeSql(generated.sql);
+      let sql = normalizeSql(generated.sql);
 
       if (!isReadOnlySql(sql)) {
         throw new HttpException(
@@ -874,16 +926,26 @@ export class SqlFromPromptController {
         );
       }
 
+      const refsValidation = validateSqlReferencesAgainstTable(sql, table);
+      let fallbackNote: string | null = null;
+      if (!refsValidation.ok) {
+        // Toujours renvoyer une requête exécutable: fallback safe sur la table MCP.
+        const fallbackLimit = Math.max(1, Math.min(Number(generated.interpretation.limit || 10), 200));
+        sql = `select * from ${quoteTableSql(table.name)} limit ${fallbackLimit}`;
+        fallbackNote = `Fallback appliqué: ${refsValidation.reason}`;
+      }
+
       const explanation =
         generated.unmetExpectations.length > 0
           ? `${generated.explanation} Note: certains détails ont été interprétés automatiquement (${generated.unmetExpectations.join(" ")}).`
           : generated.explanation;
+      const finalExplanation = fallbackNote ? `${explanation} ${fallbackNote}` : explanation;
 
       return {
         sql,
         resolvedTable: table.name,
         mode: "mcp-deterministic",
-        explanation,
+        explanation: finalExplanation,
         interpretation: generated.interpretation,
       };
     } catch (err) {
