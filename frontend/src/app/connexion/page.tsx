@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
+import { getAuthCallbackUrlClient, safeAppPathAfterAuth } from "@/lib/site-url";
 import PasswordInput from "@/components/PasswordInput";
 
 const EMAIL_NOT_CONFIRMED_PATTERNS = [
@@ -44,7 +45,7 @@ function ConnexionForm() {
   const [resendCooldown, setResendCooldown] = useState(0);
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirect = searchParams.get("redirect") ?? "/app/dashboard";
+  const redirect = safeAppPathAfterAuth(searchParams.get("redirect"));
 
   useEffect(() => {
     if (resendCooldown === 0 && resendStatus === "error") {
@@ -93,7 +94,11 @@ function ConnexionForm() {
     setResendError(null);
     setResendStatus("loading");
     const supabase = createClient();
-    const { error: err } = await supabase.auth.resend({ type: "signup", email });
+    const { error: err } = await supabase.auth.resend({
+      type: "signup",
+      email,
+      options: { emailRedirectTo: getAuthCallbackUrlClient() },
+    });
     if (err) {
       setResendStatus("error");
       setResendError(getResendErrorMessage(err.message));

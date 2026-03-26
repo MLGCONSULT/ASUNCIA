@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
+import { getAuthCallbackUrlClient } from "@/lib/site-url";
 import PasswordInput from "@/components/PasswordInput";
 
 export default function InscriptionPage() {
@@ -23,10 +24,14 @@ export default function InscriptionPage() {
     setMessage(null);
     setLoading(true);
     const supabase = createClient();
+    const emailRedirectTo = getAuthCallbackUrlClient();
     const { error: err } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { nom_affichage: nomAffichage || null } },
+      options: {
+        data: { nom_affichage: nomAffichage || null },
+        emailRedirectTo,
+      },
     });
     setLoading(false);
     if (err) {

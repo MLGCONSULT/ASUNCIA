@@ -67,7 +67,7 @@ Ouvre **http://localhost:3000** dans le navigateur. Si quelque chose bloque, vé
 
 En pratique, on déploie souvent **deux projets** (par ex. sur **Vercel**) :
 
-1. **Frontend** : racine du build = dossier `frontend`, avec les variables `NEXT_PUBLIC_*` pointant vers ton Supabase et vers l’**URL publique** du backend.  
+1. **Frontend** : racine du build = dossier `frontend`, avec les variables `NEXT_PUBLIC_*` pointant vers ton Supabase et vers l’**URL publique** du backend (ex. déploiement actuel : **https://asuncia.vercel.app** → API **https://asuncia-backend.vercel.app**).  
 2. **Backend** : racine = `backend-nest`, avec les secrets (IA, MCP, clés Supabase *service role*, etc.) uniquement côté serveur.
 
 Les **URLs de démonstration**, les **endpoints de santé** (`/api/health/...`) et le détail des variables sont dans **`doc_technique/DOC_TECHNIQUE.md`**.
