@@ -223,7 +223,7 @@ function buildDateRangeClauseFromPrompt(
 
 type WhereBuildResult = {
   andClauses: string[];
-  orClauses: string[];
+  orGroups: string[];
 };
 
 function parseAndClausesFromText(
@@ -401,30 +401,57 @@ function buildWhereClausesFromPrompt(
   table: { name: string; columns: { name: string; type: string }[] },
 ): WhereBuildResult {
   const p = normalizePrompt(prompt);
+  const andClauses: string[] = [];
+  const orGroups: string[] = [];
 
-  // Si l'utilisateur exprime des alternatives ("... ou ..."),
-  // on donne la priorité à cette structure logique.
-  if (/\bou\b/.test(p)) {
-    const segments = p
-      .split(/\bou\b/g)
-      .map((s) => s.trim())
-      .filter((s) => s.length > 0);
+  // Priorité à la structure "ET" au niveau global.
+  const andSegments = p
+    .split(/\bet\b/g)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
 
-    const orClauses = segments
-      .map((segment) => {
-        const partClauses = parseAndClausesFromText(segment, table);
-        if (partClauses.length === 0) return null;
-        if (partClauses.length === 1) return partClauses[0];
-        return `(${partClauses.join(" and ")})`;
-      })
-      .filter((v): v is string => Boolean(v));
+  const segmentsToParse = andSegments.length > 1 ? andSegments : [p];
 
-    if (orClauses.length > 0) {
-      return { andClauses: [], orClauses: Array.from(new Set(orClauses)) };
+  for (const seg of segmentsToParse) {
+    if (/\bou\b/.test(seg)) {
+      const orAlternatives = seg
+        .split(/\bou\b/g)
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0)
+        .map((alt) => {
+          const clauses = parseAndClausesFromText(alt, table);
+          if (clauses.length === 0) return null;
+          if (clauses.length === 1) return clauses[0];
+          return `(${clauses.join(" and ")})`;
+        })
+        .filter((v): v is string => Boolean(v));
+
+      if (orAlternatives.length > 1) {
+        orGroups.push(`(${orAlternatives.join(" or ")})`);
+        continue;
+      }
+      if (orAlternatives.length === 1) {
+        andClauses.push(orAlternatives[0]);
+        continue;
+      }
     }
+
+    andClauses.push(...parseAndClausesFromText(seg, table));
   }
 
-  return { andClauses: parseAndClausesFromText(prompt, table), orClauses: [] };
+  return {
+    andClauses: Array.from(new Set(andClauses)),
+    orGroups: Array.from(new Set(orGroups)),
+  };
+}
+
+function composeWhereClause(whereBuild: WhereBuildResult): string | null {
+  const parts = [
+    ...whereBuild.andClauses,
+    ...whereBuild.orGroups,
+  ].filter((x) => x.trim().length > 0);
+  if (parts.length === 0) return null;
+  return parts.join(" and ");
 }
 
 function buildSelectColumnsFromPrompt(
@@ -552,11 +579,8 @@ function buildDeterministicReadOnlySql(
           ? `${aggregate}(${quoteSqlIdentifier(metricCol)}) as total`
           : "count(*) as total";
     sql = `select ${groupId}, ${metricExpr} from ${safeTable}`;
-    const whereCombined = [
-      ...(whereBuild.andClauses.length > 0 ? [whereBuild.andClauses.join(" and ")] : []),
-      ...(whereBuild.orClauses.length > 0 ? [`(${whereBuild.orClauses.join(" or ")})`] : []),
-    ];
-    if (whereCombined.length > 0) sql += ` where ${whereCombined.join(" and ")}`;
+    const whereSql = composeWhereClause(whereBuild);
+    if (whereSql) sql += ` where ${whereSql}`;
     sql += ` group by ${groupId}`;
 
     if (orderCol && direction) {
@@ -573,19 +597,13 @@ function buildDeterministicReadOnlySql(
           ? `${aggregate}(${quoteSqlIdentifier(metricCol)}) as total`
           : "count(*) as total";
     sql = `select ${metricExpr} from ${safeTable}`;
-    const whereCombined = [
-      ...(whereBuild.andClauses.length > 0 ? [whereBuild.andClauses.join(" and ")] : []),
-      ...(whereBuild.orClauses.length > 0 ? [`(${whereBuild.orClauses.join(" or ")})`] : []),
-    ];
-    if (whereCombined.length > 0) sql += ` where ${whereCombined.join(" and ")}`;
+    const whereSql = composeWhereClause(whereBuild);
+    if (whereSql) sql += ` where ${whereSql}`;
   } else {
     const distinctPrefix = distinct ? "distinct " : "";
     sql = `select ${distinctPrefix}${selectCols} from ${safeTable}`;
-    const whereCombined = [
-      ...(whereBuild.andClauses.length > 0 ? [whereBuild.andClauses.join(" and ")] : []),
-      ...(whereBuild.orClauses.length > 0 ? [`(${whereBuild.orClauses.join(" or ")})`] : []),
-    ];
-    if (whereCombined.length > 0) sql += ` where ${whereCombined.join(" and ")}`;
+    const whereSql = composeWhereClause(whereBuild);
+    if (whereSql) sql += ` where ${whereSql}`;
     if (orderCol && direction) {
       sql += ` order by ${quoteSqlIdentifier(orderCol)} ${direction}`;
     }
