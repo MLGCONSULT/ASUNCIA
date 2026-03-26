@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { profileDisplayName } from "@/lib/french-greeting";
+import { profileDisplayName, resolveProfileAndAuthDisplay } from "@/lib/french-greeting";
 import PageMotion from "@/components/PageMotion";
 import DashboardAgentWelcomeLine from "@/components/DashboardAgentWelcomeLine";
 import ToolCards from "@/components/ToolCards";
@@ -41,8 +41,15 @@ const orbitBubbles = [
 
 export default async function DashboardPage() {
   const supabase = await createClient();
-  const { data: profile } = await supabase.from("profiles").select("nom_affichage, email").maybeSingle();
-  const headerIdentity = profileDisplayName(profile?.nom_affichage, profile?.email);
+  const [{ data: profile }, { data: { user } }] = await Promise.all([
+    supabase.from("profiles").select("nom_affichage, email").maybeSingle(),
+    supabase.auth.getUser(),
+  ]);
+  const { nomAffichage: displayNom, email: displayEmail } = resolveProfileAndAuthDisplay(
+    profile,
+    user,
+  );
+  const headerIdentity = profileDisplayName(displayNom, displayEmail);
 
   return (
     <PageMotion className="dashboard-scene relative isolate flex h-full min-h-0 flex-col gap-5 overflow-visible">
@@ -69,7 +76,7 @@ export default async function DashboardPage() {
                 <span className="text-[11px] uppercase tracking-[0.28em] text-accent-cyan/90">
                   Assistant IA
                 </span>
-                <DashboardAgentWelcomeLine nomAffichage={profile?.nom_affichage} email={profile?.email} />
+                <DashboardAgentWelcomeLine nomAffichage={displayNom} email={displayEmail} />
                 <p className="mt-1.5 px-3 text-center text-base font-display font-semibold text-text-primary leading-tight sm:text-lg">
                   L’assistant te guide
                 </p>
@@ -91,7 +98,7 @@ export default async function DashboardPage() {
       </section>
 
       <section className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-4">
-        <DashboardGreetingClock nomAffichage={profile?.nom_affichage ?? null} email={profile?.email ?? null} />
+        <DashboardGreetingClock nomAffichage={displayNom} email={displayEmail} />
         <div className="glass-strong rounded-xl border border-white/10 p-4 card-glow transition-all duration-[420ms] ease-[cubic-bezier(0.22,1,0.36,1)] hover:border-white/[0.14] hover:shadow-[0_20px_50px_-28px_rgba(147,51,234,0.12)]">
           <p className="text-xs uppercase tracking-[0.18em] text-text-dim">Commencer ici</p>
           <p className="mt-2 text-sm text-text-primary">Choisis une action selon l&apos;outil le plus adapté.</p>
