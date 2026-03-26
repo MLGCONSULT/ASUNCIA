@@ -98,6 +98,7 @@ export default function SupabasePage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [generationInfo, setGenerationInfo] = useState<string | null>(null);
   const [schemaTables, setSchemaTables] = useState<SchemaTable[]>([]);
   const [tablesLoading, setTablesLoading] = useState(true);
   const [tablesError, setTablesError] = useState<string | null>(null);
@@ -183,6 +184,7 @@ export default function SupabasePage() {
   async function handleGenerateSql(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    setGenerationInfo(null);
     setResultValue(null);
     setResultText(null);
     const prompt = nlPrompt.trim();
@@ -211,6 +213,9 @@ export default function SupabasePage() {
         return;
       }
       setSql(data.sql);
+      if (typeof data?.explanation === "string" && data.explanation.trim().length > 0) {
+        setGenerationInfo(data.explanation.trim());
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur réseau.");
     } finally {
@@ -365,6 +370,11 @@ export default function SupabasePage() {
                 </button>
               </div>
             </form>
+            {generationInfo && (
+              <div className="mb-3 rounded-2xl border border-accent-cyan/30 bg-accent-cyan/10 px-3 py-2 text-xs text-accent-cyan/95">
+                {generationInfo}
+              </div>
+            )}
 
             <form onSubmit={handleRun} className="mb-4 space-y-2">
               <textarea

@@ -162,6 +162,8 @@ function detectOrderDirection(prompt: string): "asc" | "desc" | null {
   if (/\b(ordre alphabetique inverse|ordre alphabétique inverse|z-a)\b/.test(p)) return "desc";
   if (/\b(croissant|ascending|asc|du plus petit au plus grand)\b/.test(p)) return "asc";
   if (/\b(decroissant|descending|desc|du plus grand au plus petit)\b/.test(p)) return "desc";
+  if (/\b(plus eleve|plus élevé|plus hauts|plus haut|highest|top)\b/.test(p)) return "desc";
+  if (/\b(plus faible|plus bas|lowest)\b/.test(p)) return "asc";
   if (/\b(plus recent|plus recents|dernier|derniers|nouv|recent)\b/.test(p)) return "desc";
   if (/\b(plus ancien|plus anciens|ancien|anciens)\b/.test(p)) return "asc";
   return null;
@@ -169,7 +171,7 @@ function detectOrderDirection(prompt: string): "asc" | "desc" | null {
 
 function wantsOrdering(prompt: string): boolean {
   const p = normalizePrompt(prompt);
-  return /\b(trie|trier|triez|ordre|ordonne|ordonner|class|sort)\b/.test(p);
+  return /\b(trie|trier|triez|ordre|ordonne|ordonner|class|sort|croissant|decroissant|alphabetique|alphabétique|a-z|z-a|plus eleve|plus élevé|plus bas|plus faible)\b/.test(p);
 }
 
 function isNumericColumnType(type: string): boolean {
@@ -515,6 +517,18 @@ function resolveAggregate(prompt: string): "count" | "sum" | "avg" | "min" | "ma
   return null;
 }
 
+function wantsFiltering(prompt: string): boolean {
+  const p = normalizePrompt(prompt);
+  return /\b(ou|où|where|contient|contains|entre|au moins|au plus|minimum|maximum|min|max|in|parmi|vide|null|actif|inactif|superieur|supérieur|inferieur|inférieur|egal|égal|aujourd|hier|semaine|mois|annee|année)\b/.test(
+    p,
+  );
+}
+
+function wantsColumnSelection(prompt: string): boolean {
+  const p = normalizePrompt(prompt);
+  return /\b(affiche|montre|selectionne|sélectionne|colonnes?)\b/.test(p);
+}
+
 function resolveTableFromPrompt(
   prompt: string,
   tables: { name: string; columns: { name: string; type: string }[] }[],
@@ -546,7 +560,7 @@ function resolveTableFromPrompt(
 function buildDeterministicReadOnlySql(
   prompt: string,
   table: { name: string; columns: { name: string; type: string }[] },
-): string {
+): { sql: string; explanation: string; unmetExpectations: string[] } {
   const limit = extractLimit(prompt);
   const p = normalizePrompt(prompt);
   const colNames = table.columns.map((c) => c.name.toLowerCase());
@@ -609,7 +623,35 @@ function buildDeterministicReadOnlySql(
     }
   }
   sql += ` limit ${limit}`;
-  return sql;
+
+  const explanations: string[] = [];
+  const unmetExpectations: string[] = [];
+  explanations.push(`Table cible: ${table.name}.`);
+  if (whereBuild.andClauses.length > 0 || whereBuild.orGroups.length > 0) {
+    explanations.push("J’ai appliqué les filtres demandés.");
+  }
+  if (groupByCol && aggregate) {
+    explanations.push(`J’ai regroupé les résultats par ${groupByCol} avec une agrégation ${aggregate.toUpperCase()}.`);
+  }
+  if (orderCol && direction) {
+    explanations.push(`Tri sur ${orderCol} (${direction.toUpperCase()}).`);
+  }
+  explanations.push(`Limite: ${limit} ligne(s).`);
+
+  if (wantsOrdering(prompt) && !(orderCol && direction)) {
+    unmetExpectations.push("Le tri demandé n’a pas pu être déterminé.");
+  }
+  if (wantsFiltering(prompt) && whereBuild.andClauses.length === 0 && whereBuild.orGroups.length === 0) {
+    unmetExpectations.push("Les filtres demandés n’ont pas pu être interprétés.");
+  }
+  if (wantsColumnSelection(prompt) && (!requestedColumns || requestedColumns.length === 0)) {
+    unmetExpectations.push("Les colonnes à afficher n’ont pas été reconnues.");
+  }
+  if (/\b(combien|nombre|count|somme|sum|moyenne|avg|minimum|maximum|min|max)\b/.test(normalizePrompt(prompt)) && !aggregate) {
+    unmetExpectations.push("Le calcul demandé (count/somme/moyenne/min/max) n’a pas pu être interprété.");
+  }
+
+  return { sql, explanation: explanations.join(" "), unmetExpectations };
 }
 
 async function getPublicSchema(limitTables: number): Promise<{ name: string; columns: { name: string; type: string }[] }[]> {
@@ -733,7 +775,8 @@ export class SqlFromPromptController {
       }
 
       const table = schemaTables.find((t) => t.name === resolved.table)!;
-      const sql = normalizeSql(buildDeterministicReadOnlySql(prompt, table));
+      const generated = buildDeterministicReadOnlySql(prompt, table);
+      const sql = normalizeSql(generated.sql);
 
       if (!isReadOnlySql(sql)) {
         throw new HttpException(
@@ -745,7 +788,12 @@ export class SqlFromPromptController {
         );
       }
 
-      return { sql, resolvedTable: table.name, mode: "mcp-deterministic" };
+      const explanation =
+        generated.unmetExpectations.length > 0
+          ? `${generated.explanation} Note: certains détails ont été interprétés automatiquement (${generated.unmetExpectations.join(" ")}).`
+          : generated.explanation;
+
+      return { sql, resolvedTable: table.name, mode: "mcp-deterministic", explanation };
     } catch (err) {
       // On renvoie toujours une réponse { error } lisible côté front.
       if (err instanceof HttpException) throw err;
