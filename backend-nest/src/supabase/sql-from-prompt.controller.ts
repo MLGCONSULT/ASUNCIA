@@ -158,11 +158,18 @@ function resolveColumnFromPrompt(prompt: string, table: { name: string; columns:
 
 function detectOrderDirection(prompt: string): "asc" | "desc" | null {
   const p = normalizePrompt(prompt);
+  if (/\b(ordre alphabetique|ordre alphabétique|alphabetique|alphabétique|a-z)\b/.test(p)) return "asc";
+  if (/\b(ordre alphabetique inverse|ordre alphabétique inverse|z-a)\b/.test(p)) return "desc";
   if (/\b(croissant|ascending|asc|du plus petit au plus grand)\b/.test(p)) return "asc";
   if (/\b(decroissant|descending|desc|du plus grand au plus petit)\b/.test(p)) return "desc";
   if (/\b(plus recent|plus recents|dernier|derniers|nouv|recent)\b/.test(p)) return "desc";
   if (/\b(plus ancien|plus anciens|ancien|anciens)\b/.test(p)) return "asc";
   return null;
+}
+
+function wantsOrdering(prompt: string): boolean {
+  const p = normalizePrompt(prompt);
+  return /\b(trie|trier|triez|ordre|ordonne|ordonner|class|sort)\b/.test(p);
 }
 
 function isNumericColumnType(type: string): boolean {
@@ -214,11 +221,16 @@ function buildDateRangeClauseFromPrompt(
   return null;
 }
 
-function buildWhereClausesFromPrompt(
-  prompt: string,
+type WhereBuildResult = {
+  andClauses: string[];
+  orClauses: string[];
+};
+
+function parseAndClausesFromText(
+  text: string,
   table: { name: string; columns: { name: string; type: string }[] },
 ): string[] {
-  const p = normalizePrompt(prompt);
+  const p = normalizePrompt(text);
   const byLower = new Map<string, { name: string; type: string }>();
   for (const c of table.columns) byLower.set(c.name.toLowerCase(), c);
   const clauses: string[] = [];
@@ -244,6 +256,22 @@ function buildWhereClausesFromPrompt(
     }
   }
 
+  // Cas 1b: "colonne != valeur" / "colonne <> valeur"
+  const neq = p.match(/\b([a-z0-9_]+)\s*(?:!=|<>)\s*["']?([^,"'\n]+)["']?/i);
+  if (neq?.[1] && neq?.[2]) {
+    const col = byLower.get(neq[1].toLowerCase());
+    if (col) {
+      const raw = neq[2].trim();
+      if (/^(null|vide|none)$/i.test(raw)) {
+        clauses.push(`${quoteSqlIdentifier(col.name)} is not null`);
+      } else if (isNumericColumnType(col.type) && /^-?\d+(?:[.,]\d+)?$/.test(raw)) {
+        clauses.push(`${quoteSqlIdentifier(col.name)} <> ${raw.replace(",", ".")}`);
+      } else {
+        clauses.push(`${quoteSqlIdentifier(col.name)} <> '${raw.replace(/'/g, "''")}'`);
+      }
+    }
+  }
+
   // Cas 2: "où colonne contient xxx"
   const contains = p.match(/\b(?:ou|où|where)\s+([a-z0-9_]+)\s+(?:contient|contains)\s+["']?([^,"'\n]+)["']?/i);
   if (contains?.[1] && contains?.[2]) {
@@ -252,6 +280,18 @@ function buildWhereClausesFromPrompt(
       const val = contains[2].trim().replace(/'/g, "''");
       clauses.push(`${quoteSqlIdentifier(col.name)} ilike '%${val}%'`);
     }
+  }
+
+  // Cas 2b: "colonne commence par ..." / "finit par ..."
+  const starts = p.match(/\b([a-z0-9_]+)\s+(?:commence par|starts with)\s+["']?([^,"'\n]+)["']?/i);
+  if (starts?.[1] && starts?.[2]) {
+    const col = byLower.get(starts[1].toLowerCase());
+    if (col) clauses.push(`${quoteSqlIdentifier(col.name)} ilike '${starts[2].trim().replace(/'/g, "''")}%'`);
+  }
+  const ends = p.match(/\b([a-z0-9_]+)\s+(?:finit par|ends with)\s+["']?([^,"'\n]+)["']?/i);
+  if (ends?.[1] && ends?.[2]) {
+    const col = byLower.get(ends[1].toLowerCase());
+    if (col) clauses.push(`${quoteSqlIdentifier(col.name)} ilike '%${ends[2].trim().replace(/'/g, "''")}'`);
   }
 
   // Cas 3: comparateurs numériques explicites (>, <, >=, <=)
@@ -273,6 +313,22 @@ function buildWhereClausesFromPrompt(
       const max = between[3].replace(",", ".");
       clauses.push(`${quoteSqlIdentifier(col.name)} between ${min} and ${max}`);
     }
+  }
+
+  // Cas 3c: comparateurs exprimés naturellement, sans "où"
+  // ex: "montant supérieur à 200", "age inferieur a 18", "prix egal a 10"
+  const naturalCmpRegex =
+    /\b([a-z0-9_]+)\s+(superieur a|supérieur à|inferieur a|inférieur à|egal a|égal à|plus grand que|plus petit que)\s+(-?\d+(?:[.,]\d+)?)/gi;
+  for (const m of p.matchAll(naturalCmpRegex)) {
+    const col = byLower.get(String(m[1]).toLowerCase());
+    if (!col || !isNumericColumnType(col.type)) continue;
+    const phrase = String(m[2]);
+    const n = String(m[3]).replace(",", ".");
+    let op = "=";
+    if (/superieur|supérieur|plus grand/.test(phrase)) op = ">";
+    if (/inferieur|inférieur|plus petit/.test(phrase)) op = "<";
+    if (/egal|égal/.test(phrase)) op = "=";
+    clauses.push(`${quoteSqlIdentifier(col.name)} ${op} ${n}`);
   }
 
   // Cas 4: formulations naturelles sur le numérique.
@@ -311,11 +367,64 @@ function buildWhereClausesFromPrompt(
     if (col && /bool/i.test(col.type)) clauses.push(`${quoteSqlIdentifier(col.name)} = false`);
   }
 
+  // Cas 4d: "colonne in a,b,c" ou "colonne parmi a,b,c"
+  const inList = p.match(/\b([a-z0-9_]+)\s+(?:in|parmi)\s+([a-z0-9_\-\s,]+)/i);
+  if (inList?.[1] && inList?.[2]) {
+    const col = byLower.get(inList[1].toLowerCase());
+    if (col) {
+      const vals = inList[2]
+        .split(",")
+        .map((x) => x.trim())
+        .filter(Boolean)
+        .slice(0, 20);
+      if (vals.length > 0) {
+        if (isNumericColumnType(col.type) && vals.every((v) => /^-?\d+(?:[.,]\d+)?$/.test(v))) {
+          clauses.push(`${quoteSqlIdentifier(col.name)} in (${vals.map((v) => v.replace(",", ".")).join(", ")})`);
+        } else {
+          clauses.push(
+            `${quoteSqlIdentifier(col.name)} in (${vals.map((v) => `'${v.replace(/'/g, "''")}'`).join(", ")})`,
+          );
+        }
+      }
+    }
+  }
+
   // Cas 5: période temporelle fréquente (aujourd'hui, ce mois, etc.).
-  const dateClause = buildDateRangeClauseFromPrompt(prompt, table);
+  const dateClause = buildDateRangeClauseFromPrompt(text, table);
   if (dateClause) clauses.push(dateClause);
 
   return Array.from(new Set(clauses));
+}
+
+function buildWhereClausesFromPrompt(
+  prompt: string,
+  table: { name: string; columns: { name: string; type: string }[] },
+): WhereBuildResult {
+  const p = normalizePrompt(prompt);
+
+  // Si l'utilisateur exprime des alternatives ("... ou ..."),
+  // on donne la priorité à cette structure logique.
+  if (/\bou\b/.test(p)) {
+    const segments = p
+      .split(/\bou\b/g)
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+
+    const orClauses = segments
+      .map((segment) => {
+        const partClauses = parseAndClausesFromText(segment, table);
+        if (partClauses.length === 0) return null;
+        if (partClauses.length === 1) return partClauses[0];
+        return `(${partClauses.join(" and ")})`;
+      })
+      .filter((v): v is string => Boolean(v));
+
+    if (orClauses.length > 0) {
+      return { andClauses: [], orClauses: Array.from(new Set(orClauses)) };
+    }
+  }
+
+  return { andClauses: parseAndClausesFromText(prompt, table), orClauses: [] };
 }
 
 function buildSelectColumnsFromPrompt(
@@ -418,9 +527,9 @@ function buildDeterministicReadOnlySql(
   const candidateDateCols = ["created_at", "date_creation", "createdat", "date", "updated_at", "date_mise_a_jour"];
   const requestedOrderCol = resolveColumnFromPrompt(prompt, table);
   const fallbackDateCol = candidateDateCols.find((c) => colNames.includes(c)) ?? null;
-  const direction = detectOrderDirection(prompt);
+  const direction = detectOrderDirection(prompt) ?? (requestedOrderCol && wantsOrdering(prompt) ? "asc" : null);
   const orderCol = requestedOrderCol ?? (direction ? fallbackDateCol : null);
-  const whereClauses = buildWhereClausesFromPrompt(prompt, table);
+  const whereBuild = buildWhereClausesFromPrompt(prompt, table);
   const requestedColumns = buildSelectColumnsFromPrompt(prompt, table);
   const groupByCol = resolveGroupByColumn(prompt, table);
   const aggregate = resolveAggregate(prompt);
@@ -443,7 +552,11 @@ function buildDeterministicReadOnlySql(
           ? `${aggregate}(${quoteSqlIdentifier(metricCol)}) as total`
           : "count(*) as total";
     sql = `select ${groupId}, ${metricExpr} from ${safeTable}`;
-    if (whereClauses.length > 0) sql += ` where ${whereClauses.join(" and ")}`;
+    const whereCombined = [
+      ...(whereBuild.andClauses.length > 0 ? [whereBuild.andClauses.join(" and ")] : []),
+      ...(whereBuild.orClauses.length > 0 ? [`(${whereBuild.orClauses.join(" or ")})`] : []),
+    ];
+    if (whereCombined.length > 0) sql += ` where ${whereCombined.join(" and ")}`;
     sql += ` group by ${groupId}`;
 
     if (orderCol && direction) {
@@ -460,11 +573,19 @@ function buildDeterministicReadOnlySql(
           ? `${aggregate}(${quoteSqlIdentifier(metricCol)}) as total`
           : "count(*) as total";
     sql = `select ${metricExpr} from ${safeTable}`;
-    if (whereClauses.length > 0) sql += ` where ${whereClauses.join(" and ")}`;
+    const whereCombined = [
+      ...(whereBuild.andClauses.length > 0 ? [whereBuild.andClauses.join(" and ")] : []),
+      ...(whereBuild.orClauses.length > 0 ? [`(${whereBuild.orClauses.join(" or ")})`] : []),
+    ];
+    if (whereCombined.length > 0) sql += ` where ${whereCombined.join(" and ")}`;
   } else {
     const distinctPrefix = distinct ? "distinct " : "";
     sql = `select ${distinctPrefix}${selectCols} from ${safeTable}`;
-    if (whereClauses.length > 0) sql += ` where ${whereClauses.join(" and ")}`;
+    const whereCombined = [
+      ...(whereBuild.andClauses.length > 0 ? [whereBuild.andClauses.join(" and ")] : []),
+      ...(whereBuild.orClauses.length > 0 ? [`(${whereBuild.orClauses.join(" or ")})`] : []),
+    ];
+    if (whereCombined.length > 0) sql += ` where ${whereCombined.join(" and ")}`;
     if (orderCol && direction) {
       sql += ` order by ${quoteSqlIdentifier(orderCol)} ${direction}`;
     }
