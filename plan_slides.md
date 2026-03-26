@@ -85,47 +85,110 @@ Présenter des prompts complets, concrets, et directement réutilisables.
 - Ensuite je lance l’exécution étape par étape.
 - À la fin, je corrige les erreurs restantes et je refais un passage de vérification.
 
-### Prompt 1 — Frontend (petite modif UI)
+### Prompt 1 — Frontend (refonte dashboard + hiérarchie visuelle)
 ```text
-La bulle Dashboard dans la navbar doit toujours être légèrement plus grande que les autres.
-Retire aussi le texte "NAVIGATION" qui n’est pas très beau visuellement.
-Fais la modif directement, sans casser les animations existantes.
+Je veux une refonte visuelle du dashboard qui reste dans notre identité actuelle, sans partir dans un redesign total.
+
+Contexte:
+- on garde le style cyber/lofi actuel
+- on garde les animations principales
+- on garde la navigation existante
+
+Objectif:
+- améliorer la lisibilité globale du dashboard
+- mieux hiérarchiser les cartes importantes
+- rendre le dock plus cohérent visuellement avec le contenu de la page
+
+Détails attendus:
+- la bulle Dashboard dans la navbar doit rester légèrement plus grande (même inactive)
+- retirer les labels visuels inutiles (ex: "Navigation")
+- améliorer l’équilibre des cartes (espaces, tailles, priorité visuelle)
+- garder un rendu propre desktop + mobile
+
+Avant de coder, passe en mode plan:
+1) propose un plan clair en étapes (UI, composants, vérif responsive)
+2) je valide / j’ajuste
+3) tu exécutes le plan complet
+4) tu termines avec vérif lint + typecheck + récap des fichiers modifiés
 ```
 
-### Prompt 2 — Frontend (mode plan, refonte visible)
+### Prompt 2 — Frontend (expérience utilisateur complète sur la home)
 ```text
-Cette carte sert à rien; on devrait la remplacer par une horloge temps réel.
-Je veux un rendu plus joli, cohérent avec l’app, et afficher Bonjour/Bonsoir selon l’utilisateur connecté.
+La page d’accueil doit mieux raconter le produit, et être alignée avec nos outils réels.
+Aujourd’hui c’est trop “joli” mais pas assez utile.
 
-Commence en mode plan:
-- propose un plan clair en plusieurs étapes
-- je le modifie si besoin
-- ensuite tu exécutes
-- puis tu corriges les erreurs si nécessaire
+Je veux:
+- une home plus claire sur la valeur du produit
+- des accès rapides alignés sur nos vrais modules (Airtable, Chatbot, Dashboard, Workflows, Supabase)
+- des CTA qui amènent au bon endroit (connexion + redirection propre)
+- un rendu propre et crédible pour une démo orale
 
-Je veux garder un style propre et homogène avec le dashboard.
+Important:
+- garde notre ton visuel actuel
+- évite les textes bullshit
+- garde des blocs simples, lisibles, et orientés usage
+
+Mode plan obligatoire:
+1) proposition de structure de page (sections + contenu)
+2) validation de ma part
+3) implémentation complète
+4) vérifications (responsive, liens, cohérence nav)
+5) petit résumé final exploitable dans une slide de présentation
 ```
 
-### Prompt 3 — Frontend (ajustement fonctionnel)
+### Prompt 3 — Backend complet (générateur SQL robuste et utile)
 ```text
-Le Bonjour/Bonsoir n’est pas adapté à l’heure.
-Au lieu du prénom, récupère le nom saisi à l’inscription depuis Supabase, et sinon utilise l’email.
-Adapte aussi la page d’accueil en fonction de nos outils effectifs.
+Le créateur de requêtes SQL marche trop souvent en mode "SELECT * LIMIT", et ça bloque les demandes réelles.
+Je veux le rendre vraiment utile pour des requêtes custom.
+
+Objectif backend:
+- améliorer la génération SQL depuis prompt naturel
+- gérer les demandes concrètes utilisateur (tri, filtres, agrégations, périodes)
+- garder une sécurité stricte read-only
+
+Exemples à couvrir:
+- tri croissant / décroissant sur une colonne demandée
+- filtres texte et numériques
+- périodes de dates (aujourd’hui, ce mois, 7 derniers jours)
+- demandes "combien par statut", "somme par catégorie", etc.
+
+Contraintes:
+- pas de requêtes destructives
+- pas de multi-statements dangereux
+- SQL final lisible et cohérent
+
+Mode plan:
+1) plan d’évolution du moteur de parsing
+2) validation
+3) implémentation backend
+4) vérif + exemples de sorties avant/après
 ```
 
-### Prompt 4 — Auth / Backend + Front (mode plan)
+### Prompt 4 — Backend complet (auth Supabase + redirections prod)
 ```text
-La confirmation Supabase lors de la création du compte ne marche pas:
-ça redirige vers localhost + null.
+On a un bug critique sur le flux d’inscription:
+la confirmation email Supabase redirige mal (localhost/null), donc l’onboarding est cassé.
 
-Mon front est sur https://asuncia.vercel.app
-et le back sur https://asuncia-backend.vercel.app.
+Contexte prod:
+- front: https://asuncia.vercel.app
+- back: https://asuncia-backend.vercel.app
 
-Je veux que tu gères ça proprement avec un plan:
-1) plan d’action en mode plan
-2) validation / ajustements
-3) exécution des modifs (inscription, callback, redirects, config)
-4) vérifs finales et points à contrôler côté Supabase/Vercel
+Je veux une correction complète, propre, stable:
+- signup + resend avec redirection fiable
+- callback sécurisé
+- gestion des cas redirect vide/null/invalid
+- alignement config Supabase + Vercel
+
+Je veux aussi une logique claire:
+- origine calculée proprement côté client
+- fallback safe côté serveur
+- aucune régression sur connexion/inscription
+
+Mode plan obligatoire:
+1) plan complet (code + config)
+2) je valide / j’ajuste
+3) exécution
+4) checklist finale de déploiement (variables + URL Supabase à vérifier)
 ```
 
 **Option visuelle :**
