@@ -99,6 +99,7 @@ export default function SupabasePage() {
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [generationInfo, setGenerationInfo] = useState<string | null>(null);
+  const [generationTrace, setGenerationTrace] = useState<string[]>([]);
   const [schemaTables, setSchemaTables] = useState<SchemaTable[]>([]);
   const [tablesLoading, setTablesLoading] = useState(true);
   const [tablesError, setTablesError] = useState<string | null>(null);
@@ -185,6 +186,7 @@ export default function SupabasePage() {
     e.preventDefault();
     setError(null);
     setGenerationInfo(null);
+    setGenerationTrace([]);
     setResultValue(null);
     setResultText(null);
     const prompt = nlPrompt.trim();
@@ -215,6 +217,28 @@ export default function SupabasePage() {
       setSql(data.sql);
       if (typeof data?.explanation === "string" && data.explanation.trim().length > 0) {
         setGenerationInfo(data.explanation.trim());
+      }
+      if (data?.interpretation && typeof data.interpretation === "object") {
+        const i = data.interpretation as {
+          selectedColumns?: string[];
+          orderBy?: { column?: string; direction?: string } | null;
+          where?: { and?: string[]; or?: string[] };
+          aggregate?: { type?: string; metricColumn?: string | null; groupBy?: string | null } | null;
+        };
+        const lines: string[] = [];
+        if (Array.isArray(i.selectedColumns) && i.selectedColumns.length > 0) {
+          lines.push(`Colonnes: ${i.selectedColumns.join(", ")}`);
+        }
+        if (i.orderBy?.column && i.orderBy?.direction) {
+          lines.push(`Tri: ${i.orderBy.column} (${String(i.orderBy.direction).toUpperCase()})`);
+        }
+        if (i.where && ((i.where.and?.length ?? 0) > 0 || (i.where.or?.length ?? 0) > 0)) {
+          lines.push("Filtres: appliqués");
+        }
+        if (i.aggregate?.type) {
+          lines.push(`Calcul: ${String(i.aggregate.type).toUpperCase()}`);
+        }
+        setGenerationTrace(lines);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur réseau.");
@@ -373,6 +397,18 @@ export default function SupabasePage() {
             {generationInfo && (
               <div className="mb-3 rounded-2xl border border-accent-cyan/30 bg-accent-cyan/10 px-3 py-2 text-xs text-accent-cyan/95">
                 {generationInfo}
+              </div>
+            )}
+            {generationTrace.length > 0 && (
+              <div className="mb-3 rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2 text-[11px] text-text-muted">
+                <p className="mb-1 text-[11px] text-text-dim">Interprétation de la demande</p>
+                <ul className="space-y-0.5">
+                  {generationTrace.map((line, idx) => (
+                    <li key={`${line}-${idx}`} className="leading-snug">
+                      - {line}
+                    </li>
+                  ))}
+                </ul>
               </div>
             )}
 

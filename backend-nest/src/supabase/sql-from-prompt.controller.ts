@@ -133,6 +133,10 @@ function normalizeForMatch(value: string): string {
     .replace(/[^a-z0-9_]+/g, "");
 }
 
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 function resolveColumnFromPrompt(prompt: string, table: { name: string; columns: { name: string; type: string }[] }): string | null {
   const p = normalizePrompt(prompt);
   const normalizedPrompt = normalizeForMatch(p);
@@ -156,6 +160,26 @@ function resolveColumnFromPrompt(prompt: string, table: { name: string; columns:
   return null;
 }
 
+function resolveOrderColumnFromPrompt(
+  prompt: string,
+  table: { name: string; columns: { name: string; type: string }[] },
+): string | null {
+  const p = normalizePrompt(prompt);
+  const byLower = new Map<string, string>();
+  for (const c of table.columns) byLower.set(c.name.toLowerCase(), c.name);
+
+  // Cas prioritaire: "par <colonne>" / "tri par <colonne>" / "ordonne par <colonne>"
+  const contextual =
+    p.match(/\b(?:tri(?:e|er)?|ordonne(?:r)?|classe(?:r)?|par)\s+([a-z0-9_]+)/i)?.[1] ?? null;
+  if (contextual) {
+    const hit = byLower.get(contextual.toLowerCase());
+    if (hit) return hit;
+  }
+
+  // Fallback sur la logique générique (mentions de colonnes dans le prompt).
+  return resolveColumnFromPrompt(prompt, table);
+}
+
 function detectOrderDirection(prompt: string): "asc" | "desc" | null {
   const p = normalizePrompt(prompt);
   if (/\b(ordre alphabetique|ordre alphabétique|alphabetique|alphabétique|a-z)\b/.test(p)) return "asc";
@@ -172,6 +196,11 @@ function detectOrderDirection(prompt: string): "asc" | "desc" | null {
 function wantsOrdering(prompt: string): boolean {
   const p = normalizePrompt(prompt);
   return /\b(trie|trier|triez|ordre|ordonne|ordonner|class|sort|croissant|decroissant|alphabetique|alphabétique|a-z|z-a|plus eleve|plus élevé|plus bas|plus faible)\b/.test(p);
+}
+
+function wantsTemporalOrdering(prompt: string): boolean {
+  const p = normalizePrompt(prompt);
+  return /\b(plus recent|plus recents|dernier|derniers|nouv|recent|plus ancien|plus anciens|ancien|anciens)\b/.test(p);
 }
 
 function isNumericColumnType(type: string): boolean {
@@ -464,19 +493,41 @@ function buildSelectColumnsFromPrompt(
   const map = new Map<string, string>();
   for (const c of table.columns) map.set(c.name.toLowerCase(), c.name);
 
-  // "affiche nom, statut, date_creation"
-  const explicit = p.match(/\b(?:affiche|montre|selectionne|sélectionne|select)\s+([a-z0-9_,\s]+)/i)?.[1];
-  if (!explicit) return null;
-  const rawParts = explicit
-    .split(",")
-    .map((x) => x.trim())
-    .filter(Boolean);
-  if (rawParts.length === 0) return null;
-  const selected = rawParts
-    .map((part) => map.get(part.toLowerCase()) ?? null)
-    .filter((v): v is string => Boolean(v));
-  if (selected.length === 0) return null;
-  return Array.from(new Set(selected));
+  // 1) Extraction explicite (plusieurs formulations possibles).
+  const explicit =
+    p.match(/\b(?:affiche|montre|selectionne|sélectionne|select|retourne|garde|prends)\s+([a-z0-9_,\set]+)/i)?.[1] ??
+    p.match(/\b(?:colonnes?|champs?)\s+([a-z0-9_,\set]+)/i)?.[1] ??
+    null;
+  if (explicit) {
+    const rawParts = explicit
+      .replace(/\bet\b/g, ",")
+      .replace(/\bou\b/g, ",")
+      .split(",")
+      .map((x) => x.trim())
+      .filter(Boolean);
+    const selected = rawParts
+      .map((part) => map.get(part.toLowerCase()) ?? null)
+      .filter((v): v is string => Boolean(v));
+    if (selected.length > 0) return Array.from(new Set(selected));
+  }
+
+  // 2) Intention de projection: on récupère les colonnes citées dans la phrase.
+  const selectionIntent = /\b(colonnes?|champs?|affiche|montre|retourne|select|uniquement|seulement|juste)\b/.test(p);
+  if (!selectionIntent) return null;
+
+  const hits: { col: string; idx: number }[] = [];
+  for (const c of table.columns) {
+    const colNorm = normalizeForMatch(c.name);
+    if (!colNorm) continue;
+    const re = new RegExp(`(^|[^a-z0-9_])${escapeRegex(colNorm)}([^a-z0-9_]|$)`);
+    const m = re.exec(normalizeForMatch(p));
+    if (m && typeof m.index === "number") {
+      hits.push({ col: c.name, idx: m.index });
+    }
+  }
+  if (hits.length === 0) return null;
+  hits.sort((a, b) => a.idx - b.idx);
+  return Array.from(new Set(hits.map((h) => h.col)));
 }
 
 function wantsDistinct(prompt: string): boolean {
@@ -560,16 +611,30 @@ function resolveTableFromPrompt(
 function buildDeterministicReadOnlySql(
   prompt: string,
   table: { name: string; columns: { name: string; type: string }[] },
-): { sql: string; explanation: string; unmetExpectations: string[] } {
+): {
+  sql: string;
+  explanation: string;
+  unmetExpectations: string[];
+  interpretation: {
+    table: string;
+    selectedColumns: string[] | ["*"];
+    where: { and: string[]; or: string[] };
+    orderBy: { column: string; direction: "asc" | "desc" } | null;
+    aggregate: { type: "count" | "sum" | "avg" | "min" | "max"; metricColumn: string | null; groupBy: string | null } | null;
+    limit: number;
+  };
+} {
   const limit = extractLimit(prompt);
   const p = normalizePrompt(prompt);
   const colNames = table.columns.map((c) => c.name.toLowerCase());
 
   const candidateDateCols = ["created_at", "date_creation", "createdat", "date", "updated_at", "date_mise_a_jour"];
-  const requestedOrderCol = resolveColumnFromPrompt(prompt, table);
+  const requestedOrderCol = resolveOrderColumnFromPrompt(prompt, table);
   const fallbackDateCol = candidateDateCols.find((c) => colNames.includes(c)) ?? null;
   const direction = detectOrderDirection(prompt) ?? (requestedOrderCol && wantsOrdering(prompt) ? "asc" : null);
-  const orderCol = requestedOrderCol ?? (direction ? fallbackDateCol : null);
+  const orderCol =
+    requestedOrderCol ??
+    (direction && wantsTemporalOrdering(prompt) ? fallbackDateCol : null);
   const whereBuild = buildWhereClausesFromPrompt(prompt, table);
   const requestedColumns = buildSelectColumnsFromPrompt(prompt, table);
   const groupByCol = resolveGroupByColumn(prompt, table);
@@ -651,7 +716,28 @@ function buildDeterministicReadOnlySql(
     unmetExpectations.push("Le calcul demandé (count/somme/moyenne/min/max) n’a pas pu être interprété.");
   }
 
-  return { sql, explanation: explanations.join(" "), unmetExpectations };
+  return {
+    sql,
+    explanation: explanations.join(" "),
+    unmetExpectations,
+    interpretation: {
+      table: table.name,
+      selectedColumns:
+        requestedColumns && requestedColumns.length > 0
+          ? requestedColumns
+          : ["*"],
+      where: { and: whereBuild.andClauses, or: whereBuild.orGroups },
+      orderBy: orderCol && direction ? { column: orderCol, direction } : null,
+      aggregate: aggregate
+        ? {
+            type: aggregate,
+            metricColumn: metricCol ?? null,
+            groupBy: groupByCol ?? null,
+          }
+        : null,
+      limit,
+    },
+  };
 }
 
 async function getPublicSchema(limitTables: number): Promise<{ name: string; columns: { name: string; type: string }[] }[]> {
@@ -793,7 +879,13 @@ export class SqlFromPromptController {
           ? `${generated.explanation} Note: certains détails ont été interprétés automatiquement (${generated.unmetExpectations.join(" ")}).`
           : generated.explanation;
 
-      return { sql, resolvedTable: table.name, mode: "mcp-deterministic", explanation };
+      return {
+        sql,
+        resolvedTable: table.name,
+        mode: "mcp-deterministic",
+        explanation,
+        interpretation: generated.interpretation,
+      };
     } catch (err) {
       // On renvoie toujours une réponse { error } lisible côté front.
       if (err instanceof HttpException) throw err;
