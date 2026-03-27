@@ -31,15 +31,37 @@ export function conversationRouter(): Router {
       }
       conversationId = conv.id;
     } else {
-      const { data: existing } = await supabase
+      // Prioriser une conversation qui contient déjà des messages pour afficher un
+      // historique utile au chargement (et éviter de tomber sur une conversation vide).
+      const { data: latestConversations } = await supabase
         .from("ai_conversations")
         .select("id")
         .eq("utilisateur_id", user.id)
         .order("date_mise_a_jour", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (existing?.id) {
-        conversationId = existing.id;
+        .limit(50);
+
+      const conversationIds = (latestConversations ?? []).map((c) => c.id).filter(Boolean);
+      let selectedId: string | null = null;
+
+      if (conversationIds.length > 0) {
+        const { data: latestMessage } = await supabase
+          .from("ai_messages")
+          .select("conversation_id, date_creation")
+          .in("conversation_id", conversationIds)
+          .order("date_creation", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (latestMessage?.conversation_id) {
+          selectedId = latestMessage.conversation_id;
+        }
+      }
+
+      if (selectedId) {
+        conversationId = selectedId;
+      } else if (conversationIds.length > 0) {
+        // Fallback: dernière conversation même si vide.
+        conversationId = conversationIds[0];
       } else {
         const { data: created, error: insertErr } = await supabase
           .from("ai_conversations")
