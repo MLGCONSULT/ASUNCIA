@@ -22,10 +22,9 @@ export function corsMiddleware(req: Request, res: Response, next: NextFunction):
     process.env.ALLOW_VERCEL_PREVIEW_ORIGINS === "true" &&
     !!origin?.endsWith(".vercel.app");
 
+  res.setHeader("Vary", "Origin");
   if (origin && (ALLOWED_ORIGINS.includes(origin) || allowPreviewOrigins)) {
     res.setHeader("Access-Control-Allow-Origin", origin);
-  } else if (ALLOWED_ORIGINS.length > 0) {
-    res.setHeader("Access-Control-Allow-Origin", ALLOWED_ORIGINS[0]!);
   }
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");

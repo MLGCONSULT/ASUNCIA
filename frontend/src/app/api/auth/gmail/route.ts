@@ -28,6 +28,7 @@ export async function GET() {
     );
   }
 
+  const oauthState = crypto.randomUUID();
   const params = new URLSearchParams({
     client_id: clientId,
     redirect_uri: callbackUrl,
@@ -35,9 +36,17 @@ export async function GET() {
     scope: GMAIL_SCOPES,
     access_type: "offline",
     prompt: "consent",
-    state: user.id,
+    state: oauthState,
   });
 
   const url = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
-  return NextResponse.json({ url });
+  const response = NextResponse.json({ url });
+  response.cookies.set("gmail_oauth_state", oauthState, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: 10 * 60,
+  });
+  return response;
 }

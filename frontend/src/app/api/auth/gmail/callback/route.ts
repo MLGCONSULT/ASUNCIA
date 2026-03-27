@@ -12,14 +12,29 @@ export async function GET(request: Request) {
     "http://localhost:3000";
   const baseRedirect = `${redirectUri}/app/mails`;
 
+  const clearStateCookie = (response: NextResponse): NextResponse => {
+    response.cookies.set("gmail_oauth_state", "", {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: 0,
+    });
+    return response;
+  };
+
   if (error) {
-    return NextResponse.redirect(
-      `${baseRedirect}?error=${encodeURIComponent(error)}`
+    return clearStateCookie(
+      NextResponse.redirect(
+        `${baseRedirect}?error=${encodeURIComponent(error)}`
+      )
     );
   }
 
   if (!code) {
-    return NextResponse.redirect(`${baseRedirect}?error=missing_code`);
+    return clearStateCookie(
+      NextResponse.redirect(`${baseRedirect}?error=missing_code`)
+    );
   }
 
   const supabase = await createClient();
@@ -27,10 +42,24 @@ export async function GET(request: Request) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) {
-    return NextResponse.redirect(`${baseRedirect}?error=session_expired`);
+    return clearStateCookie(
+      NextResponse.redirect(`${baseRedirect}?error=session_expired`)
+    );
   }
-  if (state && state !== user.id) {
-    return NextResponse.redirect(`${baseRedirect}?error=invalid_state`);
+
+  const expectedState = request.headers
+    .get("cookie")
+    ?.split(";")
+    .map((part) => part.trim())
+    .find((part) => part.startsWith("gmail_oauth_state="))
+    ?.split("=")[1];
+  const decodedExpectedState = expectedState
+    ? decodeURIComponent(expectedState)
+    : null;
+  if (!state || !decodedExpectedState || state !== decodedExpectedState) {
+    return clearStateCookie(
+      NextResponse.redirect(`${baseRedirect}?error=invalid_state`)
+    );
   }
 
   const clientId = process.env.GOOGLE_CLIENT_ID?.trim();
@@ -38,7 +67,9 @@ export async function GET(request: Request) {
   const callbackUrl = `${redirectUri}/api/auth/gmail/callback`;
 
   if (!clientId || !clientSecret) {
-    return NextResponse.redirect(`${baseRedirect}?error=server_config`);
+    return clearStateCookie(
+      NextResponse.redirect(`${baseRedirect}?error=server_config`)
+    );
   }
 
   const body = new URLSearchParams({
@@ -60,8 +91,10 @@ export async function GET(request: Request) {
     if (process.env.NODE_ENV !== "production") {
       console.error("[gmail/callback] token exchange failed:", err);
     }
-    return NextResponse.redirect(
-      `${baseRedirect}?error=${encodeURIComponent("token_exchange_failed")}`
+    return clearStateCookie(
+      NextResponse.redirect(
+        `${baseRedirect}?error=${encodeURIComponent("token_exchange_failed")}`
+      )
     );
   }
 
@@ -72,8 +105,10 @@ export async function GET(request: Request) {
   };
 
   if (!data.refresh_token) {
-    return NextResponse.redirect(
-      `${baseRedirect}?error=${encodeURIComponent("no_refresh_token")}`
+    return clearStateCookie(
+      NextResponse.redirect(
+        `${baseRedirect}?error=${encodeURIComponent("no_refresh_token")}`
+      )
     );
   }
 
@@ -97,10 +132,14 @@ export async function GET(request: Request) {
     if (process.env.NODE_ENV !== "production") {
       console.error("[gmail/callback] upsert oauth_tokens:", upsertErr);
     }
-    return NextResponse.redirect(
-      `${baseRedirect}?error=${encodeURIComponent("save_failed")}`
+    return clearStateCookie(
+      NextResponse.redirect(
+        `${baseRedirect}?error=${encodeURIComponent("save_failed")}`
+      )
     );
   }
 
-  return NextResponse.redirect(`${baseRedirect}?connected=1`);
+  return clearStateCookie(
+    NextResponse.redirect(`${baseRedirect}?connected=1`)
+  );
 }

@@ -1,5 +1,6 @@
 import express from "express";
 import { corsMiddleware } from "./middleware/cors.js";
+import { applySecurityMiddlewares } from "./middleware/security.js";
 import { requireAuth } from "./middleware/auth.js";
 import { chatRouter } from "./routes/chat.js";
 import { conversationsRouter } from "./routes/conversations.js";
@@ -16,6 +17,7 @@ import { authAirtableRouter } from "./routes/auth-airtable.js";
 
 const app = express();
 
+applySecurityMiddlewares(app);
 app.use(corsMiddleware);
 app.use(express.json({ limit: "1mb" }));
 
