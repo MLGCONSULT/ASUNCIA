@@ -297,20 +297,6 @@ export default function ChatAssistant({
     window.history.replaceState({}, "", "/app/dashboard");
   }, [historyLoaded, searchParams, submitPrompt]);
 
-  const sessionHeader = (
-    <div className="shrink-0 border-b border-white/10 bg-gradient-to-r from-surface/90 via-surface/60 to-surface/90 px-2.5 py-2 sm:px-3">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-text-dim">Historique</p>
-      <p className="text-[11px] text-text-muted mt-0.5">
-        Une seule conversation : tes échanges sont conservés pour reprendre le fil.
-      </p>
-      {historyLoadError ? (
-        <p className="text-[11px] text-accent-rose/90 mt-1.5 rounded-lg border border-accent-rose/25 bg-accent-rose/10 px-2 py-1.5">
-          Impossible de charger l&apos;historique. Tu peux quand même écrire : une nouvelle session sera créée côté serveur si besoin.
-        </p>
-      ) : null}
-    </div>
-  );
-
   return (
     <motion.div
       className={`flex min-h-0 h-full glass-strong border border-white/10 overflow-hidden ${
@@ -321,7 +307,6 @@ export default function ChatAssistant({
       transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
     >
       <div className="flex flex-col flex-1 min-w-0 min-h-0">
-        {sessionHeader}
         <div className={`flex-1 overflow-y-auto ${compact ? "p-3" : "p-4"} space-y-3`}>
           <AnimatePresence mode="wait" initial={false}>
             {!historyLoaded && (
