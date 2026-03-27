@@ -3,34 +3,38 @@
  */
 import { Router } from "express";
 import {
-  hasAirtableServerToken,
-  getAirtableRuntimeMode,
   isAirtableMcpConfigured,
-  isAirtableOAuthConfigured,
   listAirtableMcpTools,
 } from "../mcp/airtable-client.js";
 import { listN8nMcpTools, isN8nMcpConfigured } from "../mcp/n8n-client.js";
-import {
-  hasNotionEnvToken,
-  getNotionRuntimeMode,
-  hasNotionOAuthConfig,
-  isNotionMcpConfigured,
-  listNotionMcpTools,
-} from "../mcp/notion-client.js";
 import { isGmailMcpConfigured } from "../mcp/gmail-client.js";
 import { hasGoogleOAuthConfig } from "../services/integrations/gmail.js";
-import { isSupabaseMcpConfigured, listMcpTools } from "../mcp/supabase-client.js";
+import { isSupabaseMcpConfigured, listMcpTools, type SupabaseMcpRuntimeConfig } from "../mcp/supabase-client.js";
+import type { AuthRequest } from "../middleware/auth.js";
+import { createUserSupabaseFromRequest } from "../services/auth-context.js";
+import { getAirtableRuntimeAccess } from "../services/integrations/airtable.js";
+import { getUserMcpConfig } from "../services/user-mcp-config.js";
 
 export function healthRouter(): Router {
   const router = Router();
 
-  router.get("/mcp-supabase", async (_req, res) => {
-    if (!isSupabaseMcpConfigured()) {
-      res.status(503).json({ ok: false, error: "SUPABASE_ACCESS_TOKEN ou SUPABASE_PROJECT_REF/NEXT_PUBLIC_SUPABASE_URL manquant" });
+  router.get("/mcp-supabase", async (req: AuthRequest, res) => {
+    if (!req.user) {
+      res.status(401).json({ ok: false, error: "Non authentifié" });
       return;
     }
     try {
-      const tools = await listMcpTools();
+      const cfg = await getUserMcpConfig(createUserSupabaseFromRequest(req), req.user.id);
+      const runtime: SupabaseMcpRuntimeConfig = {
+        url: cfg.supabase?.mcpUrl,
+        token: cfg.supabase?.accessToken,
+        projectRef: cfg.supabase?.projectRef,
+      };
+      if (!isSupabaseMcpConfigured(runtime)) {
+        res.status(503).json({ ok: false, error: "Configuration MCP Supabase manquante dans votre compte." });
+        return;
+      }
+      const tools = await listMcpTools(runtime);
       res.json({ ok: true, tools: (tools as { tools?: unknown[] }).tools ?? [] });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -38,27 +42,28 @@ export function healthRouter(): Router {
     }
   });
 
-  router.get("/mcp-airtable", async (_req, res) => {
-    if (!isAirtableMcpConfigured()) {
-      res.status(503).json({ ok: false, error: "AIRTABLE_MCP_URL et un mode d'auth Airtable sont requis" });
-      return;
-    }
-    if (!hasAirtableServerToken() && isAirtableOAuthConfigured()) {
-      res.json({
-        ok: true,
-        selectedMode: getAirtableRuntimeMode(),
-        mode: "oauth",
-        requiresUserConnection: true,
-        message: "Airtable MCP configuré en OAuth. Connectez un utilisateur pour vérifier les outils.",
-      });
+  router.get("/mcp-airtable", async (req: AuthRequest, res) => {
+    if (!req.user) {
+      res.status(401).json({ ok: false, error: "Non authentifié" });
       return;
     }
     try {
-      const tools = await listAirtableMcpTools();
+      const runtime = await getAirtableRuntimeAccess({
+        supabase: createUserSupabaseFromRequest(req),
+        userId: req.user.id,
+      });
+      if (!isAirtableMcpConfigured(runtime.runtimeConfig)) {
+        res.status(503).json({ ok: false, error: "Configuration MCP Airtable manquante dans votre compte." });
+        return;
+      }
+      if (!runtime.available) {
+        res.status(403).json({ ok: false, error: "Airtable non connecté pour cet utilisateur." });
+        return;
+      }
+      const tools = await listAirtableMcpTools(runtime.accessToken, runtime.runtimeConfig);
       res.json({
         ok: true,
-        selectedMode: getAirtableRuntimeMode(),
-        mode: hasAirtableServerToken() ? "server-token" : "oauth",
+        mode: runtime.source,
         tools: (tools as { tools?: unknown[] }).tools ?? [],
       });
     } catch (err) {
@@ -67,49 +72,24 @@ export function healthRouter(): Router {
     }
   });
 
-  router.get("/mcp-n8n", async (_req, res) => {
-    if (!isN8nMcpConfigured()) {
-      res.status(503).json({ ok: false, error: "N8N_MCP_URL ou N8N_MCP_ACCESS_TOKEN manquant" });
+  router.get("/mcp-n8n", async (req: AuthRequest, res) => {
+    if (!req.user) {
+      res.status(401).json({ ok: false, error: "Non authentifié" });
       return;
     }
     try {
-      const tools = await listN8nMcpTools();
+      const cfg = await getUserMcpConfig(createUserSupabaseFromRequest(req), req.user.id);
+      const runtime = { url: cfg.n8n?.mcpUrl, token: cfg.n8n?.accessToken };
+      if (!isN8nMcpConfigured(runtime)) {
+        res.status(503).json({ ok: false, error: "Configuration MCP n8n manquante dans votre compte." });
+        return;
+      }
+      const tools = await listN8nMcpTools(runtime);
       res.json({ ok: true, tools: (tools as { tools?: unknown[] }).tools ?? [] });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       res.status(502).json({ ok: false, error: message });
     }
-  });
-
-  router.get("/mcp-notion", async (_req, res) => {
-    if (!isNotionMcpConfigured()) {
-      res.status(503).json({ ok: false, error: "Notion MCP non configuré" });
-      return;
-    }
-    if (hasNotionEnvToken()) {
-      try {
-        const tools = await listNotionMcpTools();
-        res.json({
-          ok: true,
-          selectedMode: getNotionRuntimeMode(),
-          mode: "server-token",
-          tools: (tools as { tools?: unknown[] }).tools ?? [],
-        });
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        res.status(502).json({ ok: false, error: message });
-      }
-      return;
-    }
-    res.json({
-      ok: hasNotionOAuthConfig(),
-      selectedMode: getNotionRuntimeMode(),
-      mode: "oauth",
-      requiresUserConnection: true,
-      message: hasNotionOAuthConfig()
-        ? "Notion MCP configuré en OAuth. Connectez un utilisateur pour vérifier les outils."
-        : "NOTION_OAUTH_REDIRECT_URI manquant pour le mode OAuth.",
-    });
   });
 
   router.get("/mcp-gmail", (_req, res) => {
