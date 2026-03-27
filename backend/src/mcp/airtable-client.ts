@@ -13,11 +13,11 @@ function getRawAirtableOAuthConfig(): boolean {
 }
 
 function getRawAirtableServerToken(runtime?: AirtableMcpRuntimeConfig): string | undefined {
-  return runtime?.serverToken?.trim() || process.env.AIRTABLE_MCP_TOKEN?.trim() || process.env.AIRTABLE_TOKEN?.trim() || undefined;
+  return runtime?.serverToken?.trim() || undefined;
 }
 
 export function getAirtableRuntimeMode(runtime?: AirtableMcpRuntimeConfig): AirtableRuntimeMode {
-  const mode = runtime?.runtimeMode || process.env.AIRTABLE_RUNTIME_MODE?.trim().toLowerCase();
+  const mode = runtime?.runtimeMode;
   if (mode === "oauth" || mode === "server-token") {
     return mode;
   }
@@ -25,7 +25,7 @@ export function getAirtableRuntimeMode(runtime?: AirtableMcpRuntimeConfig): Airt
 }
 
 function getAirtableMcpConfig(runtime?: AirtableMcpRuntimeConfig): { url: string; token?: string; mode: Exclude<AirtableRuntimeMode, "auto"> } | null {
-  const url = runtime?.url?.trim() || process.env.AIRTABLE_MCP_URL?.trim();
+  const url = runtime?.url?.trim();
   if (!url) return null;
 
   const mode = getAirtableRuntimeMode(runtime);
@@ -64,7 +64,7 @@ export async function withAirtableMcpClient<T>(
   runtime?: AirtableMcpRuntimeConfig
 ): Promise<T> {
   const config = getAirtableMcpConfig(runtime);
-  if (!config) throw new Error("MCP Airtable non configuré : AIRTABLE_MCP_URL requis.");
+  if (!config) throw new Error("MCP Airtable non configuré pour l'utilisateur : renseignez URL + token server-token dans la configuration in-app.");
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   // Utiliser le token utilisateur si fourni, sinon le token global
   const token = accessToken || config.token;

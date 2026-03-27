@@ -9,25 +9,36 @@ import { MCP_ERROR_MESSAGES } from "../config/mcp.js";
 import { getAirtableRuntimeAccess } from "../services/integrations/airtable.js";
 import { getGmailAccessTokenForContext } from "../services/integrations/gmail.js";
 import { getNotionRuntimeAccess } from "../services/integrations/notion.js";
+import { getUserMcpConfig } from "../services/user-mcp-config.js";
 
 export type ToolContext = { supabase: SupabaseClient; userId: string };
 
 export async function executeTool(name: string, args: Record<string, unknown>, ctx: ToolContext): Promise<string> {
   const { supabase, userId } = ctx;
+  const userConfig = await getUserMcpConfig(supabase, userId);
+  const supabaseRuntime = {
+    url: userConfig.supabase?.mcpUrl,
+    token: userConfig.supabase?.accessToken,
+    projectRef: userConfig.supabase?.projectRef,
+  };
+  const n8nRuntime = {
+    url: userConfig.n8n?.mcpUrl,
+    token: userConfig.n8n?.accessToken,
+  };
   try {
     switch (name) {
       case "mcp_supabase": {
         const toolName = String(args.toolName ?? "").trim();
         const toolArgs = (args.arguments as Record<string, unknown>) ?? {};
         if (!toolName) return "toolName requis.";
-        const result = await callMcpTool(toolName, toolArgs);
+        const result = await callMcpTool(toolName, toolArgs, supabaseRuntime);
         return mcpResultToText(result);
       }
       case "mcp_n8n": {
         const toolName = String(args.toolName ?? "").trim();
         const toolArgs = (args.arguments as Record<string, unknown>) ?? {};
         if (!toolName) return "toolName requis.";
-        if (!isN8nMcpConfigured()) return MCP_ERROR_MESSAGES.n8n;
+        if (!isN8nMcpConfigured(n8nRuntime)) return MCP_ERROR_MESSAGES.n8n;
         let finalArgs: Record<string, unknown> = toolArgs;
         if (toolName === "execute_workflow") {
           finalArgs = { ...toolArgs, inputs: normalizeExecuteWorkflowInputs(toolArgs.inputs) };
@@ -35,7 +46,7 @@ export async function executeTool(name: string, args: Record<string, unknown>, c
           const wid = String(toolArgs.workflowId ?? toolArgs.workflow_id ?? "").trim();
           finalArgs = { workflowId: wid };
         }
-        const result = await callN8nMcpTool(toolName, finalArgs);
+        const result = await callN8nMcpTool(toolName, finalArgs, n8nRuntime);
         return mcpResultToText(result);
       }
       case "mcp_gmail": {
@@ -52,10 +63,10 @@ export async function executeTool(name: string, args: Record<string, unknown>, c
         const toolName = String(args.toolName ?? "").trim();
         const toolArgs = (args.arguments as Record<string, unknown>) ?? {};
         if (!toolName) return "toolName requis.";
-        if (!isAirtableMcpConfigured()) return MCP_ERROR_MESSAGES.airtable;
         const runtime = await getAirtableRuntimeAccess({ supabase, userId });
+        if (!isAirtableMcpConfigured(runtime.runtimeConfig)) return MCP_ERROR_MESSAGES.airtable;
         if (!runtime.available) return "Airtable non connecté. L'utilisateur peut se connecter depuis la page Airtable.";
-        const result = await callAirtableMcpTool(toolName, toolArgs, runtime.accessToken);
+        const result = await callAirtableMcpTool(toolName, toolArgs, runtime.accessToken, runtime.runtimeConfig);
         return mcpResultToText(result);
       }
       case "mcp_notion": {
@@ -77,24 +88,25 @@ export async function executeTool(name: string, args: Record<string, unknown>, c
         return mcpResultToText(result);
       }
       case "airtable_list_bases": {
-        if (!isAirtableMcpConfigured()) return MCP_ERROR_MESSAGES.airtable;
         const runtime = await getAirtableRuntimeAccess({ supabase, userId });
+        if (!isAirtableMcpConfigured(runtime.runtimeConfig)) return MCP_ERROR_MESSAGES.airtable;
         if (!runtime.available) return "Airtable n'est pas connecté.";
-        const result = await callAirtableMcpTool("list_bases", {}, runtime.accessToken);
+        const result = await callAirtableMcpTool("list_bases", {}, runtime.accessToken, runtime.runtimeConfig);
         return mcpResultToText(result);
       }
       case "airtable_list_records": {
-        if (!isAirtableMcpConfigured()) return MCP_ERROR_MESSAGES.airtable;
         const baseId = String(args.baseId ?? "").trim();
         const tableId = String(args.tableId ?? "").trim();
         const maxRecords = Math.min(Number(args.maxRecords) || 20, 50);
         if (!baseId || !tableId) return "baseId et tableId requis.";
         const runtime = await getAirtableRuntimeAccess({ supabase, userId });
+        if (!isAirtableMcpConfigured(runtime.runtimeConfig)) return MCP_ERROR_MESSAGES.airtable;
         if (!runtime.available) return "Airtable n'est pas connecté.";
         const result = await callAirtableMcpTool(
           "list_records",
           { base_id: baseId, table_id: tableId, max_records: maxRecords },
-          runtime.accessToken
+          runtime.accessToken,
+          runtime.runtimeConfig
         );
         return mcpResultToText(result);
       }
@@ -130,7 +142,7 @@ export async function executeTool(name: string, args: Record<string, unknown>, c
         return mcpResultToText(result);
       }
       case "n8n_search_workflows": {
-        if (!isN8nMcpConfigured()) return MCP_ERROR_MESSAGES.n8n;
+        if (!isN8nMcpConfigured(n8nRuntime)) return MCP_ERROR_MESSAGES.n8n;
         const query = typeof args.query === "string" ? args.query.trim() : undefined;
         const rawLimit = Number(args.limit);
         const limit = Number.isFinite(rawLimit) ? Math.min(200, Math.max(1, Math.floor(rawLimit))) : 20;
@@ -140,25 +152,25 @@ export async function executeTool(name: string, args: Record<string, unknown>, c
           ...(query !== undefined && query !== "" ? { query } : {}),
           limit,
           ...(projectId ? { projectId } : {}),
-        });
+        }, n8nRuntime);
         return mcpResultToText(result);
       }
       case "n8n_get_workflow_details": {
-        if (!isN8nMcpConfigured()) return MCP_ERROR_MESSAGES.n8n;
+        if (!isN8nMcpConfigured(n8nRuntime)) return MCP_ERROR_MESSAGES.n8n;
         const workflowId = String(args.workflowId ?? "").trim();
         if (!workflowId) return "workflowId requis.";
-        const result = await callN8nMcpTool("get_workflow_details", { workflowId });
+        const result = await callN8nMcpTool("get_workflow_details", { workflowId }, n8nRuntime);
         return mcpResultToText(result);
       }
       case "n8n_execute_workflow": {
-        if (!isN8nMcpConfigured()) return MCP_ERROR_MESSAGES.n8n;
+        if (!isN8nMcpConfigured(n8nRuntime)) return MCP_ERROR_MESSAGES.n8n;
         const workflowId = String(args.workflowId ?? "").trim();
         const inputs = args.inputs as Record<string, unknown> | undefined;
         if (!workflowId) return "workflowId requis.";
         const result = await callN8nMcpTool("execute_workflow", {
           workflowId,
           inputs: normalizeExecuteWorkflowInputs(inputs),
-        });
+        }, n8nRuntime);
         return mcpResultToText(result);
       }
       default:

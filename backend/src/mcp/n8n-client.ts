@@ -7,17 +7,8 @@ export type N8nMcpRuntimeConfig = {
 };
 
 function getN8nMcpConfig(runtime?: N8nMcpRuntimeConfig): { url: string; token: string } | null {
-  let url = runtime?.url?.trim() || process.env.N8N_MCP_URL?.trim();
-  if (!url && process.env.N8N_BASE_URL?.trim()) {
-    try {
-      const u = new URL(process.env.N8N_BASE_URL.trim());
-      u.pathname = (u.pathname || "/").replace(/\/?$/, "") + "/mcp-server/http";
-      url = u.toString();
-    } catch {
-      url = undefined;
-    }
-  }
-  const token = runtime?.token?.trim() || process.env.N8N_MCP_ACCESS_TOKEN?.trim();
+  const url = runtime?.url?.trim();
+  const token = runtime?.token?.trim();
   if (!url || !token) return null;
   return { url, token };
 }
@@ -102,7 +93,7 @@ export async function withN8nMcpClient<T>(
   runtime?: N8nMcpRuntimeConfig
 ): Promise<T> {
   const config = getN8nMcpConfig(runtime);
-  if (!config) throw new Error("MCP n8n non configuré : N8N_MCP_URL et N8N_MCP_ACCESS_TOKEN requis.");
+  if (!config) throw new Error("MCP n8n non configuré pour l'utilisateur : renseignez URL + token dans la configuration in-app.");
   const transport = new StreamableHTTPClientTransport(new URL(config.url), {
     requestInit: { headers: { Authorization: "Bearer " + config.token, "Content-Type": "application/json" } },
   });

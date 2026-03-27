@@ -3,7 +3,6 @@ import { getValidAirtableAccessToken, type AirtableTokenRow } from "../../lib/ai
 import {
   type AirtableMcpRuntimeConfig,
   getAirtableRuntimeMode,
-  hasAirtableServerToken,
   isAirtableMcpConfigured,
   isAirtableOAuthConfigured,
 } from "../../mcp/airtable-client.js";
@@ -32,7 +31,7 @@ export async function getAirtableRuntimeAccess(ctx: UserIntegrationContext): Pro
     runtimeMode: userConfig.airtable?.runtimeMode,
   };
   const hasUserServerToken = runtimeConfig.runtimeMode !== "oauth" && !!runtimeConfig.serverToken;
-  if (hasUserServerToken || hasAirtableServerToken()) {
+  if (hasUserServerToken) {
     return {
       available: true,
       source: "server-token",
@@ -98,9 +97,9 @@ export async function getAirtableRuntimeAccess(ctx: UserIntegrationContext): Pro
 export async function getAirtableConnectionStatus(ctx: UserIntegrationContext) {
   const runtime = await getAirtableRuntimeAccess(ctx);
   return {
-    configured: isAirtableMcpConfigured(),
+    configured: isAirtableMcpConfigured(runtime.runtimeConfig),
     selectedMode: getAirtableRuntimeMode(runtime.runtimeConfig),
-    oauthConfigured: isAirtableOAuthConfigured(),
+    oauthConfigured: isAirtableOAuthConfigured(runtime.runtimeConfig),
     connected: runtime.available,
     source: runtime.source,
     canDisconnect: runtime.canDisconnect,

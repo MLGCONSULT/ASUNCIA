@@ -8,31 +8,20 @@ export type SupabaseMcpRuntimeConfig = {
 };
 
 function getSupabaseMcpConfig(runtime?: SupabaseMcpRuntimeConfig): { url: string; token: string } | null {
-  const token = runtime?.token?.trim() || process.env.SUPABASE_ACCESS_TOKEN?.trim();
+  const token = runtime?.token?.trim();
   if (!token) return null;
   const explicitUrl = runtime?.url?.trim();
   if (explicitUrl) return { url: explicitUrl, token };
 
-  const projectRef = runtime?.projectRef?.trim() ||
-    process.env.SUPABASE_PROJECT_REF?.trim() ||
-    (() => {
-      const u = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() || process.env.SUPABASE_URL?.trim();
-      if (!u) return undefined;
-      try {
-        const match = new URL(u).hostname.match(/^([a-z0-9-]+)\.supabase\.co$/i);
-        return match ? match[1] : undefined;
-      } catch {
-        return undefined;
-      }
-    })();
+  const projectRef = runtime?.projectRef?.trim();
   if (!projectRef) return null;
   // Accès MCP Supabase strictement en lecture (read_only=true) pour l'éditeur SQL.
   // Aucune requête d'écriture ne sera acceptée côté serveur MCP.
   return { url: `https://mcp.supabase.com/mcp?project_ref=${projectRef}&read_only=true`, token };
 }
 
-export function isSupabaseMcpConfigured(): boolean {
-  return getSupabaseMcpConfig() !== null;
+export function isSupabaseMcpConfigured(runtime?: SupabaseMcpRuntimeConfig): boolean {
+  return getSupabaseMcpConfig(runtime) !== null;
 }
 
 export async function withSupabaseMcpClient<T>(
@@ -40,7 +29,7 @@ export async function withSupabaseMcpClient<T>(
   runtime?: SupabaseMcpRuntimeConfig
 ): Promise<T> {
   const config = getSupabaseMcpConfig(runtime);
-  if (!config) throw new Error("MCP Supabase non configuré : SUPABASE_ACCESS_TOKEN et NEXT_PUBLIC_SUPABASE_URL (ou SUPABASE_PROJECT_REF) requis.");
+  if (!config) throw new Error("MCP Supabase non configuré pour l'utilisateur : renseignez token + URL ou project_ref dans la configuration in-app.");
   const transport = new StreamableHTTPClientTransport(new URL(config.url), {
     requestInit: { headers: { Authorization: `Bearer ${config.token}`, "Content-Type": "application/json" } },
   });
