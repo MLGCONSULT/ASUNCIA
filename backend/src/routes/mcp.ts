@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { callMcpTool, listMcpTools } from "../mcp/supabase-client.js";
+import { callMcpTool, isSupabaseMcpConfigured, listMcpTools } from "../mcp/supabase-client.js";
 import { listAirtableMcpTools, isAirtableMcpConfigured } from "../mcp/airtable-client.js";
 import { listN8nMcpTools, isN8nMcpConfigured } from "../mcp/n8n-client.js";
 import { listGmailMcpTools, isGmailMcpConfigured } from "../mcp/gmail-client.js";
@@ -133,6 +133,53 @@ export function mcpRouter(): Router {
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Erreur de lecture de configuration";
+      return res.status(500).json({ error: message });
+    }
+  });
+
+  router.get("/source", async (req: AuthRequest, res) => {
+    if (!req.user) {
+      res.status(401).json({ error: "Non authentifié" });
+      return;
+    }
+    try {
+      const userSupabase = createUserSupabaseFromRequest(req);
+      const cfg = await getUserMcpConfig(userSupabase, req.user.id);
+      const supabaseRuntime = {
+        url: cfg.supabase?.mcpUrl,
+        token: cfg.supabase?.accessToken,
+        projectRef: cfg.supabase?.projectRef,
+      };
+      const n8nRuntime = { url: cfg.n8n?.mcpUrl, token: cfg.n8n?.accessToken };
+      const airtableRuntime = await getAirtableRuntimeAccess({
+        supabase: userSupabase,
+        userId: req.user.id,
+      });
+
+      return res.json({
+        userId: req.user.id,
+        sourcePolicy: "user-config-only",
+        supabase: {
+          configured: isSupabaseMcpConfigured(supabaseRuntime),
+          hasUserToken: !!cfg.supabase?.accessToken,
+          hasUserProjectRef: !!cfg.supabase?.projectRef,
+          hasUserUrl: !!cfg.supabase?.mcpUrl,
+        },
+        n8n: {
+          configured: isN8nMcpConfigured(n8nRuntime),
+          hasUserToken: !!cfg.n8n?.accessToken,
+          hasUserUrl: !!cfg.n8n?.mcpUrl,
+        },
+        airtable: {
+          configured: isAirtableMcpConfigured(airtableRuntime.runtimeConfig),
+          connected: airtableRuntime.available,
+          selectedSource: airtableRuntime.source,
+          hasUserServerToken: !!cfg.airtable?.serverToken,
+          hasUserUrl: !!cfg.airtable?.mcpUrl,
+        },
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Erreur source MCP";
       return res.status(500).json({ error: message });
     }
   });
