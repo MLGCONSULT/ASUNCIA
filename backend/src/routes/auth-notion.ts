@@ -12,6 +12,7 @@ import {
 import { getNotionRuntimeMode } from "../mcp/notion-client.js";
 import { createUserSupabaseFromRequest } from "../services/auth-context.js";
 import { getNotionConnectionStatus } from "../services/integrations/notion.js";
+import { getUserMcpConfig } from "../services/user-mcp-config.js";
 import {
   consumePendingOAuthState,
   persistPendingOAuthState,
@@ -37,18 +38,23 @@ export function authNotionRouter(): Router {
       res.status(401).json({ error: "Non authentifié" });
       return;
     }
-    if (getNotionRuntimeMode() === "server-token") {
-      res.status(409).json({
-        error: "Notion est configure en mode server-token. Desactivez ce mode pour utiliser OAuth.",
-      });
-      return;
-    }
     try {
+      const userSupabase = createUserSupabaseFromRequest(req);
+      const userConfig = await getUserMcpConfig(userSupabase, req.user.id);
+      if (getNotionRuntimeMode({ runtimeMode: userConfig.notion?.runtimeMode }) === "server-token") {
+        res.status(409).json({
+          error: "Notion est configuré en mode server-token. Passez en mode OAuth dans la config MCP.",
+        });
+        return;
+      }
       const redirectUri = getRedirectUri(req);
       const codeVerifier = generateCodeVerifier();
       const codeChallenge = generateCodeChallenge(codeVerifier);
       const state = generateState();
-      const { metadata, credentials } = await getNotionOAuthMetadataAndClient(redirectUri);
+      const { metadata, credentials } = await getNotionOAuthMetadataAndClient(redirectUri, {
+        clientId: userConfig.notion?.oauthClientId,
+        clientSecret: userConfig.notion?.oauthClientSecret,
+      });
       await persistPendingOAuthState({
         provider: NOTION_PROVIDER,
         state,

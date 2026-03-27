@@ -2,30 +2,35 @@ import { Client } from "@modelcontextprotocol/sdk/client";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 
 type AirtableRuntimeMode = "auto" | "oauth" | "server-token";
+export type AirtableMcpRuntimeConfig = {
+  url?: string | null;
+  serverToken?: string | null;
+  runtimeMode?: AirtableRuntimeMode;
+};
 
 function getRawAirtableOAuthConfig(): boolean {
   return !!process.env.AIRTABLE_OAUTH_CLIENT_ID?.trim();
 }
 
-function getRawAirtableServerToken(): string | undefined {
-  return process.env.AIRTABLE_MCP_TOKEN?.trim() || process.env.AIRTABLE_TOKEN?.trim() || undefined;
+function getRawAirtableServerToken(runtime?: AirtableMcpRuntimeConfig): string | undefined {
+  return runtime?.serverToken?.trim() || process.env.AIRTABLE_MCP_TOKEN?.trim() || process.env.AIRTABLE_TOKEN?.trim() || undefined;
 }
 
-export function getAirtableRuntimeMode(): AirtableRuntimeMode {
-  const mode = process.env.AIRTABLE_RUNTIME_MODE?.trim().toLowerCase();
+export function getAirtableRuntimeMode(runtime?: AirtableMcpRuntimeConfig): AirtableRuntimeMode {
+  const mode = runtime?.runtimeMode || process.env.AIRTABLE_RUNTIME_MODE?.trim().toLowerCase();
   if (mode === "oauth" || mode === "server-token") {
     return mode;
   }
   return "auto";
 }
 
-function getAirtableMcpConfig(): { url: string; token?: string; mode: Exclude<AirtableRuntimeMode, "auto"> } | null {
-  const url = process.env.AIRTABLE_MCP_URL?.trim();
+function getAirtableMcpConfig(runtime?: AirtableMcpRuntimeConfig): { url: string; token?: string; mode: Exclude<AirtableRuntimeMode, "auto"> } | null {
+  const url = runtime?.url?.trim() || process.env.AIRTABLE_MCP_URL?.trim();
   if (!url) return null;
 
-  const mode = getAirtableRuntimeMode();
+  const mode = getAirtableRuntimeMode(runtime);
   const oauthConfigured = getRawAirtableOAuthConfig();
-  const serverToken = getRawAirtableServerToken();
+  const serverToken = getRawAirtableServerToken(runtime);
 
   if (mode === "oauth") {
     return oauthConfigured ? { url, mode } : null;
@@ -39,25 +44,26 @@ function getAirtableMcpConfig(): { url: string; token?: string; mode: Exclude<Ai
   return serverToken ? { url, token: serverToken, mode: "server-token" } : null;
 }
 
-export function isAirtableMcpConfigured(): boolean {
-  const config = getAirtableMcpConfig();
+export function isAirtableMcpConfigured(runtime?: AirtableMcpRuntimeConfig): boolean {
+  const config = getAirtableMcpConfig(runtime);
   if (!config) return false;
-  return isAirtableOAuthConfigured() || hasAirtableServerToken();
+  return isAirtableOAuthConfigured(runtime) || hasAirtableServerToken(runtime);
 }
 
-export function isAirtableOAuthConfigured(): boolean {
-  return getAirtableRuntimeMode() !== "server-token" && getRawAirtableOAuthConfig();
+export function isAirtableOAuthConfigured(runtime?: AirtableMcpRuntimeConfig): boolean {
+  return getAirtableRuntimeMode(runtime) !== "server-token" && getRawAirtableOAuthConfig();
 }
 
-export function hasAirtableServerToken(): boolean {
-  return getAirtableRuntimeMode() !== "oauth" && !!getRawAirtableServerToken();
+export function hasAirtableServerToken(runtime?: AirtableMcpRuntimeConfig): boolean {
+  return getAirtableRuntimeMode(runtime) !== "oauth" && !!getRawAirtableServerToken(runtime);
 }
 
 export async function withAirtableMcpClient<T>(
   fn: (client: Client) => Promise<T>,
-  accessToken?: string
+  accessToken?: string,
+  runtime?: AirtableMcpRuntimeConfig
 ): Promise<T> {
-  const config = getAirtableMcpConfig();
+  const config = getAirtableMcpConfig(runtime);
   if (!config) throw new Error("MCP Airtable non configuré : AIRTABLE_MCP_URL requis.");
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   // Utiliser le token utilisateur si fourni, sinon le token global
@@ -73,10 +79,15 @@ export async function withAirtableMcpClient<T>(
   }
 }
 
-export async function listAirtableMcpTools(accessToken?: string) {
-  return withAirtableMcpClient((client) => client.listTools(), accessToken);
+export async function listAirtableMcpTools(accessToken?: string, runtime?: AirtableMcpRuntimeConfig) {
+  return withAirtableMcpClient((client) => client.listTools(), accessToken, runtime);
 }
 
-export async function callAirtableMcpTool(name: string, args: Record<string, unknown> = {}, accessToken?: string) {
-  return withAirtableMcpClient((client) => client.callTool({ name, arguments: args }), accessToken);
+export async function callAirtableMcpTool(
+  name: string,
+  args: Record<string, unknown> = {},
+  accessToken?: string,
+  runtime?: AirtableMcpRuntimeConfig
+) {
+  return withAirtableMcpClient((client) => client.callTool({ name, arguments: args }), accessToken, runtime);
 }

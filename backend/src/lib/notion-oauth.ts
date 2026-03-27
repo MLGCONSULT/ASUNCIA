@@ -221,10 +221,24 @@ const metadataCache = new Map<
   { metadata: OAuthMetadata; credentials: ClientCredentials }
 >();
 
-export async function getNotionOAuthMetadataAndClient(redirectUri: string): Promise<{
+export async function getNotionOAuthMetadataAndClient(
+  redirectUri: string,
+  preferredClient?: { clientId?: string | null; clientSecret?: string | null }
+): Promise<{
   metadata: OAuthMetadata;
   credentials: ClientCredentials;
 }> {
+  const preferredClientId = preferredClient?.clientId?.trim();
+  if (preferredClientId) {
+    const metadata = await discoverNotionOAuth();
+    return {
+      metadata,
+      credentials: {
+        client_id: preferredClientId,
+        client_secret: preferredClient?.clientSecret?.trim() || undefined,
+      },
+    };
+  }
   const configuredClient = getConfiguredNotionClient();
   if (configuredClient) {
     const metadata = await discoverNotionOAuth();

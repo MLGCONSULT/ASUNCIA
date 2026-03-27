@@ -1,12 +1,14 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getValidAirtableAccessToken, type AirtableTokenRow } from "../../lib/airtable-oauth.js";
 import {
+  type AirtableMcpRuntimeConfig,
   getAirtableRuntimeMode,
   hasAirtableServerToken,
   isAirtableMcpConfigured,
   isAirtableOAuthConfigured,
 } from "../../mcp/airtable-client.js";
 import { getOAuthTokenRecord, updateOAuthToken } from "../oauth-tokens.js";
+import { getUserMcpConfig } from "../user-mcp-config.js";
 
 export type UserIntegrationContext = {
   supabase: SupabaseClient;
@@ -17,15 +19,25 @@ export type RuntimeAccess = {
   available: boolean;
   source: "oauth" | "server-token" | "none";
   accessToken?: string;
+  runtimeConfig?: AirtableMcpRuntimeConfig;
   canDisconnect: boolean;
   needsReconnect?: boolean;
 };
 
 export async function getAirtableRuntimeAccess(ctx: UserIntegrationContext): Promise<RuntimeAccess> {
-  if (hasAirtableServerToken()) {
+  const userConfig = await getUserMcpConfig(ctx.supabase, ctx.userId);
+  const runtimeConfig: AirtableMcpRuntimeConfig = {
+    url: userConfig.airtable?.mcpUrl,
+    serverToken: userConfig.airtable?.serverToken,
+    runtimeMode: userConfig.airtable?.runtimeMode,
+  };
+  const hasUserServerToken = runtimeConfig.runtimeMode !== "oauth" && !!runtimeConfig.serverToken;
+  if (hasUserServerToken || hasAirtableServerToken()) {
     return {
       available: true,
       source: "server-token",
+      accessToken: runtimeConfig.serverToken || undefined,
+      runtimeConfig,
       canDisconnect: false,
     };
   }
@@ -78,6 +90,7 @@ export async function getAirtableRuntimeAccess(ctx: UserIntegrationContext): Pro
     available: true,
     source: "oauth",
     accessToken,
+    runtimeConfig,
     canDisconnect: true,
   };
 }
@@ -86,7 +99,7 @@ export async function getAirtableConnectionStatus(ctx: UserIntegrationContext) {
   const runtime = await getAirtableRuntimeAccess(ctx);
   return {
     configured: isAirtableMcpConfigured(),
-    selectedMode: getAirtableRuntimeMode(),
+    selectedMode: getAirtableRuntimeMode(runtime.runtimeConfig),
     oauthConfigured: isAirtableOAuthConfigured(),
     connected: runtime.available,
     source: runtime.source,

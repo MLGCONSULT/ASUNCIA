@@ -4,12 +4,35 @@ const positiveInt = (defaultValue: number, max: number) =>
   z.coerce.number().int().min(1).max(max).catch(defaultValue);
 
 export const providerQuerySchema = z.object({
-  provider: z.enum(["gmail", "airtable", "notion", "n8n"]),
+  provider: z.enum(["gmail", "airtable", "n8n"]),
 });
 
 export const mcpCallBodySchema = z.object({
   toolName: z.string().trim().min(1, "toolName requis"),
   arguments: z.record(z.string(), z.unknown()).default({}),
+});
+
+export const userMcpConfigBodySchema = z.object({
+  supabase: z
+    .object({
+      mcpUrl: z.string().trim().optional().nullable(),
+      accessToken: z.string().trim().optional().nullable(),
+      projectRef: z.string().trim().optional().nullable(),
+    })
+    .optional(),
+  n8n: z
+    .object({
+      mcpUrl: z.string().trim().optional().nullable(),
+      accessToken: z.string().trim().optional().nullable(),
+    })
+    .optional(),
+  airtable: z
+    .object({
+      runtimeMode: z.enum(["auto", "oauth", "server-token"]).optional(),
+      mcpUrl: z.string().trim().optional().nullable(),
+      serverToken: z.string().trim().optional().nullable(),
+    })
+    .optional(),
 });
 
 export const gmailMessagesQuerySchema = z.object({

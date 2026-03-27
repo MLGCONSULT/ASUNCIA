@@ -3,6 +3,8 @@ import { callN8nMcpTool, isN8nMcpConfigured, normalizeExecuteWorkflowInputs } fr
 import { mergeGetWorkflowDetailsMcpPayload, parseMcpResultJson } from "../mcp/result.js";
 import { MCP_ERROR_MESSAGES } from "../config/mcp.js";
 import { callFirstAvailableTool } from "../services/integrations/n8n.js";
+import { createUserSupabaseFromRequest } from "../services/auth-context.js";
+import { getUserMcpConfig } from "../services/user-mcp-config.js";
 import { parseBody, parseParams, parseQuery } from "../validators/http.js";
 import {
   n8nCreateWorkflowBodySchema,
@@ -16,22 +18,32 @@ import type { AuthRequest } from "../middleware/auth.js";
 export function n8nRouter(): Router {
   const router = Router();
 
+  async function getUserN8nRuntime(req: AuthRequest) {
+    if (!req.user) return {};
+    const cfg = await getUserMcpConfig(createUserSupabaseFromRequest(req), req.user.id);
+    return {
+      url: cfg.n8n?.mcpUrl,
+      token: cfg.n8n?.accessToken,
+    };
+  }
+
   router.get("/workflows", async (req: AuthRequest, res) => {
     if (!req.user) {
       res.status(401).json({ error: "Non authentifié" });
       return;
     }
-    if (!isN8nMcpConfigured()) {
-      res.status(503).json({ error: MCP_ERROR_MESSAGES.n8n });
-      return;
-    }
     try {
+      const runtime = await getUserN8nRuntime(req);
+      if (!isN8nMcpConfigured(runtime)) {
+        res.status(503).json({ error: MCP_ERROR_MESSAGES.n8n });
+        return;
+      }
       const { query, limit, projectId } = parseQuery(n8nWorkflowsQuerySchema, req);
       const result = await callN8nMcpTool("search_workflows", {
         ...(query ? { query } : {}),
         limit,
         ...(projectId ? { projectId } : {}),
-      });
+      }, runtime);
       const data = parseMcpResultJson<{ workflows?: unknown[]; data?: unknown[] } | unknown[]>(result);
       const workflows = Array.isArray(data)
         ? data
@@ -48,13 +60,14 @@ export function n8nRouter(): Router {
       res.status(401).json({ error: "Non authentifié" });
       return;
     }
-    if (!isN8nMcpConfigured()) {
-      res.status(503).json({ error: MCP_ERROR_MESSAGES.n8n });
-      return;
-    }
     try {
+      const runtime = await getUserN8nRuntime(req);
+      if (!isN8nMcpConfigured(runtime)) {
+        res.status(503).json({ error: MCP_ERROR_MESSAGES.n8n });
+        return;
+      }
       const { id } = parseParams(n8nWorkflowIdParamsSchema, req);
-      const result = await callN8nMcpTool("get_workflow_details", { workflowId: id });
+      const result = await callN8nMcpTool("get_workflow_details", { workflowId: id }, runtime);
       const parsed = parseMcpResultJson<Record<string, unknown>>(result);
       const data =
         parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)
@@ -72,11 +85,12 @@ export function n8nRouter(): Router {
       res.status(401).json({ error: "Non authentifié" });
       return;
     }
-    if (!isN8nMcpConfigured()) {
-      res.status(503).json({ error: MCP_ERROR_MESSAGES.n8n });
-      return;
-    }
     try {
+      const runtime = await getUserN8nRuntime(req);
+      if (!isN8nMcpConfigured(runtime)) {
+        res.status(503).json({ error: MCP_ERROR_MESSAGES.n8n });
+        return;
+      }
       const { id } = parseParams(n8nWorkflowIdParamsSchema, req);
       const body = parseBody(n8nExecuteBodySchema, req);
       const inputs = body.inputs ?? (typeof req.body === "object" && req.body !== null ? req.body : undefined);
@@ -85,7 +99,7 @@ export function n8nRouter(): Router {
       const result = await callN8nMcpTool("execute_workflow", {
         workflowId: id,
         inputs: normalizeExecuteWorkflowInputs(inputsObj),
-      });
+      }, runtime);
       const data = parseMcpResultJson(result);
       res.json(data);
     } catch (err) {
@@ -99,15 +113,16 @@ export function n8nRouter(): Router {
       res.status(401).json({ error: "Non authentifié" });
       return;
     }
-    if (!isN8nMcpConfigured()) {
-      res.status(503).json({ error: MCP_ERROR_MESSAGES.n8n });
-      return;
-    }
     try {
+      const runtime = await getUserN8nRuntime(req);
+      if (!isN8nMcpConfigured(runtime)) {
+        res.status(503).json({ error: MCP_ERROR_MESSAGES.n8n });
+        return;
+      }
       const { id } = parseParams(n8nWorkflowIdParamsSchema, req);
       const result = await callFirstAvailableTool(
         ["activate_workflow", "n8n_activate_workflow", "update_workflow"],
-        (toolName) => callN8nMcpTool(toolName, { workflowId: id, active: true })
+        (toolName) => callN8nMcpTool(toolName, { workflowId: id, active: true }, runtime)
       );
       const data = parseMcpResultJson(result);
       return res.json(data);
@@ -122,15 +137,16 @@ export function n8nRouter(): Router {
       res.status(401).json({ error: "Non authentifié" });
       return;
     }
-    if (!isN8nMcpConfigured()) {
-      res.status(503).json({ error: MCP_ERROR_MESSAGES.n8n });
-      return;
-    }
     try {
+      const runtime = await getUserN8nRuntime(req);
+      if (!isN8nMcpConfigured(runtime)) {
+        res.status(503).json({ error: MCP_ERROR_MESSAGES.n8n });
+        return;
+      }
       const { id } = parseParams(n8nWorkflowIdParamsSchema, req);
       const result = await callFirstAvailableTool(
         ["deactivate_workflow", "n8n_deactivate_workflow", "update_workflow"],
-        (toolName) => callN8nMcpTool(toolName, { workflowId: id, active: false })
+        (toolName) => callN8nMcpTool(toolName, { workflowId: id, active: false }, runtime)
       );
       const data = parseMcpResultJson(result);
       return res.json(data);
@@ -145,11 +161,12 @@ export function n8nRouter(): Router {
       res.status(401).json({ error: "Non authentifié" });
       return;
     }
-    if (!isN8nMcpConfigured()) {
-      res.status(503).json({ error: MCP_ERROR_MESSAGES.n8n });
-      return;
-    }
     try {
+      const runtime = await getUserN8nRuntime(req);
+      if (!isN8nMcpConfigured(runtime)) {
+        res.status(503).json({ error: MCP_ERROR_MESSAGES.n8n });
+        return;
+      }
       const { name, nodes = [], connections = {}, settings = {} } = parseBody(n8nCreateWorkflowBodySchema, req);
       const result = await callFirstAvailableTool(
         ["create_workflow", "n8n_create_workflow", "workflow_create"],
@@ -159,9 +176,9 @@ export function n8nRouter(): Router {
             { workflow_id: undefined, name, nodes, connections, settings, active: false },
             { name, nodes, connections, settings },
           ];
-          return callFirstAvailableTool(paramVariants.map((_, index) => `${toolName}:${index}`), async (variantKey) => {
+            return callFirstAvailableTool(paramVariants.map((_, index) => `${toolName}:${index}`), async (variantKey) => {
             const index = Number(variantKey.split(":")[1]);
-            return callN8nMcpTool(toolName, paramVariants[index]);
+            return callN8nMcpTool(toolName, paramVariants[index], runtime);
           });
         }
       );
@@ -178,11 +195,12 @@ export function n8nRouter(): Router {
       res.status(401).json({ error: "Non authentifié" });
       return;
     }
-    if (!isN8nMcpConfigured()) {
-      res.status(503).json({ error: MCP_ERROR_MESSAGES.n8n });
-      return;
-    }
     try {
+      const runtime = await getUserN8nRuntime(req);
+      if (!isN8nMcpConfigured(runtime)) {
+        res.status(503).json({ error: MCP_ERROR_MESSAGES.n8n });
+        return;
+      }
       const { id } = parseParams(n8nWorkflowIdParamsSchema, req);
       const { name, nodes, connections, settings, active } = parseBody(n8nUpdateWorkflowBodySchema, req);
       const result = await callFirstAvailableTool(
@@ -194,7 +212,7 @@ export function n8nRouter(): Router {
           if (connections !== undefined) args.connections = connections;
           if (settings !== undefined) args.settings = settings;
           if (active !== undefined) args.active = active;
-          return callN8nMcpTool(toolName, args);
+          return callN8nMcpTool(toolName, args, runtime);
         }
       );
       const data = parseMcpResultJson(result);
@@ -210,15 +228,16 @@ export function n8nRouter(): Router {
       res.status(401).json({ error: "Non authentifié" });
       return;
     }
-    if (!isN8nMcpConfigured()) {
-      res.status(503).json({ error: MCP_ERROR_MESSAGES.n8n });
-      return;
-    }
     try {
+      const runtime = await getUserN8nRuntime(req);
+      if (!isN8nMcpConfigured(runtime)) {
+        res.status(503).json({ error: MCP_ERROR_MESSAGES.n8n });
+        return;
+      }
       const { id } = parseParams(n8nWorkflowIdParamsSchema, req);
       const result = await callFirstAvailableTool(
         ["delete_workflow", "n8n_delete_workflow"],
-        (toolName) => callN8nMcpTool(toolName, { workflowId: id })
+        (toolName) => callN8nMcpTool(toolName, { workflowId: id }, runtime)
       );
       const data = parseMcpResultJson(result);
       return res.json(data);

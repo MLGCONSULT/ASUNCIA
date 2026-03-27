@@ -1,8 +1,13 @@
 import { Client } from "@modelcontextprotocol/sdk/client";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 
-function getN8nMcpConfig(): { url: string; token: string } | null {
-  let url = process.env.N8N_MCP_URL?.trim();
+export type N8nMcpRuntimeConfig = {
+  url?: string | null;
+  token?: string | null;
+};
+
+function getN8nMcpConfig(runtime?: N8nMcpRuntimeConfig): { url: string; token: string } | null {
+  let url = runtime?.url?.trim() || process.env.N8N_MCP_URL?.trim();
   if (!url && process.env.N8N_BASE_URL?.trim()) {
     try {
       const u = new URL(process.env.N8N_BASE_URL.trim());
@@ -12,13 +17,13 @@ function getN8nMcpConfig(): { url: string; token: string } | null {
       url = undefined;
     }
   }
-  const token = process.env.N8N_MCP_ACCESS_TOKEN?.trim();
+  const token = runtime?.token?.trim() || process.env.N8N_MCP_ACCESS_TOKEN?.trim();
   if (!url || !token) return null;
   return { url, token };
 }
 
-export function isN8nMcpConfigured(): boolean {
-  return getN8nMcpConfig() !== null;
+export function isN8nMcpConfigured(runtime?: N8nMcpRuntimeConfig): boolean {
+  return getN8nMcpConfig(runtime) !== null;
 }
 
 /**
@@ -92,8 +97,11 @@ export function normalizeExecuteWorkflowInputs(inputs: unknown): Record<string, 
   };
 }
 
-export async function withN8nMcpClient<T>(fn: (client: Client) => Promise<T>): Promise<T> {
-  const config = getN8nMcpConfig();
+export async function withN8nMcpClient<T>(
+  fn: (client: Client) => Promise<T>,
+  runtime?: N8nMcpRuntimeConfig
+): Promise<T> {
+  const config = getN8nMcpConfig(runtime);
   if (!config) throw new Error("MCP n8n non configuré : N8N_MCP_URL et N8N_MCP_ACCESS_TOKEN requis.");
   const transport = new StreamableHTTPClientTransport(new URL(config.url), {
     requestInit: { headers: { Authorization: "Bearer " + config.token, "Content-Type": "application/json" } },
@@ -107,10 +115,14 @@ export async function withN8nMcpClient<T>(fn: (client: Client) => Promise<T>): P
   }
 }
 
-export async function listN8nMcpTools() {
-  return withN8nMcpClient((client) => client.listTools());
+export async function listN8nMcpTools(runtime?: N8nMcpRuntimeConfig) {
+  return withN8nMcpClient((client) => client.listTools(), runtime);
 }
 
-export async function callN8nMcpTool(name: string, args: Record<string, unknown> = {}) {
-  return withN8nMcpClient((client) => client.callTool({ name, arguments: args }));
+export async function callN8nMcpTool(
+  name: string,
+  args: Record<string, unknown> = {},
+  runtime?: N8nMcpRuntimeConfig
+) {
+  return withN8nMcpClient((client) => client.callTool({ name, arguments: args }), runtime);
 }

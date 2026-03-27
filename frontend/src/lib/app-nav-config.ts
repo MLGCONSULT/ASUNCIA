@@ -102,6 +102,19 @@ export const appNavSupabase = item(
   "bg-emerald-500/22 text-emerald-50 border-l-2 border-emerald-400 shadow-[0_0_28px_-12px_rgba(52,211,153,0.38)]",
 );
 
+/** Config MCP — violet */
+export const appNavMcp = item(
+  "/app/mcp",
+  "Config MCP",
+  "user",
+  "text-violet-200",
+  "shadow-[0_0_20px_-6px_rgba(167,139,250,0.9)]",
+  "from-violet-500/30 to-violet-800/10",
+  "hover:border-violet-400/50 hover:bg-gradient-to-b hover:from-violet-500/20 hover:to-violet-950/25 hover:text-violet-50 hover:shadow-[0_0_24px_-8px_rgba(167,139,250,0.45)]",
+  "hover:bg-violet-500/[0.18] hover:text-violet-50 hover:border-l-violet-400",
+  "bg-violet-500/22 text-violet-50 border-l-2 border-violet-400",
+);
+
 /** Ordre du dock bas */
 export const NAV_WHEEL_ITEMS: AppNavItem[] = [
   appNavAirtable,
@@ -109,6 +122,7 @@ export const NAV_WHEEL_ITEMS: AppNavItem[] = [
   appNavDashboard,
   appNavN8n,
   appNavSupabase,
+  appNavMcp,
 ];
 
 /** Classes `dashboard-tool-bubble-*` (même rendu que l’orbit) */
@@ -118,6 +132,7 @@ export const NAV_WHEEL_ORBIT_TONE: Record<string, string> = {
   [appNavDashboard.href]: "dashboard-tool-bubble-cyan",
   [appNavN8n.href]: "dashboard-tool-bubble-amber",
   [appNavSupabase.href]: "dashboard-tool-bubble-emerald",
+  [appNavMcp.href]: "dashboard-tool-bubble-fuchsia",
 };
 
 /** RGB pour le fil entre bulles (sans alpha) */
@@ -127,6 +142,7 @@ export const NAV_WHEEL_WIRE_RGB: Record<string, string> = {
   [appNavDashboard.href]: "34, 211, 238",
   [appNavN8n.href]: "251, 191, 36",
   [appNavSupabase.href]: "52, 211, 153",
+  [appNavMcp.href]: "167, 139, 250",
 };
 
 export function isAppNavActive(pathname: string, href: string): boolean {

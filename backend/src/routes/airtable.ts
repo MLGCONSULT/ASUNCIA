@@ -36,21 +36,21 @@ export function airtableRouter(): Router {
       res.status(401).json({ error: "Non authentifié" });
       return;
     }
-    if (!isAirtableMcpConfigured()) {
-      res.status(503).json({ error: MCP_ERROR_MESSAGES.airtable });
-      return;
-    }
     try {
       const ctx: UserIntegrationContext = {
         supabase: createUserSupabaseFromRequest(req),
         userId: req.user.id,
       };
       const runtime = await getAirtableRuntimeAccess(ctx);
+      if (!isAirtableMcpConfigured(runtime.runtimeConfig)) {
+        res.status(503).json({ error: MCP_ERROR_MESSAGES.airtable });
+        return;
+      }
       if (!runtime.available) {
         res.status(403).json({ error: "Connectez votre compte Airtable pour accéder aux bases." });
         return;
       }
-      const result = await callAirtableMcpTool("list_bases", {}, runtime.accessToken);
+      const result = await callAirtableMcpTool("list_bases", {}, runtime.accessToken, runtime.runtimeConfig);
       const data = parseMcpResultJson<{ bases?: { id: string; name: string }[] }>(result);
       return res.json({ bases: Array.isArray(data.bases) ? data.bases : (data as { bases?: unknown }).bases ?? [] });
     } catch (err) {
@@ -65,21 +65,21 @@ export function airtableRouter(): Router {
       res.status(401).json({ error: "Non authentifié" });
       return;
     }
-    if (!isAirtableMcpConfigured()) {
-      res.status(503).json({ error: MCP_ERROR_MESSAGES.airtable });
-      return;
-    }
     try {
       const { baseId } = parseParams(airtableBaseParamsSchema, req);
       const runtime = await getAirtableRuntimeAccess({
         supabase: createUserSupabaseFromRequest(req),
         userId: req.user.id,
       });
+      if (!isAirtableMcpConfigured(runtime.runtimeConfig)) {
+        res.status(503).json({ error: MCP_ERROR_MESSAGES.airtable });
+        return;
+      }
       if (!runtime.available) {
         res.status(403).json({ error: "Connectez votre compte Airtable pour accéder aux tables." });
         return;
       }
-      const result = await callAirtableMcpTool("list_tables", { base_id: baseId }, runtime.accessToken);
+      const result = await callAirtableMcpTool("list_tables", { base_id: baseId }, runtime.accessToken, runtime.runtimeConfig);
       const data = parseMcpResultJson<{ tables?: { id: string; name: string }[] }>(result);
       return res.json({ tables: Array.isArray(data.tables) ? data.tables : (data as { tables?: unknown }).tables ?? [] });
     } catch (err) {
@@ -94,10 +94,6 @@ export function airtableRouter(): Router {
       res.status(401).json({ error: "Non authentifié" });
       return;
     }
-    if (!isAirtableMcpConfigured()) {
-      res.status(503).json({ error: MCP_ERROR_MESSAGES.airtable });
-      return;
-    }
     try {
       const { baseId, tableId } = parseParams(airtableRecordParamsSchema, req);
       const { maxRecords } = parseQuery(airtableRecordsQuerySchema, req);
@@ -105,6 +101,10 @@ export function airtableRouter(): Router {
         supabase: createUserSupabaseFromRequest(req),
         userId: req.user.id,
       });
+      if (!isAirtableMcpConfigured(runtime.runtimeConfig)) {
+        res.status(503).json({ error: MCP_ERROR_MESSAGES.airtable });
+        return;
+      }
       if (!runtime.available) {
         res.status(403).json({ error: "Connectez votre compte Airtable pour accéder aux enregistrements." });
         return;
@@ -112,7 +112,8 @@ export function airtableRouter(): Router {
       const result = await callAirtableMcpTool(
         "list_records",
         { base_id: baseId, table_id: tableId, max_records: maxRecords },
-        runtime.accessToken
+        runtime.accessToken,
+        runtime.runtimeConfig
       );
       const data = parseMcpResultJson<{ records?: { id: string; fields: Record<string, unknown> }[] }>(result);
       return res.json({ records: Array.isArray(data.records) ? data.records : (data as { records?: unknown }).records ?? [] });
@@ -128,10 +129,6 @@ export function airtableRouter(): Router {
       res.status(401).json({ error: "Non authentifié" });
       return;
     }
-    if (!isAirtableMcpConfigured()) {
-      res.status(503).json({ error: MCP_ERROR_MESSAGES.airtable });
-      return;
-    }
     try {
       const { baseId, tableId } = parseParams(airtableRecordParamsSchema, req);
       const fields = parseBody(airtableFieldsBodySchema, req);
@@ -139,11 +136,20 @@ export function airtableRouter(): Router {
         supabase: createUserSupabaseFromRequest(req),
         userId: req.user.id,
       });
+      if (!isAirtableMcpConfigured(runtime.runtimeConfig)) {
+        res.status(503).json({ error: MCP_ERROR_MESSAGES.airtable });
+        return;
+      }
       if (!runtime.available) {
         res.status(403).json({ error: "Connectez votre compte Airtable pour créer des enregistrements." });
         return;
       }
-      const result = await callAirtableMcpTool("create_record", { base_id: baseId, table_id: tableId, fields }, runtime.accessToken);
+      const result = await callAirtableMcpTool(
+        "create_record",
+        { base_id: baseId, table_id: tableId, fields },
+        runtime.accessToken,
+        runtime.runtimeConfig
+      );
       const data = parseMcpResultJson(result);
       return res.status(201).json(data);
     } catch (err) {
@@ -158,10 +164,6 @@ export function airtableRouter(): Router {
       res.status(401).json({ error: "Non authentifié" });
       return;
     }
-    if (!isAirtableMcpConfigured()) {
-      res.status(503).json({ error: MCP_ERROR_MESSAGES.airtable });
-      return;
-    }
     try {
       const { baseId, tableId, recordId } = parseParams(airtableRecordWithIdParamsSchema, req);
       const fields = parseBody(airtableFieldsBodySchema, req);
@@ -169,6 +171,10 @@ export function airtableRouter(): Router {
         supabase: createUserSupabaseFromRequest(req),
         userId: req.user.id,
       });
+      if (!isAirtableMcpConfigured(runtime.runtimeConfig)) {
+        res.status(503).json({ error: MCP_ERROR_MESSAGES.airtable });
+        return;
+      }
       if (!runtime.available) {
         res.status(403).json({ error: "Connectez votre compte Airtable pour modifier des enregistrements." });
         return;
@@ -180,7 +186,8 @@ export function airtableRouter(): Router {
           table_id: tableId,
           records: [{ id: recordId, fields }],
         },
-        runtime.accessToken
+        runtime.accessToken,
+        runtime.runtimeConfig
       );
       const data = parseMcpResultJson(result);
       return res.json(data);

@@ -1,11 +1,13 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getValidNotionAccessToken, type NotionTokenRow } from "../../lib/notion-oauth.js";
 import {
+  type NotionMcpRuntimeConfig,
   getNotionRuntimeMode,
   hasNotionEnvToken,
   isNotionMcpConfigured,
 } from "../../mcp/notion-client.js";
 import { getOAuthTokenRecord, updateOAuthToken } from "../oauth-tokens.js";
+import { getUserMcpConfig } from "../user-mcp-config.js";
 
 export type UserIntegrationContext = {
   supabase: SupabaseClient;
@@ -16,6 +18,7 @@ export type RuntimeAccess = {
   available: boolean;
   source: "oauth" | "server-token" | "none";
   accessToken?: string;
+  runtimeConfig?: NotionMcpRuntimeConfig;
   canDisconnect: boolean;
   needsReconnect?: boolean;
 };
@@ -29,10 +32,19 @@ export function hasNotionOAuthConfig(): boolean {
 }
 
 export async function getNotionRuntimeAccess(ctx: UserIntegrationContext): Promise<RuntimeAccess> {
-  if (hasNotionEnvToken()) {
+  const userConfig = await getUserMcpConfig(ctx.supabase, ctx.userId);
+  const runtimeConfig: NotionMcpRuntimeConfig = {
+    url: userConfig.notion?.mcpUrl,
+    runtimeMode: userConfig.notion?.runtimeMode,
+    serverToken: userConfig.notion?.serverToken,
+  };
+  const hasUserServerToken = runtimeConfig.runtimeMode !== "oauth" && !!runtimeConfig.serverToken;
+  if (hasUserServerToken || hasNotionEnvToken()) {
     return {
       available: true,
       source: "server-token",
+      accessToken: runtimeConfig.serverToken || undefined,
+      runtimeConfig,
       canDisconnect: false,
     };
   }
@@ -82,6 +94,7 @@ export async function getNotionRuntimeAccess(ctx: UserIntegrationContext): Promi
     available: true,
     source: "oauth",
     accessToken,
+    runtimeConfig,
     canDisconnect: true,
   };
 }
@@ -90,7 +103,7 @@ export async function getNotionConnectionStatus(ctx: UserIntegrationContext) {
   const runtime = await getNotionRuntimeAccess(ctx);
   return {
     configured: isNotionMcpConfigured(),
-    selectedMode: getNotionRuntimeMode(),
+    selectedMode: getNotionRuntimeMode(runtime.runtimeConfig),
     oauthConfigured: hasNotionOAuthConfig(),
     connected: runtime.available,
     source: runtime.source,

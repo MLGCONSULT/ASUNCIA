@@ -80,26 +80,26 @@ export function notionRouter(): Router {
       res.status(401).json({ error: "Non authentifié" });
       return;
     }
-    if (!isNotionMcpConfigured()) {
-      res.status(503).json({ error: MCP_ERROR_MESSAGES.notion });
-      return;
-    }
     try {
       const runtime = await getNotionRuntimeAccess({
         supabase: createUserSupabaseFromRequest(req),
         userId: req.user.id,
       });
+      if (!isNotionMcpConfigured(runtime.runtimeConfig)) {
+        res.status(503).json({ error: MCP_ERROR_MESSAGES.notion });
+        return;
+      }
       if (!runtime.available) {
         res.status(403).json({ error: "Connectez Notion depuis les paramètres (OAuth)." });
         return;
       }
-      const { search: searchTool } = getNotionMcpToolNames();
+      const { search: searchTool } = getNotionMcpToolNames(runtime.runtimeConfig);
       const { filterType, query = "" } = parseQuery(notionSearchQuerySchema, req);
       const args =
         searchTool === "notion-search"
           ? { query: query.length > 0 ? query : " ", ...(filterType && { filter_type: filterType }) }
           : filterType ? { filter_type: filterType } : {};
-      const result = await callNotionMcpTool(searchTool, args, runtime.accessToken);
+      const result = await callNotionMcpTool(searchTool, args, runtime.accessToken, runtime.runtimeConfig);
       const data = parseMcpResultJson<{ results?: unknown[]; databases?: unknown[]; pages?: unknown[] }>(result);
       if (Array.isArray(data.results) && data.results.length >= 0) {
         const { databases, pages } = normalizeSearchResults(data.results);
@@ -140,28 +140,29 @@ export function notionRouter(): Router {
       res.status(401).json({ error: "Non authentifié" });
       return;
     }
-    if (!isNotionMcpConfigured()) {
-      res.status(503).json({ error: MCP_ERROR_MESSAGES.notion });
-      return;
-    }
     try {
       const runtime = await getNotionRuntimeAccess({
         supabase: createUserSupabaseFromRequest(req),
         userId: req.user.id,
       });
+      if (!isNotionMcpConfigured(runtime.runtimeConfig)) {
+        res.status(503).json({ error: MCP_ERROR_MESSAGES.notion });
+        return;
+      }
       if (!runtime.available) {
         res.status(403).json({ error: "Connectez Notion depuis les paramètres (OAuth)." });
         return;
       }
       const { databaseId } = parseParams(notionDatabaseParamsSchema, req);
       const { pageSize } = parseQuery(notionDatabaseQuerySchema, req);
-      const { queryDatabase: queryTool } = getNotionMcpToolNames();
+      const { queryDatabase: queryTool } = getNotionMcpToolNames(runtime.runtimeConfig);
       const result = await callNotionMcpTool(
         queryTool,
         queryTool === "query-data-source"
           ? { data_source_id: databaseId, page_size: pageSize }
           : { database_id: databaseId, page_size: pageSize },
-        runtime.accessToken
+        runtime.accessToken,
+        runtime.runtimeConfig
       );
       const data = parseMcpResultJson<{ results?: unknown[] }>(result);
       const resultsValue = Array.isArray(data.results) ? data.results : (data as { results?: unknown }).results;
