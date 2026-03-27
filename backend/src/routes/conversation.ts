@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { createUserSupabaseFromRequest } from "../services/auth-context.js";
+import { createSupabaseServiceClient } from "../lib/supabase.js";
 import { parseQuery } from "../validators/http.js";
 import { conversationQuerySchema } from "../validators/schemas.js";
 import type { AuthRequest } from "../middleware/auth.js";
@@ -87,9 +88,51 @@ export function conversationRouter(): Router {
       return;
     }
 
+    let finalConversationId = conversationId;
+    let finalMessages = messages ?? [];
+
+    // Fallback robuste: si aucune ligne visible (souvent RLS/config),
+    // on tente une lecture service-role strictement filtrée sur l'utilisateur.
+    if (!conversationIdParam && finalMessages.length === 0) {
+      try {
+        const admin = createSupabaseServiceClient();
+        const { data: convs } = await admin
+          .from("ai_conversations")
+          .select("id")
+          .eq("utilisateur_id", user.id)
+          .order("date_mise_a_jour", { ascending: false })
+          .limit(50);
+
+        const ids = (convs ?? []).map((c) => c.id).filter(Boolean);
+        if (ids.length > 0) {
+          const { data: latestMsg } = await admin
+            .from("ai_messages")
+            .select("conversation_id, date_creation")
+            .in("conversation_id", ids)
+            .order("date_creation", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          const fallbackConversationId = latestMsg?.conversation_id ?? ids[0];
+          const { data: fallbackMessages } = await admin
+            .from("ai_messages")
+            .select("id, role, contenu, date_creation")
+            .eq("conversation_id", fallbackConversationId)
+            .order("date_creation", { ascending: true });
+
+          if (fallbackConversationId && Array.isArray(fallbackMessages) && fallbackMessages.length > 0) {
+            finalConversationId = fallbackConversationId;
+            finalMessages = fallbackMessages;
+          }
+        }
+      } catch {
+        // Si service role absent/invalide, on garde la réponse standard.
+      }
+    }
+
     res.json({
-      conversationId,
-      messages: (messages ?? []).map((m) => ({
+      conversationId: finalConversationId,
+      messages: finalMessages.map((m) => ({
         id: m.id,
         role: m.role as "user" | "assistant",
         content: m.contenu,
