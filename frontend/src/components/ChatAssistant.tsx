@@ -91,7 +91,12 @@ export default function ChatAssistant({
 
     (async () => {
       try {
-        const res = await fetchBackend("/api/conversation", { signal: ac.signal });
+        // Route canonique côté backend: /api/chat/conversation
+        // Fallback conservé pour compatibilité (anciens déploiements/proxys).
+        let res = await fetchBackend("/api/chat/conversation", { signal: ac.signal });
+        if (!res.ok && res.status === 404) {
+          res = await fetchBackend("/api/conversation", { signal: ac.signal });
+        }
         if (cancelled) return;
         if (!res.ok) {
           setHistoryLoadError(true);
