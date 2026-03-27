@@ -189,6 +189,68 @@ function formatListItem(item: unknown): string {
   return firstKeys.map((k) => `${k}: ${stringifyShort(o[k])}`).join(" | ");
 }
 
+function truncateText(text: string, max = 120): string {
+  const t = text.trim();
+  if (t.length <= max) return t;
+  return `${t.slice(0, max - 1)}…`;
+}
+
+function extractNodeItems(runData: unknown, maxItems = 10): string[] {
+  if (!runData || typeof runData !== "object" || Array.isArray(runData)) return [];
+  const nodes = runData as Record<string, unknown>;
+  const collected: string[] = [];
+
+  for (const [nodeName, nodeRunsRaw] of Object.entries(nodes)) {
+    if (!Array.isArray(nodeRunsRaw)) continue;
+    for (const nodeRun of nodeRunsRaw) {
+      if (!nodeRun || typeof nodeRun !== "object") continue;
+      const data = (nodeRun as Record<string, unknown>).data;
+      if (!data || typeof data !== "object") continue;
+      const main = (data as Record<string, unknown>).main;
+      if (!Array.isArray(main)) continue;
+      for (const channel of main) {
+        if (!Array.isArray(channel)) continue;
+        for (const item of channel) {
+          if (!item || typeof item !== "object") continue;
+          const json = (item as Record<string, unknown>).json;
+          if (!json || typeof json !== "object" || Array.isArray(json)) continue;
+          const obj = json as Record<string, unknown>;
+
+          const subject = typeof obj.Subject === "string" ? obj.Subject : typeof obj.subject === "string" ? obj.subject : null;
+          const from = typeof obj.From === "string" ? obj.From : typeof obj.from === "string" ? obj.from : null;
+          const title = typeof obj.title === "string" ? obj.title : typeof obj.name === "string" ? obj.name : null;
+          const snippet = typeof obj.snippet === "string" ? obj.snippet : null;
+          const id = typeof obj.id === "string" ? obj.id : null;
+
+          let line = "";
+          if (subject || from) {
+            const s = subject ? truncateText(subject, 90) : "(sans objet)";
+            const f = from ? truncateText(from, 60) : "expéditeur inconnu";
+            line = `${s} — ${f}`;
+          } else if (title) {
+            line = `${truncateText(title, 90)}${id ? ` (id: ${id})` : ""}`;
+          } else if (snippet) {
+            line = truncateText(snippet, 110);
+          } else {
+            line = formatListItem(obj);
+          }
+
+          collected.push(line);
+          if (collected.length >= maxItems) return collected;
+        }
+      }
+    }
+    if (collected.length >= maxItems) return collected;
+    // If this node yielded human lines, prefixing with node context in summary is enough.
+    if (collected.length > 0) continue;
+    if (nodeName && collected.length < maxItems) {
+      // no-op placeholder to keep loop explicit for readability
+    }
+  }
+
+  return collected;
+}
+
 export default function N8nView() {
   const [loadingList, setLoadingList] = useState(true);
   const [refreshingList, setRefreshingList] = useState(false);
@@ -465,6 +527,12 @@ export default function N8nView() {
     const success = executionMeta?.success === true;
     const status = success ? "Succès" : executionMeta?.hasError ? "Échec" : "Partiel";
     const resultPayload = obj.result;
+    const resultObj = resultPayload && typeof resultPayload === "object" && !Array.isArray(resultPayload)
+      ? (resultPayload as Record<string, unknown>)
+      : null;
+    const runData = resultObj?.runData;
+    const pinData = resultObj?.pinData;
+    const lastNodeExecuted = typeof resultObj?.lastNodeExecuted === "string" ? resultObj.lastNodeExecuted : null;
     const primaryList = pickPrimaryArray(resultPayload);
     const resultLines: string[] = [];
     let interpretation = "";
@@ -482,6 +550,28 @@ export default function N8nView() {
       resume = success
         ? "Le workflow s'est exécuté et a renvoyé une liste de résultats."
         : resume;
+    } else if (runData && typeof runData === "object") {
+      const nodeNames = Object.keys(runData as Record<string, unknown>);
+      const readableItems = extractNodeItems(runData, 10);
+      if (nodeNames.length > 0) {
+        resultLines.push(`${nodeNames.length} nœud(s) exécuté(s) : ${nodeNames.slice(0, 4).join(", ")}${nodeNames.length > 4 ? ", ..." : ""}.`);
+      }
+      if (lastNodeExecuted) {
+        resultLines.push(`Dernier nœud exécuté : ${lastNodeExecuted}.`);
+      }
+      if (readableItems.length > 0) {
+        for (const item of readableItems) resultLines.push(`- ${item}`);
+      } else {
+        resultLines.push("Le workflow a tourné, mais sans éléments lisibles à afficher.");
+      }
+      if (pinData && typeof pinData === "object" && Object.keys(pinData as Record<string, unknown>).length > 0) {
+        resultLines.push("Des données d'entrée (pinData) étaient présentes.");
+      }
+      interpretation =
+        readableItems.length > 0
+          ? "Le workflow a renvoyé des éléments exploitables en sortie."
+          : "Le workflow a bien été exécuté, mais la sortie est surtout technique.";
+      if (success) resume = "Le workflow s'est exécuté et la sortie a été synthétisée automatiquement.";
     } else if (resultPayload && typeof resultPayload === "object") {
       const record = resultPayload as Record<string, unknown>;
       const keys = Object.keys(record);
@@ -490,7 +580,13 @@ export default function N8nView() {
         interpretation = "Le workflow a répondu, mais sans contenu utile.";
       } else {
         for (const key of keys.slice(0, 8)) {
-          resultLines.push(`- ${key}: ${stringifyShort(record[key])}`);
+          const value = record[key];
+          if (value && typeof value === "object") {
+            const subKeys = Object.keys(value as Record<string, unknown>);
+            resultLines.push(`- ${key}: objet (${subKeys.length} champ(s))`);
+          } else {
+            resultLines.push(`- ${key}: ${stringifyShort(value)}`);
+          }
         }
         if (keys.length > 8) resultLines.push(`... et ${keys.length - 8} autre(s) champ(s).`);
         interpretation = "Le workflow a renvoyé un résultat structuré.";
