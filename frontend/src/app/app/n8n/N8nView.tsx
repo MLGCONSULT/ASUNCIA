@@ -154,6 +154,41 @@ function extractExecutionLogicalError(obj: Record<string, unknown> | null | unde
   return null;
 }
 
+function stringifyShort(v: unknown): string {
+  if (v == null) return "-";
+  if (typeof v === "string") return v.trim() || "-";
+  if (typeof v === "number" || typeof v === "boolean") return String(v);
+  try {
+    return JSON.stringify(v);
+  } catch {
+    return String(v);
+  }
+}
+
+function pickPrimaryArray(result: unknown): unknown[] | null {
+  if (Array.isArray(result)) return result;
+  if (!result || typeof result !== "object") return null;
+  const obj = result as Record<string, unknown>;
+  const candidates = ["items", "results", "data", "rows", "messages", "emails", "records"];
+  for (const key of candidates) {
+    if (Array.isArray(obj[key])) return obj[key] as unknown[];
+  }
+  return null;
+}
+
+function formatListItem(item: unknown): string {
+  if (item == null) return "-";
+  if (typeof item === "string" || typeof item === "number" || typeof item === "boolean") return String(item);
+  if (typeof item !== "object" || Array.isArray(item)) return stringifyShort(item);
+  const o = item as Record<string, unknown>;
+  const title =
+    o.subject ?? o.name ?? o.title ?? o.email ?? o.id ?? o.key ?? o.label ?? o.status ?? o.type ?? o.date ?? null;
+  if (title != null) return stringifyShort(title);
+  const firstKeys = Object.keys(o).slice(0, 3);
+  if (firstKeys.length === 0) return "{}";
+  return firstKeys.map((k) => `${k}: ${stringifyShort(o[k])}`).join(" | ");
+}
+
 export default function N8nView() {
   const [loadingList, setLoadingList] = useState(true);
   const [refreshingList, setRefreshingList] = useState(false);
@@ -424,6 +459,65 @@ export default function N8nView() {
     };
   }, [executionResult]);
 
+  const executionSummary = useMemo(() => {
+    if (!executionResult || typeof executionResult !== "object") return null;
+    const obj = executionResult as Record<string, unknown>;
+    const success = executionMeta?.success === true;
+    const status = success ? "Succès" : executionMeta?.hasError ? "Échec" : "Partiel";
+    const resultPayload = obj.result;
+    const primaryList = pickPrimaryArray(resultPayload);
+    const resultLines: string[] = [];
+    let interpretation = "";
+    let resume = success ? "Le workflow s'est exécuté correctement." : "Le workflow s'est terminé avec un problème.";
+
+    if (primaryList) {
+      const total = primaryList.length;
+      const top = primaryList.slice(0, 10).map((it) => formatListItem(it));
+      resultLines.push(`${total} élément(s) retourné(s).`);
+      for (const item of top) resultLines.push(`- ${item}`);
+      if (total > top.length) resultLines.push(`... et ${total - top.length} autre(s) élément(s).`);
+      interpretation = total > 0
+        ? "Le workflow a renvoyé des données exploitables."
+        : "Le workflow a bien répondu mais n'a trouvé aucune donnée.";
+      resume = success
+        ? "Le workflow s'est exécuté et a renvoyé une liste de résultats."
+        : resume;
+    } else if (resultPayload && typeof resultPayload === "object") {
+      const record = resultPayload as Record<string, unknown>;
+      const keys = Object.keys(record);
+      if (keys.length === 0) {
+        resultLines.push("Aucune donnée trouvée pour cette demande.");
+        interpretation = "Le workflow a répondu, mais sans contenu utile.";
+      } else {
+        for (const key of keys.slice(0, 8)) {
+          resultLines.push(`- ${key}: ${stringifyShort(record[key])}`);
+        }
+        if (keys.length > 8) resultLines.push(`... et ${keys.length - 8} autre(s) champ(s).`);
+        interpretation = "Le workflow a renvoyé un résultat structuré.";
+      }
+      if (success) resume = "Le workflow s'est exécuté et a renvoyé un résultat structuré.";
+    } else if (typeof resultPayload === "number") {
+      resultLines.push(`${resultPayload}`);
+      interpretation = "Le workflow a renvoyé une valeur chiffrée exploitable.";
+      if (success) resume = "Le workflow s'est exécuté et a renvoyé une valeur numérique.";
+    } else if (typeof resultPayload === "string" && resultPayload.trim()) {
+      resultLines.push(resultPayload.trim());
+      interpretation = "Le workflow a renvoyé une réponse texte.";
+      if (success) resume = "Le workflow s'est exécuté et a renvoyé une réponse texte.";
+    } else {
+      resultLines.push("Aucune donnée trouvée pour cette demande.");
+      interpretation = executionMeta?.hasError
+        ? "La réponse est incomplète à cause d'une erreur."
+        : "Le workflow s'est exécuté, mais sans résultat exploitable.";
+    }
+
+    const limits = executionMeta?.hasError
+      ? executionMeta.errorText ?? "Une erreur est remontée pendant l'exécution."
+      : null;
+
+    return { status, resume, resultLines, interpretation, limits };
+  }, [executionResult, executionMeta]);
+
   return (
     <motion.div
       className="flex flex-col flex-1 min-h-0 gap-3"
@@ -669,28 +763,30 @@ export default function N8nView() {
                     </p>
                   ) : executionViewMode === "summary" ? (
                     <div className="space-y-2 text-xs">
-                      <div className="grid grid-cols-2 gap-2">
-                        <div className="rounded-lg border border-white/10 bg-black/20 px-2.5 py-2">
-                          <p className="text-text-dim">Statut</p>
-                          <p className={`${executionMeta?.success ? "text-accent-cyan" : "text-accent-rose"}`}>
-                            {executionMeta?.success ? "Succès" : "Erreur"}
-                          </p>
-                        </div>
-                        <div className="rounded-lg border border-white/10 bg-black/20 px-2.5 py-2">
-                          <p className="text-text-dim">Execution ID</p>
-                          <p className="text-text-primary font-mono truncate">{executionMeta?.executionId ?? "-"}</p>
+                      <div className="rounded-lg border border-white/10 bg-black/20 px-2.5 py-2">
+                        <p className="text-text-dim">Statut</p>
+                        <p className={executionSummary?.status === "Succès" ? "text-accent-cyan" : "text-accent-rose"}>
+                          {executionSummary?.status ?? "Partiel"}
+                        </p>
+                      </div>
+                      <div className="rounded-lg border border-white/10 bg-black/20 px-2.5 py-2">
+                        <p className="text-text-dim">Résumé</p>
+                        <p className="text-text-primary">{executionSummary?.resume ?? "Résultat reçu."}</p>
+                      </div>
+                      <div className="rounded-lg border border-white/10 bg-black/20 px-2.5 py-2">
+                        <p className="text-text-dim">Résultat</p>
+                        <div className="text-text-primary whitespace-pre-wrap break-words">
+                          {(executionSummary?.resultLines ?? []).join("\n")}
                         </div>
                       </div>
                       <div className="rounded-lg border border-white/10 bg-black/20 px-2.5 py-2">
-                        <p className="text-text-dim">Données retournées</p>
-                        <p className="text-text-primary">
-                          {executionMeta?.hasResult ? "Le workflow a renvoyé un objet result." : "Aucun result explicite."}
-                        </p>
+                        <p className="text-text-dim">Interprétation</p>
+                        <p className="text-text-primary">{executionSummary?.interpretation ?? "Interprétation non disponible."}</p>
                       </div>
-                      {executionMeta?.hasError ? (
+                      {executionSummary?.limits ? (
                         <div className="rounded-lg border border-accent-rose/30 bg-accent-rose/10 px-2.5 py-2">
-                          <p className="text-accent-rose">Erreur</p>
-                          <p className="text-text-primary break-all">{executionMeta.errorText ?? "Erreur non détaillée."}</p>
+                          <p className="text-accent-rose">Limites</p>
+                          <p className="text-text-primary break-all">{executionSummary.limits}</p>
                         </div>
                       ) : null}
                     </div>
