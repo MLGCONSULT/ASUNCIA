@@ -6,10 +6,33 @@ node_modules
 dist
 out
 
-# Env (ne pas committer les secrets)
+# Env / secrets (ne pas committer)
 .env
 .env.local
 .env.*.local
+.env.*
+**/.env
+**/.env.*
+*.env
+*.secret
+*.secrets
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+
+# Garder uniquement les exemples versionnables
+!.env.example
+!**/.env.example
+!**/.env*.example
+
+# Fichiers "prod" locaux à ne jamais pousser
+**/.env.prod
+**/.env.prod.*
+**/.env.production
+**/.env.production.*
+**/.env.prod.txt
 
 # Vercel
 .vercel
